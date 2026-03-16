@@ -9,6 +9,18 @@ h1 {
   margin: 1rem 0 0.5rem 0;
   color: #fff;
 }
+.status {
+  margin: 0 auto 0.5rem auto;
+  width: min(1000px, 92vw);
+  color: #f3dba2;
+  text-align: center;
+  min-height: 1.2rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.status.visible {
+  opacity: 1;
+}
 #openseadragon1 {
   margin: 0 auto;
   background: #181818;

@@ -7,10 +7,11 @@ A minimal web app to view the Tabula Peutingeriana with scroll and zoom, using O
 - Simple, responsive UI
 
 ## Usage
-1. Start a simple local server from the `public` folder, for example:
-	`python -m http.server 8000`
-2. Open `http://localhost:8000` in your browser.
-3. Pan and zoom the map using your mouse or touch.
+1. Open `public/index.html` directly in your browser.
+2. Pan and zoom the map using your mouse or touch.
+
+Optional:
+- You can still use a local server (for example `python -m http.server 8000`) if preferred.
 
 ## Deploy To GitHub Pages
 This repository is configured with a GitHub Actions workflow that deploys the `public/` folder.
