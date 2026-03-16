@@ -22,6 +22,32 @@ window.addEventListener('DOMContentLoaded', () => {
   const viewer = OpenSeadragon({
     id: 'openseadragon1',
     prefixUrl: 'https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/',
+    navImages: {
+      zoomIn: {
+        REST: 'osd-icons/zoom-in.svg',
+        GROUP: 'osd-icons/zoom-in.svg',
+        HOVER: 'osd-icons/zoom-in.svg',
+        DOWN: 'osd-icons/zoom-in.svg'
+      },
+      zoomOut: {
+        REST: 'osd-icons/zoom-out.svg',
+        GROUP: 'osd-icons/zoom-out.svg',
+        HOVER: 'osd-icons/zoom-out.svg',
+        DOWN: 'osd-icons/zoom-out.svg'
+      },
+      home: {
+        REST: 'osd-icons/home.svg',
+        GROUP: 'osd-icons/home.svg',
+        HOVER: 'osd-icons/home.svg',
+        DOWN: 'osd-icons/home.svg'
+      },
+      fullpage: {
+        REST: 'osd-icons/fullpage.svg',
+        GROUP: 'osd-icons/fullpage.svg',
+        HOVER: 'osd-icons/fullpage.svg',
+        DOWN: 'osd-icons/fullpage.svg'
+      }
+    },
     tileSources: isFileProtocol ? inlineTileSource : 'Tabula_Peutingeriana_-_Miller.dzi',
     showNavigator: true,
     defaultZoomLevel: 0,

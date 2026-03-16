@@ -59,8 +59,11 @@ h1 {
   filter: brightness(0.95);
 }
 #openseadragon1 .openseadragon-button img {
+  width: 18px !important;
+  height: 18px !important;
+  object-fit: contain;
   image-rendering: auto;
-  filter: grayscale(0.1) contrast(1.2) brightness(1.25) invert(0.08);
+  filter: none !important;
 }
 
 @media (max-width: 768px) {
