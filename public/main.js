@@ -3,6 +3,21 @@ window.addEventListener('DOMContentLoaded', () => {
   const isFileProtocol = window.location.protocol === 'file:';
   const statusEl = document.getElementById('status');
 
+  const svgToDataUrl = (svg) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+
+  const iconZoomIn = svgToDataUrl(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M12 6v12M6 12h12" stroke="#f2f7ff" stroke-width="2" stroke-linecap="round"/></svg>'
+  );
+  const iconZoomOut = svgToDataUrl(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M6 12h12" stroke="#f2f7ff" stroke-width="2" stroke-linecap="round"/></svg>'
+  );
+  const iconHome = svgToDataUrl(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M3.8 11.1L12 4.6l8.2 6.5" stroke="#f2f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 10.3V19h11v-8.7" stroke="#f2f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 19v-4.1h3.6V19" stroke="#f2f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  );
+  const iconFullpage = svgToDataUrl(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M8 4H4v4M16 4h4v4M4 16v4h4M20 16v4h-4" stroke="#f2f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  );
+
   // Inline Deep Zoom metadata avoids fetching the .dzi file over XHR,
   // which commonly fails under file:// in browsers.
   const inlineTileSource = {
@@ -24,28 +39,28 @@ window.addEventListener('DOMContentLoaded', () => {
     prefixUrl: 'https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/',
     navImages: {
       zoomIn: {
-        REST: 'osd-icons/zoom-in.svg',
-        GROUP: 'osd-icons/zoom-in.svg',
-        HOVER: 'osd-icons/zoom-in.svg',
-        DOWN: 'osd-icons/zoom-in.svg'
+        REST: iconZoomIn,
+        GROUP: iconZoomIn,
+        HOVER: iconZoomIn,
+        DOWN: iconZoomIn
       },
       zoomOut: {
-        REST: 'osd-icons/zoom-out.svg',
-        GROUP: 'osd-icons/zoom-out.svg',
-        HOVER: 'osd-icons/zoom-out.svg',
-        DOWN: 'osd-icons/zoom-out.svg'
+        REST: iconZoomOut,
+        GROUP: iconZoomOut,
+        HOVER: iconZoomOut,
+        DOWN: iconZoomOut
       },
       home: {
-        REST: 'osd-icons/home.svg',
-        GROUP: 'osd-icons/home.svg',
-        HOVER: 'osd-icons/home.svg',
-        DOWN: 'osd-icons/home.svg'
+        REST: iconHome,
+        GROUP: iconHome,
+        HOVER: iconHome,
+        DOWN: iconHome
       },
       fullpage: {
-        REST: 'osd-icons/fullpage.svg',
-        GROUP: 'osd-icons/fullpage.svg',
-        HOVER: 'osd-icons/fullpage.svg',
-        DOWN: 'osd-icons/fullpage.svg'
+        REST: iconFullpage,
+        GROUP: iconFullpage,
+        HOVER: iconFullpage,
+        DOWN: iconFullpage
       }
     },
     tileSources: isFileProtocol ? inlineTileSource : 'Tabula_Peutingeriana_-_Miller.dzi',
