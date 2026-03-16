@@ -6,8 +6,8 @@ body {
 }
 .viewer-title {
   text-align: center;
-  margin: 0.16rem 0 0.04rem 0;
-  font-size: 0.78rem;
+  margin: 0.08rem 0 0.02rem 0;
+  font-size: 0.64rem;
   line-height: 1.15;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -29,7 +29,7 @@ body {
 #openseadragon1 {
   margin: 0 auto;
   width: 100vw;
-  height: calc(100vh - 1.35rem);
+  height: calc(100vh - 1.05rem);
   background: #181818;
   border: 1px solid #333;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
@@ -72,13 +72,36 @@ body {
   height: 18px !important;
   margin: 0 auto !important;
   object-fit: contain;
-  filter: none !important;
+  opacity: 0 !important;
+}
+#openseadragon1 .openseadragon-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 18px;
+  height: 18px;
+  background-repeat: no-repeat;
+  background-size: 18px 18px;
+  background-position: center;
+}
+#openseadragon1 .openseadragon-button:nth-of-type(1)::before {
+  background-image: url('osd-icons/zoom-in.svg');
+}
+#openseadragon1 .openseadragon-button:nth-of-type(2)::before {
+  background-image: url('osd-icons/zoom-out.svg');
+}
+#openseadragon1 .openseadragon-button:nth-of-type(3)::before {
+  background-image: url('osd-icons/home.svg');
+}
+#openseadragon1 .openseadragon-button:nth-of-type(4)::before {
+  background-image: url('osd-icons/fullpage.svg');
 }
 
 @media (max-width: 768px) {
   .viewer-title {
-    font-size: 0.72rem;
-    margin-top: 0.1rem;
+    font-size: 0.6rem;
+    margin-top: 0.06rem;
     margin-bottom: 0.02rem;
   }
   .status {
@@ -86,7 +109,7 @@ body {
     font-size: 0.64rem;
   }
   #openseadragon1 {
-    height: calc(100vh - 1.1rem);
+    height: calc(100vh - 0.95rem);
   }
   #openseadragon1 .openseadragon-button {
     width: 46px !important;
