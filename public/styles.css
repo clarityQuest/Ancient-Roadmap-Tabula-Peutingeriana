@@ -4,17 +4,22 @@ body {
   background: #181818;
   color: #fff;
 }
-h1 {
+.viewer-title {
   text-align: center;
-  margin: 1rem 0 0.5rem 0;
+  margin: 0.35rem 0 0.15rem 0;
+  font-size: 1rem;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: #fff;
 }
 .status {
-  margin: 0 auto 0.5rem auto;
+  margin: 0 auto 0.2rem auto;
   width: min(1000px, 92vw);
   color: #f3dba2;
   text-align: center;
-  min-height: 1.2rem;
+  min-height: 0.8rem;
+  font-size: 0.78rem;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -23,8 +28,10 @@ h1 {
 }
 #openseadragon1 {
   margin: 0 auto;
+  width: 100vw;
+  height: calc(100vh - 2.1rem);
   background: #181818;
-  border: 2px solid #333;
+  border: 1px solid #333;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 .openseadragon-container {
@@ -67,6 +74,18 @@ h1 {
 }
 
 @media (max-width: 768px) {
+  .viewer-title {
+    font-size: 0.9rem;
+    margin-top: 0.28rem;
+    margin-bottom: 0.08rem;
+  }
+  .status {
+    margin-bottom: 0.14rem;
+    font-size: 0.74rem;
+  }
+  #openseadragon1 {
+    height: calc(100vh - 1.9rem);
+  }
   #openseadragon1 .openseadragon-button {
     width: 46px !important;
     height: 38px !important;
