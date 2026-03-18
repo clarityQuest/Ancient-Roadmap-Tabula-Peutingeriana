@@ -1,9 +1,16 @@
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
   background: #181818;
   color: #fff;
+  min-height: 100vh;
   min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
