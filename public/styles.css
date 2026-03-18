@@ -68,8 +68,8 @@ body {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 .viewer-btn {
-  width: 32px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: 4px;
   border: 1px solid #43516a;
   background: linear-gradient(180deg, #35507b 0%, #24354f 100%);
@@ -122,7 +122,23 @@ body {
     top: max(10px, calc(env(safe-area-inset-top) + 10px));
   }
   .viewer-btn {
-    width: 34px !important;
-    height: 32px !important;
+    width: 28px !important;
+    height: 28px !important;
   }
+}
+
+.viewer-footer {
+  text-align: center;
+  padding: 0.3rem 0 0.4rem 0;
+  font-size: 0.72rem;
+  color: #888;
+  flex-shrink: 0;
+}
+.viewer-footer a {
+  color: #8ab4f8;
+  text-decoration: none;
+  margin: 0 0.5rem;
+}
+.viewer-footer a:hover {
+  text-decoration: underline;
 }
