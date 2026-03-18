@@ -27,9 +27,9 @@ window.addEventListener('DOMContentLoaded', () => {
     showNavigator: true,
     defaultZoomLevel: 0,
     minZoomLevel: 0,
-    maxZoomLevel: 40,
-    visibilityRatio: 1.0,
-    constrainDuringPan: true,
+    maxZoomLevel: 80,
+    visibilityRatio: 0.2,
+    constrainDuringPan: false,
     blendTime: 0.1,
     animationTime: 0.5,
     backgroundColor: '#181818'
