@@ -23,6 +23,17 @@ body {
   letter-spacing: 0.02em;
   color: #fff;
 }
+.viewer-subtitle {
+  margin: 0 auto 0.12rem auto;
+  width: min(1000px, 92vw);
+  text-align: center;
+  color: #cfd8e3;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.viewer-subtitle a {
+  color: #8ab4f8;
+}
 .status {
   margin: 0 auto 0.08rem auto;
   width: min(1000px, 92vw);
@@ -113,6 +124,10 @@ body {
     font-size: 1.2rem;
     margin-top: 0.16rem;
     margin-bottom: 0.02rem;
+  }
+  .viewer-subtitle {
+    font-size: 0.7rem;
+    margin-bottom: 0.08rem;
   }
   .status {
     margin-bottom: 0.06rem;
