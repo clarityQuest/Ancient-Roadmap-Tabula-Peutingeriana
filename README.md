@@ -1,5 +1,7 @@
 # Tabula Peutingeriana
 
+The Tabula Peutingeriana is a medieval copy of an ancient Roman road map of the cursus publicus, shown from Europe to Asia, and is described on [Wikipedia](https://en.wikipedia.org/wiki/Tabula_Peutingeriana).
+
 A minimal web app to view the Tabula Peutingeriana with scroll and zoom, using OpenSeadragon and a high-resolution open-licensed image.
 
 ## Features
