@@ -78,7 +78,7 @@ const S = {
   newSourceKind: "readable-seg4", // "readable-seg4" | "stitched"
   markersOn:      true,
   labelsOn:       true,
-  activeTypes:    new Set(Object.keys(TYPE_COLORS)),
+  activeTypes:    new Set(["major_city", "city"]),
   millerOverlayOn: true,
   millerCalib:    [],   // loaded from miller_rect_* fields in review_places_db.json
   legendOpen:     false,
@@ -228,7 +228,7 @@ function focusSegment(segmentNumber, immediate = false) {
   // Zoom to fill width:  Z = 1/segW
   // Zoom to fill height: Z = imageAspect / (viewportAspect * segH)
   //   because viewport height in OSD units = (1/viewportAspect)/Z = segH/imageAspect
-  const zoomFill = Math.max(1 / segW, imageAspect / (viewportAspect * segH));
+  const zoomFill = Math.max(1 / segW, imageAspect / (viewportAspect * segH)) * 0.82;
 
   vp.panTo(new OpenSeadragon.Point(cx, osdCy), immediate);
   vp.zoomTo(zoomFill, new OpenSeadragon.Point(cx, osdCy), immediate);
@@ -824,7 +824,8 @@ function setupTypeFilters() {
   container.innerHTML = types.map(t => {
     const color = TYPE_COLORS[t];
     const label = TYPE_LABELS[t];
-    return `<button class="type-filter-btn active" data-type="${t}" title="${label}">
+    const active = S.activeTypes.has(t) ? " active" : "";
+    return `<button class="type-filter-btn${active}" data-type="${t}" title="${label}">
       <span class="tf-dot" style="background:${color}"></span>${label}
     </button>`;
   }).join("");
