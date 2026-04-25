@@ -491,12 +491,12 @@ function renderMarkers() {
   const by0 = bounds.y;
   const by1 = bounds.y + bounds.height;
 
-  const labelZoomThreshold = S.isMobile ? 5 : 4;
+  const labelZoomThreshold = S.isMobile ? 8 : 4;
   const showLabels = zoom >= labelZoomThreshold;
   const labelAlpha = Math.min(1, (zoom - labelZoomThreshold) * 0.5);
 
   let rendered = 0;
-  const MAX_LABELS = S.isMobile ? 40 : 200;
+  const MAX_LABELS = S.isMobile ? 15 : 200;
   let labelCount = 0;
 
   for (const p of S.places) {
