@@ -715,17 +715,6 @@ function showInfoPanel(place) {
     }
   }
 
-  // Link to tabula-peutingeriana.de section viewer
-  const ulmLink = document.getElementById("panel-ulm-link");
-  if (ulmLink) {
-    const href = tabulaSourceHref(place);
-    if (href) {
-      ulmLink.href = href;
-      ulmLink.classList.remove("hidden");
-    } else {
-      ulmLink.classList.add("hidden");
-    }
-  }
 
   panel.classList.remove("hidden");
 }
