@@ -491,13 +491,15 @@ function renderMarkers() {
   const by0 = bounds.y;
   const by1 = bounds.y + bounds.height;
 
-  // Font size is driven by on-screen marker size, not zoom directly.
-  // Overlap detection prevents label crowding at any zoom level.
-  const maxLabelFont = S.isMobile ? 11 : 20;
-  const labelRects = []; // bounding boxes of already-placed labels
-  const LABEL_PAD = 4;  // extra breathing room around each label
+  // Font size driven by the SMALLER marker dimension (min not max) so wide rivers
+  // don't inflate the font. Overlap detection + hard mobile cap prevent crowding.
+  const maxLabelFont = S.isMobile ? 13 : 22;
+  const MAX_LABELS   = S.isMobile ?  6 : 999;
+  const labelRects = [];
+  const LABEL_PAD = 4;
 
   let rendered = 0;
+  let labelCount = 0;
 
   for (const p of S.places) {
     if (!S.activeTypes.has(p.type)) continue;
@@ -529,14 +531,14 @@ function renderMarkers() {
       highlightDrawn = true;
     }
 
-    if (S.labelsOn) {
+    if (S.labelsOn && labelCount < MAX_LABELS) {
       const latin  = p.latin_std || p.latin;
       const modern = p.modern || null;
       if (latin || modern) {
-        // Font size proportional to marker screen size — naturally smaller when zoomed out
-        const fontSize = Math.min(Math.max(w, h) * 0.9, maxLabelFont);
-        if (fontSize >= 6) {
-          const alpha = Math.min(1, (fontSize - 6) * 0.7);
+        // Use min(w,h): a wide-but-thin river marker shouldn't get a large font
+        const fontSize = Math.min(Math.min(w, h) * 1.4, maxLabelFont);
+        if (fontSize >= 9) {
+          const alpha = Math.min(1, (fontSize - 9) * 0.6);
           if (alpha > 0) {
             // Estimate label bounding box (char width ≈ 0.55 × fontSize)
             const charW = fontSize * 0.55;
@@ -559,6 +561,7 @@ function renderMarkers() {
             if (!overlaps) {
               labelRects.push({ x1: bx - LABEL_PAD, y1: by - LABEL_PAD,
                                 x2: bx + boxW + LABEL_PAD, y2: by + boxH + LABEL_PAD });
+              labelCount++;
               ctx.save();
               ctx.globalAlpha = alpha;
               ctx.strokeStyle = "rgba(0,0,0,0.8)";
