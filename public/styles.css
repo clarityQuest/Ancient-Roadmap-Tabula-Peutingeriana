@@ -274,7 +274,9 @@ body, html {
   /* Show hamburger, hide desktop filter row + segment strip */
   #mobile-menu-btn { display: flex !important; }
   #segment-buttons { display: none; }
-  #bottom-left-controls { display: none; }
+  /* Show only the two quick-access buttons; hide the full category row */
+  #bottom-left-controls #type-filter-buttons { display: none; }
+  #bottom-left-controls { bottom: 10px; display: flex; flex-direction: row; gap: 6px; }
   #attribution { display: none; }
 
   /* Search fills remaining top-bar space */

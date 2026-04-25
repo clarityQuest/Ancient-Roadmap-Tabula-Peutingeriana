@@ -437,20 +437,19 @@ function renderMillerOverlay(ctx) {
     }
 
     if (zoom >= (S.isMobile ? 3 : 6) && S.labelsOn) {
+      const mfs = Math.max(7, Math.min(zoom * 1.6 + 5, 14));
       ctx.strokeStyle = "rgba(0,0,0,0.8)";
       ctx.lineWidth = 3;
       ctx.lineJoin = "round";
-      // Modern name inside box, bottom-aligned
       if (item.modern) {
-        ctx.font = `bold 14px 'Segoe UI', system-ui, sans-serif`;
+        ctx.font = `bold ${Math.round(mfs)}px 'Segoe UI', system-ui, sans-serif`;
         ctx.textBaseline = "bottom";
         ctx.strokeText(item.modern, x + 3, y + h - 2);
         ctx.fillStyle = "#ffffff";
         ctx.fillText(item.modern, x + 3, y + h - 2);
       }
-      // Latin name smaller, below the box
       if (item.latin_std) {
-        ctx.font = `13px 'Segoe UI', system-ui, sans-serif`;
+        ctx.font = `${Math.round(mfs - 1)}px 'Segoe UI', system-ui, sans-serif`;
         ctx.textBaseline = "top";
         ctx.strokeText(item.latin_std, x, y + h + 2);
         ctx.fillStyle = "#e5e7eb";
@@ -461,10 +460,6 @@ function renderMillerOverlay(ctx) {
   }
   ctx.globalAlpha = 1;
 
-  const statusEl = document.getElementById("status");
-  if (statusEl) statusEl.textContent = drawn > 0
-    ? `${drawn} calibrated markers`
-    : "No calibrations yet — use calibrate.html to mark place positions";
   return highlightDrawn;
 }
 
@@ -529,7 +524,7 @@ function renderMarkers() {
     if (showLabels && S.labelsOn && labelCount < MAX_LABELS) {
       const latin  = p.latin_std || p.latin;
       const modern = p.modern || null;
-      const fontSize = Math.min(10 + zoom * 0.5, 14);
+      const fontSize = Math.max(7, Math.min(zoom * 1.6 + 5, 14));
       ctx.strokeStyle = "rgba(0,0,0,0.8)";
       ctx.lineWidth = 3;
       ctx.lineJoin = "round";
@@ -552,11 +547,6 @@ function renderMarkers() {
       if (latin || modern) labelCount++;
     }
     rendered++;
-  }
-
-  const statusEl = document.getElementById("status");
-  if (statusEl) {
-    statusEl.textContent = `${rendered} / ${S.places.length} places`;
   }
 
   // Fallback: draw a dot + ring at the estimated position when no real marker was rendered
@@ -834,7 +824,6 @@ function setupSearch() {
     }
 
     panToPlace(place);
-    showInfoPanel(place);
     startHighlight(place);
     renderMarkers();
 
@@ -852,13 +841,14 @@ function setupSearch() {
 function panToPlace(place) {
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
+    const mhw = S.isMobile ? 0.008 : 0.02;
     const mc = S.millerCalib.find(m => m.data_id === place.data_id);
     if (mc) {
       const cx = (mc.rect_x1 + mc.rect_x2) / 2 / MILLER_W;
       const cy = (mc.rect_y1 + mc.rect_y2) / 2 / MILLER_W;
       S.highlightVp = { vx: cx, vy: cy };
       S.viewer.viewport.fitBounds(
-        new OpenSeadragon.Rect(cx - 0.02, cy - 0.01 * millerAspect, 0.04, 0.02 * millerAspect)
+        new OpenSeadragon.Rect(cx - mhw, cy - mhw * millerAspect, mhw * 2, mhw * 2 * millerAspect)
       );
     } else {
       // Estimate from tabula segment/row when no calibration exists
@@ -869,7 +859,7 @@ function panToPlace(place) {
       const estVy = (rowMap[place.tabula_row] ?? 0.5) * millerAspect;
       S.highlightVp = { vx: estVx, vy: estVy };
       S.viewer.viewport.fitBounds(
-        new OpenSeadragon.Rect(estVx - 0.02, estVy - 0.01 * millerAspect, 0.04, 0.02 * millerAspect)
+        new OpenSeadragon.Rect(estVx - mhw, estVy - mhw * millerAspect, mhw * 2, mhw * 2 * millerAspect)
       );
     }
     return;
@@ -883,8 +873,9 @@ function panToPlace(place) {
   const vx = Number.isFinite(place.vx) ? place.vx : 0.5;
   const vy = Number.isFinite(place.vy) ? place.vy : 0.5;
   S.highlightVp = { vx, vy };
+  const hw = S.isMobile ? 0.008 : 0.02;
   S.viewer.viewport.fitBounds(
-    new OpenSeadragon.Rect(vx - 0.02, vy - 0.01 * aspect, 0.04, 0.02 * aspect)
+    new OpenSeadragon.Rect(vx - hw, vy - hw * aspect, hw * 2, hw * 2 * aspect)
   );
 }
 
@@ -1017,14 +1008,36 @@ function setupMobileMenu() {
     // Sync type filter buttons
     const typeContainer = document.getElementById("mobile-type-filter-buttons");
     const types = Object.keys(TYPE_COLORS);
-    typeContainer.innerHTML = types.map(t => {
-      const color = TYPE_COLORS[t];
-      const label = TYPE_LABELS[t];
-      const active = S.activeTypes.has(t) ? " active" : "";
-      return `<button class="type-filter-btn${active}" data-type="${t}" title="${label}">
-        <span class="tf-dot" style="background:${color}"></span>${label}
-      </button>`;
-    }).join("");
+    const allOn = S.activeTypes.size === types.length;
+    typeContainer.innerHTML =
+      `<button class="ctrl-btn toggle-btn${allOn ? " active" : ""}" id="mobile-toggle-all" style="width:100%;margin-bottom:6px">Select All</button>` +
+      types.map(t => {
+        const color = TYPE_COLORS[t];
+        const label = TYPE_LABELS[t];
+        const active = S.activeTypes.has(t) ? " active" : "";
+        return `<button class="type-filter-btn${active}" data-type="${t}" title="${label}">
+          <span class="tf-dot" style="background:${color}"></span>${label}
+        </button>`;
+      }).join("");
+
+    typeContainer.querySelector("#mobile-toggle-all").addEventListener("click", (e) => {
+      const allActive = S.activeTypes.size === types.length;
+      if (allActive) {
+        S.activeTypes.clear();
+        typeContainer.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
+        e.currentTarget.classList.remove("active");
+        document.querySelectorAll("#type-filter-buttons .type-filter-btn").forEach(b => b.classList.remove("active"));
+        document.getElementById("toggle-all-types")?.classList.remove("active");
+      } else {
+        types.forEach(t => S.activeTypes.add(t));
+        typeContainer.querySelectorAll(".type-filter-btn").forEach(b => b.classList.add("active"));
+        e.currentTarget.classList.add("active");
+        document.querySelectorAll("#type-filter-buttons .type-filter-btn").forEach(b => b.classList.add("active"));
+        document.getElementById("toggle-all-types")?.classList.add("active");
+      }
+      renderMarkers();
+    });
+
     typeContainer.addEventListener("click", (e) => {
       const b = e.target.closest(".type-filter-btn");
       if (!b) return;
