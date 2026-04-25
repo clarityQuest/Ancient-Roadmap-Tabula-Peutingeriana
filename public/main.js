@@ -88,7 +88,7 @@ const S = {
   highlightDataId: null,
   highlightUntil:  0,
   highlightVp:     null,  // {vx,vy} viewport centre stored by panToPlace for fallback ring
-  isMobile: window.matchMedia("(pointer: coarse)").matches,
+  isMobile: window.matchMedia("(pointer: coarse), (max-width: 600px)").matches,
   canvas:       null,
   ctx:          null,
   readableTile: null,
