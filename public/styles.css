@@ -180,6 +180,11 @@ body, html {
 #panel-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .panel-link { font-size: 12px; color: var(--accent); text-decoration: none; }
 .panel-link:hover { text-decoration: underline; }
+#panel-sources { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+#panel-sources a { color: var(--accent); text-decoration: none; }
+#panel-sources a:hover { text-decoration: underline; }
+#mobile-menu-attribution { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted); text-align: center; line-height: 1.6; }
+#mobile-menu-attribution a { color: var(--accent); text-decoration: none; }
 
 /* Type filter buttons */
 .type-filter-group { display: flex; gap: 3px; flex-wrap: wrap; }
@@ -217,7 +222,7 @@ body, html {
 
 /* Legend, Status & Footer Elements */
 #legend { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 10; }
-#legend-toggle { background: var(--panel-bg); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; cursor: pointer; margin-left: auto; display: block; }
+#legend-toggle { background: var(--panel-bg); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer; margin-left: auto; display: block; }
 #legend-body { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin-top: 8px; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
 #legend.open #legend-body { display: block; }
 .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; }
@@ -303,7 +308,31 @@ body, html {
     border-radius: 2px;
     margin: 0 auto 10px;
   }
-  #panel-map { display: none !important; }  /* hide mini-map on mobile to save space */
+
+  /* Small map thumbnail — absolutely positioned top-right of the panel */
+  #panel-map:not(.hidden) {
+    display: block !important;
+    position: absolute;
+    top: 44px;
+    right: 12px;
+    width: 110px;
+    margin: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    z-index: 1;
+  }
+  #panel-map:not(.hidden) iframe {
+    height: 72px;
+    pointer-events: none;
+    display: block;
+  }
+
+  /* Reserve space on the right so title text doesn't overlap the map thumbnail */
+  #panel-latin, #panel-modern, #panel-type { padding-right: 122px; }
+
+  /* Legend at same bottom level as bottom-left-controls */
+  #legend { bottom: 10px; }
+  #legend-toggle { min-height: 38px; }
 
   /* Larger tap targets for controls */
   .ctrl-btn { min-width: 38px; min-height: 38px; }

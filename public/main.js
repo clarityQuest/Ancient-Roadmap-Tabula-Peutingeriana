@@ -438,7 +438,8 @@ function renderMillerOverlay(ctx) {
 
     const millerLabelThreshold = 6;
     if (zoom >= millerLabelThreshold && S.labelsOn) {
-      const mfs = Math.max(8, Math.min((zoom - millerLabelThreshold) * 1.5 + 8, 14));
+      const [mfsMin, mfsMax] = S.isMobile ? [6, 10] : [8, 14];
+      const mfs = Math.max(mfsMin, Math.min((zoom - millerLabelThreshold) * 1.5 + mfsMin, mfsMax));
       const mAlpha = Math.min(1, (zoom - millerLabelThreshold) * 0.5);
       ctx.save();
       ctx.globalAlpha = mAlpha;
@@ -490,9 +491,8 @@ function renderMarkers() {
   const by0 = bounds.y;
   const by1 = bounds.y + bounds.height;
 
-  const labelZoomThreshold = 4;
+  const labelZoomThreshold = S.isMobile ? 5 : 4;
   const showLabels = zoom >= labelZoomThreshold;
-  // Fade in over 2 zoom levels above the threshold
   const labelAlpha = Math.min(1, (zoom - labelZoomThreshold) * 0.5);
 
   let rendered = 0;
@@ -532,8 +532,8 @@ function renderMarkers() {
     if (showLabels && S.labelsOn && labelCount < MAX_LABELS) {
       const latin  = p.latin_std || p.latin;
       const modern = p.modern || null;
-      // Direct pixel sizes, no multiplier: 8px at threshold, grows to 14px
-      const fontSize = Math.max(8, Math.min((zoom - labelZoomThreshold) * 1.5 + 8, 14));
+      const [minFont, maxFont] = S.isMobile ? [6, 10] : [8, 14];
+      const fontSize = Math.max(minFont, Math.min((zoom - labelZoomThreshold) * 1.5 + minFont, maxFont));
       ctx.save();
       ctx.globalAlpha = labelAlpha;
       ctx.strokeStyle = "rgba(0,0,0,0.8)";
@@ -1066,7 +1066,7 @@ function setupMobileMenu() {
     segContainer.addEventListener("click", (e) => {
       const b = e.target.closest(".seg-btn");
       if (!b) return;
-      const seg = Number(b.dataset.segment);
+      const seg = Number(b.dataset.seg);
       focusSegment(seg);
       closeMenu();
     });
