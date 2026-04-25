@@ -779,6 +779,18 @@ function setupSearch() {
 }
 
 function panToPlace(place) {
+  if (S.mapMode === "old") {
+    const mc = S.millerCalib.find(m => m.data_id === place.data_id);
+    if (mc) {
+      const cx = (mc.rect_x1 + mc.rect_x2) / 2 / MILLER_W;
+      const cy = (mc.rect_y1 + mc.rect_y2) / 2 / MILLER_W;
+      const aspect = MILLER_H / MILLER_W;
+      S.viewer.viewport.fitBounds(
+        new OpenSeadragon.Rect(cx - 0.02, cy - 0.01 * aspect, 0.04, 0.02 * aspect)
+      );
+    }
+    return;
+  }
   if (S.newSourceKind === "stitched") {
     const statusEl = document.getElementById("status");
     if (statusEl) statusEl.textContent = "Place overlays are calibrated for the readable 150dpi segment IV source.";
