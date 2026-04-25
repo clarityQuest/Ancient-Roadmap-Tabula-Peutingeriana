@@ -760,8 +760,8 @@ function setupSearch() {
   results.addEventListener("click", (e) => {
     const item = e.target.closest(".search-item");
     if (!item) return;
-    const id = Number(item.dataset.id);
-    const place = S.places.find(p => p.id === id);
+    const id = item.dataset.id;
+    const place = S.places.find(p => String(p.id) === id);
     if (!place) return;
 
     panToPlace(place);
