@@ -438,7 +438,7 @@ function renderMillerOverlay(ctx) {
 
     const millerLabelThreshold = 6;
     if (zoom >= millerLabelThreshold && S.labelsOn) {
-      const [mfsMin, mfsMax] = S.isMobile ? [6, 20] : [8, 28];
+      const [mfsMin, mfsMax] = S.isMobile ? [4, 12] : [8, 28];
       const mfs = Math.max(mfsMin, Math.min((zoom - millerLabelThreshold) * 1.8 + mfsMin, mfsMax));
       const mAlpha = Math.min(1, (zoom - millerLabelThreshold) * 0.5);
       ctx.save();
@@ -532,7 +532,7 @@ function renderMarkers() {
     if (showLabels && S.labelsOn && labelCount < MAX_LABELS) {
       const latin  = p.latin_std || p.latin;
       const modern = p.modern || null;
-      const [minFont, maxFont] = S.isMobile ? [6, 20] : [8, 28];
+      const [minFont, maxFont] = S.isMobile ? [4, 12] : [8, 28];
       const fontSize = Math.max(minFont, Math.min((zoom - labelZoomThreshold) * 1.8 + minFont, maxFont));
       ctx.save();
       ctx.globalAlpha = labelAlpha;
