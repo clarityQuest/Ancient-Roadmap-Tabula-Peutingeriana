@@ -436,9 +436,9 @@ function renderMillerOverlay(ctx) {
       highlightDrawn = true;
     }
 
-    const millerLabelThreshold = S.isMobile ? 3 : 6;
+    const millerLabelThreshold = 6;
     if (zoom >= millerLabelThreshold && S.labelsOn) {
-      const mfs = Math.max(7, Math.min((zoom - millerLabelThreshold) * 1.2 + 7, 14));
+      const mfs = Math.max(8, Math.min((zoom - millerLabelThreshold) * 1.5 + 8, 14));
       const mAlpha = Math.min(1, (zoom - millerLabelThreshold) * 0.5);
       ctx.save();
       ctx.globalAlpha = mAlpha;
@@ -490,9 +490,9 @@ function renderMarkers() {
   const by0 = bounds.y;
   const by1 = bounds.y + bounds.height;
 
-  const labelZoomThreshold = S.isMobile ? 2 : 4;
+  const labelZoomThreshold = 4;
   const showLabels = zoom >= labelZoomThreshold;
-  // Fade labels in smoothly above the threshold; fully opaque at threshold+2
+  // Fade in over 2 zoom levels above the threshold
   const labelAlpha = Math.min(1, (zoom - labelZoomThreshold) * 0.5);
 
   let rendered = 0;
@@ -532,21 +532,22 @@ function renderMarkers() {
     if (showLabels && S.labelsOn && labelCount < MAX_LABELS) {
       const latin  = p.latin_std || p.latin;
       const modern = p.modern || null;
-      const fontSize = Math.max(7, Math.min((zoom - labelZoomThreshold) * 1.2 + 7, 14));
+      // Direct pixel sizes, no multiplier: 8px at threshold, grows to 14px
+      const fontSize = Math.max(8, Math.min((zoom - labelZoomThreshold) * 1.5 + 8, 14));
       ctx.save();
       ctx.globalAlpha = labelAlpha;
       ctx.strokeStyle = "rgba(0,0,0,0.8)";
       ctx.lineWidth = 3;
       ctx.lineJoin = "round";
       if (modern) {
-        ctx.font = `bold ${Math.round(fontSize * 1.4)}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.font = `bold ${Math.round(fontSize)}px 'Segoe UI', system-ui, sans-serif`;
         ctx.textBaseline = "bottom";
         ctx.strokeText(modern, x + 3, y + h - 2);
         ctx.fillStyle = "#ffffff";
         ctx.fillText(modern, x + 3, y + h - 2);
       }
       if (latin) {
-        ctx.font = `${Math.round((fontSize - 1) * 1.4)}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.font = `${Math.round(fontSize - 1)}px 'Segoe UI', system-ui, sans-serif`;
         ctx.textBaseline = "top";
         ctx.strokeText(latin, x, y + h + 2);
         ctx.fillStyle = "#e5e7eb";

@@ -216,7 +216,7 @@ body, html {
 .tt-detail span { color: #ccc; }
 
 /* Legend, Status & Footer Elements */
-#legend { position: absolute; bottom: 40px; right: 20px; z-index: 10; }
+#legend { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 10; }
 #legend-toggle { background: var(--panel-bg); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; cursor: pointer; margin-left: auto; display: block; }
 #legend-body { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin-top: 8px; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
 #legend.open #legend-body { display: block; }
