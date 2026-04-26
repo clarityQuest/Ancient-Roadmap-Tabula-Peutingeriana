@@ -468,7 +468,7 @@ function renderMillerOverlay(ctx) {
           const boxW = Math.max(txt1.length, txt2.length) * charW;
           const boxH = (txt1 ? lineH : 0) + (txt2 ? lineH : 0);
           const bx = x + 2;
-          const by = y + Math.max(2, (h - boxH) / 2);
+          const by = y + Math.max(2, h - boxH - 2);
           let overlaps = false;
           for (const r of mLabelRects) {
             if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) {
@@ -592,7 +592,7 @@ function renderMarkers() {
             );
             const boxH = (modern ? lineH : 0) + (latin ? lineH : 0);
             const bx = x + 2;
-            const by = y + Math.max(2, (h - boxH) / 2);
+            const by = y + Math.max(2, h - boxH - 2);
 
             // Skip if this label would overlap an already-placed one
             let overlaps = false;
