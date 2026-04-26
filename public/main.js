@@ -495,8 +495,9 @@ function renderMillerOverlay(ctx) {
             }
           }
           if (!overlaps) {
+            const mReserveW = Math.min(boxW, w);
             mLabelRects.push({ x1: bx - MPAD, y1: by - MPAD,
-                               x2: bx + boxW + MPAD, y2: by + boxH + MPAD });
+                               x2: bx + mReserveW + MPAD, y2: by + boxH + MPAD });
             mLabelCount++;
             ctx.save();
             ctx.globalAlpha = mAlpha;
@@ -621,8 +622,9 @@ function renderMarkers() {
               }
             }
             if (!overlaps) {
+              const reserveW = Math.min(boxW, w);
               labelRects.push({ x1: bx - LABEL_PAD, y1: by - LABEL_PAD,
-                                x2: bx + boxW + LABEL_PAD, y2: by + boxH + LABEL_PAD });
+                                x2: bx + reserveW + LABEL_PAD, y2: by + boxH + LABEL_PAD });
               labelCount++;
               ctx.save();
               ctx.globalAlpha = alpha;
