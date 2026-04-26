@@ -78,6 +78,9 @@ const LP_DEFAULTS = {
   fadeRate:          1.0,  // with threshold=0 this is always opaque; not exposed in UI
   maxLabelsDesktop: 200,   // hard cap on simultaneous labels (desktop)
   maxLabelsMobile:   10,   // hard cap on simultaneous labels (mobile)
+  minFontMobile:     0,    // mobile labels hidden if scaled font falls below this px
+  labelPad:          4,    // px padding around each label's overlap bounding box
+  labelPadZoomThresh: 8,  // above this zoom, skip overlap detection entirely (show all labels)
   zoomThreshMid:     0.8,  // road_station hidden below this OSD zoom
   zoomThreshAll:     2.5,  // all types visible above this OSD zoom
   // Zoom → font curve: 4 control points (piecewise linear). Font = min(curve, markerCap).
@@ -99,6 +102,16 @@ function fontFromZoom(zoom) {
     }
   }
   return pts[3][1];
+}
+
+function computeFont(zoom) {
+  const raw = fontFromZoom(zoom);
+  if (!S.isMobile) return raw;
+  // Scale the curve's full range [zfF1..zfF4] → [minFontMobile..maxFontMobile]
+  const rawMin = LP.zfF1;
+  const rawMax = Math.max(LP.zfF1 + 1, LP.zfF4);
+  const t = Math.max(0, Math.min(1, (raw - rawMin) / (rawMax - rawMin)));
+  return LP.minFontMobile + t * (LP.maxFontMobile - LP.minFontMobile);
 }
 
 /* ============================================================
@@ -435,10 +448,9 @@ function renderMillerOverlay(ctx) {
   const bounds = vp.getBounds(true);
   const zoom = vp.getZoom(true);
 
-  const maxMFont    = S.isMobile ? LP.maxFontMobile   : LP.maxFontDesktop;
   const maxMLabels  = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
   const mLabelRects = [];
-  const MPAD = 4;
+  const MPAD = LP.labelPad;
   let mLabelCount = 0;
 
   let drawn = 0;
@@ -475,53 +487,51 @@ function renderMillerOverlay(ctx) {
     }
 
     if (S.labelsOn && mLabelCount < maxMLabels) {
-      // zoom curve × marker-size cap × hard cap
-      const mfs = Math.min(fontFromZoom(zoom), maxMFont);
-      if (mfs >= LP.minFontThreshold) {
-        const mAlpha = Math.min(1, (mfs - LP.minFontThreshold) * LP.fadeRate);
-        if (mAlpha > 0) {
-          const charW = mfs * 0.55;
-          const lineH = mfs * 1.3;
-          const txt1 = item.modern    || "";
-          const txt2 = item.latin_std || "";
-          const boxW = Math.max(txt1.length, txt2.length) * charW;
-          const boxH = (txt1 ? lineH : 0) + (txt2 ? lineH : 0);
-          const bx = x + 2;
-          const by = y + Math.max(2, h - boxH - 2);
-          let overlaps = false;
+      const mfs = computeFont(zoom);
+      if (mfs > 0) {
+        const charW = mfs * 0.55;
+        const lineH = mfs * 1.3;
+        const txt1 = item.modern    || "";
+        const txt2 = item.latin_std || "";
+        const boxW = Math.max(txt1.length, txt2.length) * charW;
+        const boxH = (txt1 ? lineH : 0) + (txt2 ? lineH : 0);
+        const bx = x + 2;
+        const by = y + Math.max(2, h - boxH - 2);
+        const skipOverlap = zoom >= LP.labelPadZoomThresh;
+        let overlaps = false;
+        if (!skipOverlap) {
           for (const r of mLabelRects) {
             if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) {
               overlaps = true; break;
             }
           }
-          if (!overlaps) {
-            const mReserveW = Math.min(boxW, w);
-            mLabelRects.push({ x1: bx - MPAD, y1: by - MPAD,
-                               x2: bx + mReserveW + MPAD, y2: by + boxH + MPAD });
-            mLabelCount++;
-            ctx.save();
-            ctx.globalAlpha = mAlpha;
-            ctx.strokeStyle = "rgba(0,0,0,0.8)";
-            ctx.lineWidth = 3;
-            ctx.lineJoin = "round";
-            let dy = by;
-            if (txt1) {
-              ctx.font = `bold ${Math.round(mfs)}px 'Segoe UI', system-ui, sans-serif`;
-              ctx.textBaseline = "top";
-              ctx.strokeText(txt1, bx, dy);
-              ctx.fillStyle = "#ffffff";
-              ctx.fillText(txt1, bx, dy);
-              dy += lineH;
-            }
-            if (txt2) {
-              ctx.font = `${Math.round(Math.max(6, mfs - 1))}px 'Segoe UI', system-ui, sans-serif`;
-              ctx.textBaseline = "top";
-              ctx.strokeText(txt2, bx, dy);
-              ctx.fillStyle = "#e5e7eb";
-              ctx.fillText(txt2, bx, dy);
-            }
-            ctx.restore();
+        }
+        if (!overlaps) {
+          const mReserveW = Math.min(boxW, w);
+          mLabelRects.push({ x1: bx - MPAD, y1: by - MPAD,
+                             x2: bx + mReserveW + MPAD, y2: by + boxH + MPAD });
+          mLabelCount++;
+          ctx.save();
+          ctx.strokeStyle = "rgba(0,0,0,0.8)";
+          ctx.lineWidth = 3;
+          ctx.lineJoin = "round";
+          let dy = by;
+          if (txt1) {
+            ctx.font = `bold ${Math.round(mfs)}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.textBaseline = "top";
+            ctx.strokeText(txt1, bx, dy);
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(txt1, bx, dy);
+            dy += lineH;
           }
+          if (txt2) {
+            ctx.font = `${Math.round(Math.max(6, mfs - 1))}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.textBaseline = "top";
+            ctx.strokeText(txt2, bx, dy);
+            ctx.fillStyle = "#e5e7eb";
+            ctx.fillText(txt2, bx, dy);
+          }
+          ctx.restore();
         }
       }
     }
@@ -554,12 +564,9 @@ function renderMarkers() {
   const by0 = bounds.y;
   const by1 = bounds.y + bounds.height;
 
-  // Font size driven by the SMALLER marker dimension (min not max) so wide rivers
-  // don't inflate the font. Overlap detection + hard mobile cap prevent crowding.
-  const maxLabelFont = S.isMobile ? LP.maxFontMobile   : LP.maxFontDesktop;
   const MAX_LABELS   = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
   const labelRects = [];
-  const LABEL_PAD = 4;
+  const LABEL_PAD = LP.labelPad;
 
   let rendered = 0;
   let labelCount = 0;
@@ -598,59 +605,54 @@ function renderMarkers() {
       const latin  = p.latin_std || p.latin;
       const modern = p.modern || null;
       if (latin || modern) {
-        // zoom curve × marker-size cap × hard cap
-        const fontSize = Math.min(fontFromZoom(zoom), maxLabelFont);
-        if (fontSize >= LP.minFontThreshold) {
-          const alpha = Math.min(1, (fontSize - LP.minFontThreshold) * LP.fadeRate);
-          if (alpha > 0) {
-            // Estimate label bounding box (char width ≈ 0.55 × fontSize)
-            const charW = fontSize * 0.55;
-            const lineH = fontSize * 1.3;
-            const boxW = Math.max(
-              modern ? modern.length * charW : 0,
-              latin  ? latin.length  * charW : 0
-            );
-            const boxH = (modern ? lineH : 0) + (latin ? lineH : 0);
-            const bx = x + 2;
-            const by = y + Math.max(2, h - boxH - 2);
-
-            // Skip if this label would overlap an already-placed one
-            let overlaps = false;
+        const fontSize = computeFont(zoom);
+        if (fontSize > 0) {
+          const charW = fontSize * 0.55;
+          const lineH = fontSize * 1.3;
+          const boxW = Math.max(
+            modern ? modern.length * charW : 0,
+            latin  ? latin.length  * charW : 0
+          );
+          const boxH = (modern ? lineH : 0) + (latin ? lineH : 0);
+          const bx = x + 2;
+          const by = y + Math.max(2, h - boxH - 2);
+          const skipOverlap = zoom >= LP.labelPadZoomThresh;
+          let overlaps = false;
+          if (!skipOverlap) {
             for (const r of labelRects) {
               if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) {
                 overlaps = true; break;
               }
             }
-            if (!overlaps) {
-              const reserveW = Math.min(boxW, w);
-              labelRects.push({ x1: bx - LABEL_PAD, y1: by - LABEL_PAD,
-                                x2: bx + reserveW + LABEL_PAD, y2: by + boxH + LABEL_PAD });
-              labelCount++;
-              ctx.save();
-              ctx.globalAlpha = alpha;
-              ctx.strokeStyle = "rgba(0,0,0,0.8)";
-              ctx.lineWidth = 3;
-              ctx.lineJoin = "round";
-              const fsBold = Math.round(fontSize);
-              const fsNorm = Math.max(6, fsBold - 1);
-              let dy = by;
-              if (modern) {
-                ctx.font = `bold ${fsBold}px 'Segoe UI', system-ui, sans-serif`;
-                ctx.textBaseline = "top";
-                ctx.strokeText(modern, bx, dy);
-                ctx.fillStyle = "#ffffff";
-                ctx.fillText(modern, bx, dy);
-                dy += lineH;
-              }
-              if (latin) {
-                ctx.font = `${fsNorm}px 'Segoe UI', system-ui, sans-serif`;
-                ctx.textBaseline = "top";
-                ctx.strokeText(latin, bx, dy);
-                ctx.fillStyle = "#e5e7eb";
-                ctx.fillText(latin, bx, dy);
-              }
-              ctx.restore();
+          }
+          if (!overlaps) {
+            const reserveW = Math.min(boxW, w);
+            labelRects.push({ x1: bx - LABEL_PAD, y1: by - LABEL_PAD,
+                              x2: bx + reserveW + LABEL_PAD, y2: by + boxH + LABEL_PAD });
+            labelCount++;
+            ctx.save();
+            ctx.strokeStyle = "rgba(0,0,0,0.8)";
+            ctx.lineWidth = 3;
+            ctx.lineJoin = "round";
+            const fsBold = Math.round(fontSize);
+            const fsNorm = Math.max(6, fsBold - 1);
+            let dy = by;
+            if (modern) {
+              ctx.font = `bold ${fsBold}px 'Segoe UI', system-ui, sans-serif`;
+              ctx.textBaseline = "top";
+              ctx.strokeText(modern, bx, dy);
+              ctx.fillStyle = "#ffffff";
+              ctx.fillText(modern, bx, dy);
+              dy += lineH;
             }
+            if (latin) {
+              ctx.font = `${fsNorm}px 'Segoe UI', system-ui, sans-serif`;
+              ctx.textBaseline = "top";
+              ctx.strokeText(latin, bx, dy);
+              ctx.fillStyle = "#e5e7eb";
+              ctx.fillText(latin, bx, dy);
+            }
+            ctx.restore();
           }
         }
       }
@@ -732,13 +734,13 @@ function showTooltip(place, x, y) {
     ${place.modern ? `<div class="tt-modern">${flags ? flags + " " : ""}${escHtml(place.modern)}</div>` : (flags ? `<div class="tt-modern">${flags}</div>` : "")}
     <div class="tt-type"><span class="dot" style="background:${color}"></span>${typeLabel}</div>
   `;
-  tt.style.left = (x + 24) + "px";
-  tt.style.top  = (y - 20) + "px";
+  tt.style.left = (x + 48) + "px";
+  tt.style.top  = (y - 8) + "px";
   tt.classList.remove("hidden");
 
   const rect = tt.getBoundingClientRect();
-  if (rect.right > window.innerWidth) tt.style.left = (x - rect.width - 16) + "px";
-  if (rect.bottom > window.innerHeight) tt.style.top = (y - rect.height - 16) + "px";
+  if (rect.right > window.innerWidth) tt.style.left = (x - rect.width - 32) + "px";
+  if (rect.bottom > window.innerHeight) tt.style.top = (y - rect.height - 8) + "px";
 }
 
 function hideTooltip() {
@@ -782,14 +784,14 @@ function showMillerTooltip(item, x, y) {
     ${item.country  ? `<div class="tt-detail">${countryFlags(item.country)} <span>${escHtml(item.country)}</span></div>` : ""}
   `;
   tt.classList.add("tt-rich");
-  tt.style.left = (x + 24) + "px";
-  tt.style.top  = (y - 20) + "px";
+  tt.style.left = (x + 48) + "px";
+  tt.style.top  = (y - 8) + "px";
   tt.classList.remove("hidden");
 
   // Reposition if off-screen
   const rect = tt.getBoundingClientRect();
-  if (rect.right  > window.innerWidth)  tt.style.left = (x - rect.width  - 16) + "px";
-  if (rect.bottom > window.innerHeight) tt.style.top  = (y - rect.height - 16) + "px";
+  if (rect.right  > window.innerWidth)  tt.style.left = (x - rect.width  - 32) + "px";
+  if (rect.bottom > window.innerHeight) tt.style.top  = (y - rect.height - 8) + "px";
 }
 
 /* ============================================================
@@ -1170,14 +1172,21 @@ function setupMobileMenu() {
       closeMenu();
     });
 
-    // Labels toggle
+    // Labels toggle + Label Settings shortcut
     const dispContainer = document.getElementById("mobile-display-controls");
-    dispContainer.innerHTML = `<button class="ctrl-btn toggle-btn${S.labelsOn ? " active" : ""}" id="mobile-toggle-labels">Labels</button>`;
+    dispContainer.innerHTML = `
+      <button class="ctrl-btn toggle-btn${S.labelsOn ? " active" : ""}" id="mobile-toggle-labels">Labels</button>
+      <button class="ctrl-btn" id="mobile-settings-open">Label Settings</button>
+    `;
     dispContainer.querySelector("#mobile-toggle-labels").addEventListener("click", (e) => {
       S.labelsOn = !S.labelsOn;
       e.currentTarget.classList.toggle("active", S.labelsOn);
       document.getElementById("toggle-labels")?.classList.toggle("active", S.labelsOn);
       renderMarkers();
+    });
+    dispContainer.querySelector("#mobile-settings-open").addEventListener("click", () => {
+      closeMenu();
+      document.getElementById("settings-panel")?.classList.remove("hidden");
     });
 
     menu.classList.remove("hidden");
@@ -1350,6 +1359,7 @@ function countryFlags(raw) {
 }
 
 function tpOnlineHref(place) {
+  if (place.ulm_id) return `https://tp-online.ku.de/trefferanzeige.php?id=${place.ulm_id}`;
   const rid = String(place.record_id || place.id || "");
   const m = /^TP:(\d+)$/.exec(rid);
   if (m) return `https://tp-online.ku.de/trefferanzeige.php?id=${m[1]}`;
@@ -1427,12 +1437,12 @@ async function saveLabelParams() {
 }
 
 const SP_DEFS = [
-  { section: "Label Density",  label: "Show from font size",    key: "minFontThreshold",
-    min: 0,   max: 40,   step: 0.5, fmt: v => v === 0 ? "always" : v + "px",
-    desc: "Labels are hidden until the zoom curve produces a font ≥ this size. Raise to show fewer labels at low zoom; lower to show more. 0 = always show." },
-  { section: "Label Density",  label: "Fade-in speed",          key: "fadeRate",
-    min: 0.1, max: 3.0,  step: 0.1, fmt: v => v.toFixed(1),
-    desc: "How quickly labels reach full opacity once above the threshold. Low = gradual fade-in; high = pop in immediately." },
+  { section: "Label Density",  label: "Label spacing",          key: "labelPad",
+    min: -10, max: 20,   step: 1,   fmt: v => v + "px",
+    desc: "Padding around each label's collision box. Negative values allow labels to overlap, increasing density. 0 = labels touch edge-to-edge." },
+  { section: "Label Density",  label: "Show all above zoom",    key: "labelPadZoomThresh",
+    min: 0,   max: 50,   step: 0.25, fmt: v => v >= 50 ? "never" : "z " + v.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""),
+    desc: "Above this zoom level, overlap detection is disabled and all labels are shown regardless of spacing." },
   { section: "Label Limits",   label: "Max font — mobile",      key: "maxFontMobile",
     min: 4,   max: 100,  step: 1,   fmt: v => v + "px",
     desc: "Hard ceiling on label font size on mobile screens. Keeps labels readable even when the zoom curve would produce larger text." },
@@ -1442,6 +1452,9 @@ const SP_DEFS = [
   { section: "Label Limits",   label: "Max labels — mobile",    key: "maxLabelsMobile",
     min: 1,   max: 100,  step: 1,   fmt: v => String(v),
     desc: "Maximum labels drawn at once on mobile." },
+  { section: "Label Limits",   label: "Min font — mobile",      key: "minFontMobile",
+    min: 0,   max: 20,   step: 0.5, fmt: v => v + "px",
+    desc: "Sets the floor of the mobile font curve. The curve range [Point1..Point4] is rescaled to [min..max font mobile], so labels never shrink below this size." },
   // Zoom → font curve (4 control points, piecewise linear)
   { section: "Zoom → Font Curve", type: "curve-point", pointLabel: "Point 1 (low zoom)",
     keyZ: "zfZ1", keyF: "zfF1",
