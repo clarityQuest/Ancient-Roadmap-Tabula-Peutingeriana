@@ -335,3 +335,66 @@ body, html {
   /* Larger tap targets for controls */
   .ctrl-btn { min-width: 38px; min-height: 38px; }
 }
+
+/* ── Label settings panel ────────────────────────────────────── */
+#settings-panel {
+  position: absolute;
+  left: 10px; top: 60px;
+  width: 290px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  z-index: 30;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  pointer-events: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 80px);
+}
+#settings-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600; font-size: 13px;
+}
+#close-settings {
+  background: transparent; border: none; color: var(--text-muted);
+  font-size: 22px; cursor: pointer; line-height: 1; padding: 0;
+}
+#close-settings:hover { color: #fff; }
+#settings-body { padding: 6px 14px 4px; }
+.sp-section {
+  font-size: 10px; font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .07em;
+  margin: 10px 0 5px;
+}
+.sp-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 6px; margin-bottom: 5px;
+}
+.sp-label { font-size: 11px; color: var(--text-main); flex: 1; min-width: 0; }
+.sp-right { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.sp-slider { width: 88px; accent-color: var(--accent); cursor: pointer; }
+.sp-val {
+  font-size: 11px; color: var(--accent);
+  min-width: 32px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+#settings-footer {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 8px 14px 12px;
+  border-top: 1px solid var(--border-color);
+}
+#settings-footer .ctrl-btn { padding: 6px 12px; font-size: 12px; font-weight: 600; }
+#settings-save { border-color: var(--accent); color: var(--accent); }
+
+@media (pointer: coarse), (max-width: 600px) {
+  #settings-panel {
+    position: fixed !important;
+    left: 0 !important; right: 0 !important;
+    bottom: 0 !important; top: auto !important;
+    width: 100% !important;
+    max-height: 75svh;
+    border-radius: 16px 16px 0 0;
+  }
+}

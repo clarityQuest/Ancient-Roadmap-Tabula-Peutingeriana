@@ -33,6 +33,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._save_calibration()
         elif self.path == "/api/ulm-search":
             self._ulm_search()
+        elif self.path == "/api/save-label-params":
+            self._save_label_params()
         else:
             self.send_error(404, "Not found")
 
@@ -59,6 +61,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except Exception as exc:
             self._json_error(str(exc))
             print(f"  \u2717 Save error: {exc}")
+
+    def _save_label_params(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body   = self.rfile.read(length)
+            data   = json.loads(body)
+            if not isinstance(data, dict):
+                raise ValueError("Expected JSON object")
+            lp_path = ROOT / "data" / "label_params.json"
+            tmp = lp_path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.replace(lp_path)
+            self._json_ok({"ok": True})
+            print(f"  ✓ Saved label params → {lp_path.name}")
+        except Exception as exc:
+            self._json_error(str(exc))
+            print(f"  ✗ Label params save error: {exc}")
 
     def _ulm_search(self):
         try:

@@ -68,6 +68,21 @@ const TYPE_LABELS = {
 const DRAFT_STORAGE_KEY = "tp_calibrate_seg4_rectangles_v1";
 const MAP_RUNTIME_TYPES = new Set(Object.keys(TYPE_COLORS));
 
+// Label rendering parameters — tunable via the settings panel, saved to label_params.json
+const LP_KEY = "tp_label_params_v1";
+const LP_DEFAULTS = {
+  fontScale:         1.0,   // min(w,h) × fontScale → font size (before cap)
+  maxFontDesktop:   16,    // px cap on desktop
+  maxFontMobile:    10,    // px cap on mobile
+  minFontThreshold:  7,    // labels whose computed size is below this are suppressed
+  fadeRate:          0.6,  // opacity = (fs - threshold) × fadeRate, clamped 0–1
+  maxLabelsDesktop: 200,   // hard cap on simultaneous labels (desktop)
+  maxLabelsMobile:   10,   // hard cap on simultaneous labels (mobile)
+  zoomThreshMid:     0.8,  // road_station hidden below this OSD zoom
+  zoomThreshAll:     2.5,  // all types visible above this OSD zoom
+};
+let LP = { ...LP_DEFAULTS };
+
 /* ============================================================
    State
    ============================================================ */
@@ -327,8 +342,8 @@ function placeRectCorners(place) {
 }
 
 function isVisibleAtZoom(type, zoom) {
-  if (zoom >= 2.5)  return true;
-  if (zoom >= 0.8)  return type !== "road_station";
+  if (zoom >= LP.zoomThreshAll) return true;
+  if (zoom >= LP.zoomThreshMid) return type !== "road_station";
   return type === "major_city" || type === "city";
 }
 
@@ -401,8 +416,8 @@ function renderMillerOverlay(ctx) {
   const vp = S.viewer.viewport;
   const bounds = vp.getBounds(true);
 
-  const maxMFont    = S.isMobile ? 13 : 22;
-  const maxMLabels  = S.isMobile ?  6 : 30;
+  const maxMFont    = S.isMobile ? LP.maxFontMobile   : LP.maxFontDesktop;
+  const maxMLabels  = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
   const mLabelRects = [];
   const MPAD = 4;
   let mLabelCount = 0;
@@ -442,9 +457,9 @@ function renderMillerOverlay(ctx) {
 
     if (S.labelsOn && mLabelCount < maxMLabels) {
       // min(w,h): thin/wide markers don't get inflated font from their long axis
-      const mfs = Math.min(Math.min(w, h) * 1.4, maxMFont);
-      if (mfs >= 9) {
-        const mAlpha = Math.min(1, (mfs - 9) * 0.6);
+      const mfs = Math.min(Math.min(w, h) * LP.fontScale, maxMFont);
+      if (mfs >= LP.minFontThreshold) {
+        const mAlpha = Math.min(1, (mfs - LP.minFontThreshold) * LP.fadeRate);
         if (mAlpha > 0) {
           const charW = mfs * 0.55;
           const lineH = mfs * 1.3;
@@ -520,8 +535,8 @@ function renderMarkers() {
 
   // Font size driven by the SMALLER marker dimension (min not max) so wide rivers
   // don't inflate the font. Overlap detection + hard mobile cap prevent crowding.
-  const maxLabelFont = S.isMobile ? 13 : 22;
-  const MAX_LABELS   = S.isMobile ?  6 : 999;
+  const maxLabelFont = S.isMobile ? LP.maxFontMobile   : LP.maxFontDesktop;
+  const MAX_LABELS   = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
   const labelRects = [];
   const LABEL_PAD = 4;
 
@@ -563,9 +578,9 @@ function renderMarkers() {
       const modern = p.modern || null;
       if (latin || modern) {
         // Use min(w,h): a wide-but-thin river marker shouldn't get a large font
-        const fontSize = Math.min(Math.min(w, h) * 1.4, maxLabelFont);
-        if (fontSize >= 9) {
-          const alpha = Math.min(1, (fontSize - 9) * 0.6);
+        const fontSize = Math.min(Math.min(w, h) * LP.fontScale, maxLabelFont);
+        if (fontSize >= LP.minFontThreshold) {
+          const alpha = Math.min(1, (fontSize - LP.minFontThreshold) * LP.fadeRate);
           if (alpha > 0) {
             // Estimate label bounding box (char width ≈ 0.55 × fontSize)
             const charW = fontSize * 0.55;
@@ -1354,6 +1369,130 @@ function tabulaSourceHref(place) {
 }
 
 /* ============================================================
+   Label settings — persistence and panel UI
+   ============================================================ */
+async function loadLabelParams() {
+  // Prefer the project file (written by Save button via server)
+  try {
+    const r = await fetch("data/label_params.json?" + Date.now());
+    if (r.ok) {
+      const saved = await r.json();
+      if (saved && typeof saved === "object") { Object.assign(LP, saved); return; }
+    }
+  } catch {}
+  // Fallback: browser localStorage
+  try {
+    const raw = localStorage.getItem(LP_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === "object") Object.assign(LP, saved);
+    }
+  } catch {}
+}
+
+async function saveLabelParams() {
+  // Try to persist to project file via dev server
+  try {
+    const r = await fetch("/api/save-label-params", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(LP),
+    });
+    if (r.ok) { localStorage.setItem(LP_KEY, JSON.stringify(LP)); return; }
+  } catch {}
+  // Fallback: browser localStorage
+  localStorage.setItem(LP_KEY, JSON.stringify(LP));
+}
+
+const SP_DEFS = [
+  { section: "Font & Labels",  label: "Font scale",            key: "fontScale",        min: 0.2, max: 5.0, step: 0.1,  fmt: v => v.toFixed(1)  },
+  { section: "Font & Labels",  label: "Max font — desktop",    key: "maxFontDesktop",   min: 6,   max: 48,  step: 1,    fmt: v => v + "px"      },
+  { section: "Font & Labels",  label: "Max font — mobile",     key: "maxFontMobile",    min: 4,   max: 24,  step: 1,    fmt: v => v + "px"      },
+  { section: "Font & Labels",  label: "Show threshold",        key: "minFontThreshold", min: 2,   max: 20,  step: 1,    fmt: v => v + "px"      },
+  { section: "Font & Labels",  label: "Fade rate",             key: "fadeRate",         min: 0.1, max: 3.0, step: 0.1,  fmt: v => v.toFixed(1)  },
+  { section: "Label Limits",   label: "Max labels — desktop",  key: "maxLabelsDesktop", min: 5,   max: 500, step: 5,    fmt: v => v >= 500 ? "∞" : String(v) },
+  { section: "Label Limits",   label: "Max labels — mobile",   key: "maxLabelsMobile",  min: 1,   max: 30,  step: 1,    fmt: v => String(v)     },
+  { section: "Zoom Visibility", label: "Zoom: show mid types", key: "zoomThreshMid",    min: 0.1, max: 3.0, step: 0.05, fmt: v => v.toFixed(2)  },
+  { section: "Zoom Visibility", label: "Zoom: show all types", key: "zoomThreshAll",    min: 0.5, max: 8.0, step: 0.05, fmt: v => v.toFixed(2)  },
+];
+
+function buildSettingsPanelBody() {
+  const body = document.getElementById("settings-body");
+  if (!body) return;
+  body.innerHTML = "";
+  let lastSection = null;
+  for (const def of SP_DEFS) {
+    if (def.section !== lastSection) {
+      const h = document.createElement("h4");
+      h.className = "sp-section";
+      h.textContent = def.section;
+      body.appendChild(h);
+      lastSection = def.section;
+    }
+    const row = document.createElement("div");
+    row.className = "sp-row";
+    const lbl = document.createElement("label");
+    lbl.className = "sp-label";
+    lbl.htmlFor = `sp-${def.key}`;
+    lbl.textContent = def.label;
+    const right = document.createElement("div");
+    right.className = "sp-right";
+    const inp = document.createElement("input");
+    inp.type = "range";
+    inp.id = `sp-${def.key}`;
+    inp.className = "sp-slider";
+    inp.min = String(def.min);
+    inp.max = String(def.max);
+    inp.step = String(def.step);
+    inp.value = String(LP[def.key]);
+    const val = document.createElement("span");
+    val.className = "sp-val";
+    val.textContent = def.fmt(LP[def.key]);
+    inp.addEventListener("input", () => {
+      LP[def.key] = Number(inp.value);
+      val.textContent = def.fmt(LP[def.key]);
+      renderMarkers();
+    });
+    right.appendChild(inp);
+    right.appendChild(val);
+    row.appendChild(lbl);
+    row.appendChild(right);
+    body.appendChild(row);
+  }
+}
+
+function initSettingsPanel() {
+  buildSettingsPanelBody();
+
+  document.getElementById("settings-btn").addEventListener("click", () => {
+    document.getElementById("settings-panel").classList.toggle("hidden");
+    // Close info panel when settings opens to avoid z-index collision
+    if (!document.getElementById("settings-panel").classList.contains("hidden")) {
+      hideInfoPanel();
+    }
+  });
+
+  document.getElementById("close-settings").addEventListener("click", () => {
+    document.getElementById("settings-panel").classList.add("hidden");
+  });
+
+  document.getElementById("settings-reset").addEventListener("click", () => {
+    Object.assign(LP, LP_DEFAULTS);
+    buildSettingsPanelBody();
+    renderMarkers();
+  });
+
+  document.getElementById("settings-save").addEventListener("click", async () => {
+    const btn = document.getElementById("settings-save");
+    btn.disabled = true;
+    await saveLabelParams();
+    btn.textContent = "Saved!";
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = "Save"; }, 1400);
+  });
+}
+
+/* ============================================================
    Initialisation
    ============================================================ */
 async function init() {
@@ -1500,11 +1639,13 @@ async function init() {
   window.addEventListener("resize", () => { sizeCanvas(); renderMarkers(); });
 
   // Setup UI
+  await loadLabelParams();
   setupSegmentSelector();
   setupTypeFilters();
   setupControls();
   setupSearch();
   setupInteraction();
+  initSettingsPanel();
 
   console.log(`Tabula Peutingeriana loaded: ${S.places.length} seg4 places, ${S.millerCalib.length} Miller calibrations`);
 }
