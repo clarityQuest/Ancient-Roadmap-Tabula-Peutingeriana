@@ -467,7 +467,8 @@ function renderMillerOverlay(ctx) {
           const txt2 = item.latin_std || "";
           const boxW = Math.max(txt1.length, txt2.length) * charW;
           const boxH = (txt1 ? lineH : 0) + (txt2 ? lineH : 0);
-          const bx = x + 2, by = y + h + 2;
+          const bx = x + 2;
+          const by = y + Math.max(2, (h - boxH) / 2);
           let overlaps = false;
           for (const r of mLabelRects) {
             if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) {
@@ -591,7 +592,7 @@ function renderMarkers() {
             );
             const boxH = (modern ? lineH : 0) + (latin ? lineH : 0);
             const bx = x + 2;
-            const by = y + h + 2;
+            const by = y + Math.max(2, (h - boxH) / 2);
 
             // Skip if this label would overlap an already-placed one
             let overlaps = false;
@@ -1405,15 +1406,33 @@ async function saveLabelParams() {
 }
 
 const SP_DEFS = [
-  { section: "Font & Labels",  label: "Font scale",            key: "fontScale",        min: 0.2, max: 5.0, step: 0.1,  fmt: v => v.toFixed(1)  },
-  { section: "Font & Labels",  label: "Max font — desktop",    key: "maxFontDesktop",   min: 6,   max: 48,  step: 1,    fmt: v => v + "px"      },
-  { section: "Font & Labels",  label: "Max font — mobile",     key: "maxFontMobile",    min: 4,   max: 24,  step: 1,    fmt: v => v + "px"      },
-  { section: "Font & Labels",  label: "Show threshold",        key: "minFontThreshold", min: 2,   max: 20,  step: 1,    fmt: v => v + "px"      },
-  { section: "Font & Labels",  label: "Fade rate",             key: "fadeRate",         min: 0.1, max: 3.0, step: 0.1,  fmt: v => v.toFixed(1)  },
-  { section: "Label Limits",   label: "Max labels — desktop",  key: "maxLabelsDesktop", min: 5,   max: 500, step: 5,    fmt: v => v >= 500 ? "∞" : String(v) },
-  { section: "Label Limits",   label: "Max labels — mobile",   key: "maxLabelsMobile",  min: 1,   max: 30,  step: 1,    fmt: v => String(v)     },
-  { section: "Zoom Visibility", label: "Zoom: show mid types", key: "zoomThreshMid",    min: 0.1, max: 3.0, step: 0.05, fmt: v => v.toFixed(2)  },
-  { section: "Zoom Visibility", label: "Zoom: show all types", key: "zoomThreshAll",    min: 0.5, max: 8.0, step: 0.05, fmt: v => v.toFixed(2)  },
+  { section: "Font & Labels",   label: "Font scale",            key: "fontScale",
+    min: 0.2, max: 5.0, step: 0.1,  fmt: v => v.toFixed(1),
+    desc: "Marker size × this value = font size. E.g. 1.0 means a 12px-tall marker gets a 12px label." },
+  { section: "Font & Labels",   label: "Max font — desktop",    key: "maxFontDesktop",
+    min: 6,   max: 48,  step: 1,    fmt: v => v + "px",
+    desc: "Hard ceiling on label font size on desktop. Prevents huge labels at high zoom." },
+  { section: "Font & Labels",   label: "Max font — mobile",     key: "maxFontMobile",
+    min: 4,   max: 24,  step: 1,    fmt: v => v + "px",
+    desc: "Hard ceiling on label font size on mobile/touch screens." },
+  { section: "Font & Labels",   label: "Show threshold",        key: "minFontThreshold",
+    min: 2,   max: 20,  step: 1,    fmt: v => v + "px",
+    desc: "Labels whose computed size is below this are hidden. Raise to suppress labels at low zoom." },
+  { section: "Font & Labels",   label: "Fade rate",             key: "fadeRate",
+    min: 0.1, max: 3.0, step: 0.1,  fmt: v => v.toFixed(1),
+    desc: "How quickly labels fade in above the threshold. Higher = more opaque sooner." },
+  { section: "Label Limits",    label: "Max labels — desktop",  key: "maxLabelsDesktop",
+    min: 5,   max: 500, step: 5,    fmt: v => v >= 500 ? "∞" : String(v),
+    desc: "Maximum labels drawn at once on desktop. Overlap detection may show fewer." },
+  { section: "Label Limits",    label: "Max labels — mobile",   key: "maxLabelsMobile",
+    min: 1,   max: 30,  step: 1,    fmt: v => String(v),
+    desc: "Maximum labels drawn at once on mobile. Keep low to avoid clutter on small screens." },
+  { section: "Zoom Visibility", label: "Zoom: show mid types",  key: "zoomThreshMid",
+    min: 0.1, max: 3.0, step: 0.05, fmt: v => v.toFixed(2),
+    desc: "Below this OSD zoom level, road stations are hidden. 0 = always show, 3 = only at high zoom." },
+  { section: "Zoom Visibility", label: "Zoom: show all types",  key: "zoomThreshAll",
+    min: 0.5, max: 8.0, step: 0.05, fmt: v => v.toFixed(2),
+    desc: "Above this OSD zoom level, every place type is visible regardless of category." },
 ];
 
 function buildSettingsPanelBody() {
@@ -1458,6 +1477,12 @@ function buildSettingsPanelBody() {
     row.appendChild(lbl);
     row.appendChild(right);
     body.appendChild(row);
+    if (def.desc) {
+      const desc = document.createElement("p");
+      desc.className = "sp-desc";
+      desc.textContent = def.desc;
+      body.appendChild(desc);
+    }
   }
 }
 
