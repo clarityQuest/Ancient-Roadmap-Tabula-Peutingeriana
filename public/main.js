@@ -1487,10 +1487,20 @@ function buildSettingsPanelBody() {
   let lastSection = null;
   for (const def of SP_DEFS) {
     if (def.section !== lastSection) {
+      const hWrap = document.createElement("div");
+      hWrap.className = "sp-section-row";
       const h = document.createElement("h4");
       h.className = "sp-section";
       h.textContent = def.section;
-      body.appendChild(h);
+      hWrap.appendChild(h);
+      if (def.section === "Zoom → Font Curve") {
+        const zoomBadge = document.createElement("span");
+        zoomBadge.className = "sp-zoom-badge";
+        zoomBadge.id = "sp-zoom-badge";
+        zoomBadge.textContent = "zoom: —";
+        hWrap.appendChild(zoomBadge);
+      }
+      body.appendChild(hWrap);
       lastSection = def.section;
     }
 
@@ -1588,6 +1598,16 @@ function initSettingsPanel() {
     btn.disabled = false;
     setTimeout(() => { btn.textContent = "Save"; }, 1400);
   });
+
+  // Live zoom readout in the curve section
+  function updateZoomBadge() {
+    const badge = document.getElementById("sp-zoom-badge");
+    if (!badge || !S.viewer?.viewport) return;
+    badge.textContent = "zoom: " + S.viewer.viewport.getZoom(true).toFixed(2);
+  }
+  S.viewer.addHandler("animation", updateZoomBadge);
+  S.viewer.addHandler("animation-finish", updateZoomBadge);
+  updateZoomBadge();
 }
 
 /* ============================================================
