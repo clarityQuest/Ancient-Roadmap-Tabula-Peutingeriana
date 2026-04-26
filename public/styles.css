@@ -311,22 +311,27 @@ body, html {
   }
 
   /* Side-by-side title + map thumbnail */
-  #panel-header { display: flex; align-items: flex-start; gap: 10px; }
-  #panel-title { flex: 1; min-width: 0; }
+  #panel-header { display: flex; align-items: stretch; gap: 8px; }
+  #panel-title { flex: 0 0 38%; min-width: 0; }
   #panel-type { margin-bottom: 0; }
   #panel-map:not(.hidden) {
-    display: block !important;
-    width: 180px;
-    flex-shrink: 0;
+    display: flex !important;
+    flex: 1;
+    min-width: 0;
     margin: 0;
     border-radius: 6px;
     overflow: hidden;
   }
   #panel-map:not(.hidden) iframe {
-    height: 140px;
+    width: 100%;
+    height: 160px;
     pointer-events: none;
     display: block;
   }
+  /* Smaller fonts so title fits next to large map */
+  #info-panel #panel-latin  { font-size: 13px; margin-bottom: 2px; }
+  #info-panel #panel-modern { font-size: 11px; margin-bottom: 6px; }
+  #info-panel #panel-type   { font-size: 11px; }
 
   /* Legend at same bottom level as bottom-left-controls */
   #legend { bottom: 10px; }
