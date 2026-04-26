@@ -476,7 +476,7 @@ function renderMillerOverlay(ctx) {
 
     if (S.labelsOn && mLabelCount < maxMLabels) {
       // zoom curve × marker-size cap × hard cap
-      const mfs = Math.min(fontFromZoom(zoom), Math.min(w, h) * LP.fontScale, maxMFont);
+      const mfs = Math.min(fontFromZoom(zoom), maxMFont);
       if (mfs >= LP.minFontThreshold) {
         const mAlpha = Math.min(1, (mfs - LP.minFontThreshold) * LP.fadeRate);
         if (mAlpha > 0) {
@@ -599,7 +599,7 @@ function renderMarkers() {
       const modern = p.modern || null;
       if (latin || modern) {
         // zoom curve × marker-size cap × hard cap
-        const fontSize = Math.min(fontFromZoom(zoom), Math.min(w, h) * LP.fontScale, maxLabelFont);
+        const fontSize = Math.min(fontFromZoom(zoom), maxLabelFont);
         if (fontSize >= LP.minFontThreshold) {
           const alpha = Math.min(1, (fontSize - LP.minFontThreshold) * LP.fadeRate);
           if (alpha > 0) {
@@ -1427,21 +1427,15 @@ async function saveLabelParams() {
 }
 
 const SP_DEFS = [
-  { section: "Font & Labels",   label: "Marker size multiplier", key: "fontScale",
-    min: 0.2, max: 10.0, step: 0.1, fmt: v => v.toFixed(1),
-    desc: "Labels grow with marker size × this value. Keeps labels from exceeding their marker. Set high to let only the zoom curve control font size." },
+  { section: "Label Limits",   label: "Max font — mobile",      key: "maxFontMobile",
+    min: 4,   max: 100,  step: 1,   fmt: v => v + "px",
+    desc: "Hard ceiling on label font size on mobile screens. Keeps labels readable even when the zoom curve would produce larger text." },
   { section: "Label Limits",   label: "Max labels — desktop",   key: "maxLabelsDesktop",
     min: 5,   max: 500,  step: 5,   fmt: v => v >= 500 ? "∞" : String(v),
     desc: "Maximum labels drawn at once on desktop. Overlap detection may reduce the actual count further." },
   { section: "Label Limits",   label: "Max labels — mobile",    key: "maxLabelsMobile",
     min: 1,   max: 100,  step: 1,   fmt: v => String(v),
     desc: "Maximum labels drawn at once on mobile." },
-  { section: "Zoom Visibility", label: "Zoom: show mid types",  key: "zoomThreshMid",
-    min: 0.1, max: 50,   step: 0.5, fmt: v => v.toFixed(1),
-    desc: "Below this zoom level, road stations are hidden. Raise to keep them hidden until you zoom in more." },
-  { section: "Zoom Visibility", label: "Zoom: show all types",  key: "zoomThreshAll",
-    min: 0.5, max: 50,   step: 0.5, fmt: v => v.toFixed(1),
-    desc: "Above this zoom level, every place type becomes visible. Raise to require deeper zoom before all types appear." },
   // Zoom → font curve (4 control points, piecewise linear)
   { section: "Zoom → Font Curve", type: "curve-point", pointLabel: "Point 1 (low zoom)",
     keyZ: "zfZ1", keyF: "zfF1",
