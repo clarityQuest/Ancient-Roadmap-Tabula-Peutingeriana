@@ -238,6 +238,9 @@ body, html {
 .hidden { display: none !important; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.5); }
 
+/* ── Hamburger + settings button wrapper ─────────────────────── */
+#hamburger-wrap { display: flex; gap: 8px; }
+
 /* ── Mobile menu overlay ─────────────────────────────────────── */
 #mobile-menu-btn { display: none; }
 #mobile-menu {
@@ -279,6 +282,18 @@ body, html {
 @media (pointer: coarse), (max-width: 600px) {
   /* Show hamburger, hide desktop filter row + segment strip */
   #mobile-menu-btn { display: flex !important; }
+  /* Settings gear: tiny badge on bottom-right of hamburger */
+  #hamburger-wrap { position: relative; display: flex; gap: 0; }
+  #settings-btn {
+    position: absolute;
+    bottom: -4px; right: -4px;
+    width: 18px !important; height: 18px !important;
+    min-width: 18px !important; min-height: 18px !important;
+    padding: 2px;
+    border-radius: 4px;
+    z-index: 1;
+  }
+  #settings-btn svg { width: 11px; height: 11px; }
   #segment-buttons { display: none; }
   /* Show only the two quick-access buttons; hide the full category row */
   #bottom-left-controls #type-filter-buttons { display: none; }
