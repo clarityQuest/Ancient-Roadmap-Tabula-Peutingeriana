@@ -71,17 +71,35 @@ const MAP_RUNTIME_TYPES = new Set(Object.keys(TYPE_COLORS));
 // Label rendering parameters — tunable via the settings panel, saved to label_params.json
 const LP_KEY = "tp_label_params_v1";
 const LP_DEFAULTS = {
-  fontScale:         1.0,   // min(w,h) × fontScale → font size (before cap)
-  maxFontDesktop:   16,    // px cap on desktop
-  maxFontMobile:    10,    // px cap on mobile
-  minFontThreshold:  7,    // labels whose computed size is below this are suppressed
+  fontScale:         1.0,   // marker screen size × fontScale = marker-based font ceiling
+  maxFontDesktop:   16,    // hard px cap on desktop
+  maxFontMobile:    10,    // hard px cap on mobile
+  minFontThreshold:  0,    // labels whose computed size is below this are suppressed (0 = no threshold)
   fadeRate:          0.6,  // opacity = (fs - threshold) × fadeRate, clamped 0–1
   maxLabelsDesktop: 200,   // hard cap on simultaneous labels (desktop)
   maxLabelsMobile:   10,   // hard cap on simultaneous labels (mobile)
   zoomThreshMid:     0.8,  // road_station hidden below this OSD zoom
   zoomThreshAll:     2.5,  // all types visible above this OSD zoom
+  // Zoom → font curve: 4 control points (piecewise linear). Font = min(curve, markerCap, maxFont).
+  zfZ1: 0.3,  zfF1:  4,   // point 1 (low zoom)
+  zfZ2: 1.0,  zfF2:  9,   // point 2
+  zfZ3: 3.0,  zfF3: 14,   // point 3
+  zfZ4: 8.0,  zfF4: 22,   // point 4 (high zoom)
 };
 let LP = { ...LP_DEFAULTS };
+
+function fontFromZoom(zoom) {
+  const pts = [[LP.zfZ1, LP.zfF1], [LP.zfZ2, LP.zfF2],
+               [LP.zfZ3, LP.zfF3], [LP.zfZ4, LP.zfF4]];
+  if (zoom <= pts[0][0]) return pts[0][1];
+  for (let i = 0; i < 3; i++) {
+    if (zoom <= pts[i + 1][0]) {
+      const t = (zoom - pts[i][0]) / Math.max(0.0001, pts[i + 1][0] - pts[i][0]);
+      return pts[i][1] + t * (pts[i + 1][1] - pts[i][1]);
+    }
+  }
+  return pts[3][1];
+}
 
 /* ============================================================
    State
@@ -415,6 +433,7 @@ function renderMillerOverlay(ctx) {
   if (!S.viewer || !S.viewer.viewport) return false;
   const vp = S.viewer.viewport;
   const bounds = vp.getBounds(true);
+  const zoom = vp.getZoom(true);
 
   const maxMFont    = S.isMobile ? LP.maxFontMobile   : LP.maxFontDesktop;
   const maxMLabels  = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
@@ -456,8 +475,8 @@ function renderMillerOverlay(ctx) {
     }
 
     if (S.labelsOn && mLabelCount < maxMLabels) {
-      // min(w,h): thin/wide markers don't get inflated font from their long axis
-      const mfs = Math.min(Math.min(w, h) * LP.fontScale, maxMFont);
+      // zoom curve × marker-size cap × hard cap
+      const mfs = Math.min(fontFromZoom(zoom), Math.min(w, h) * LP.fontScale, maxMFont);
       if (mfs >= LP.minFontThreshold) {
         const mAlpha = Math.min(1, (mfs - LP.minFontThreshold) * LP.fadeRate);
         if (mAlpha > 0) {
@@ -578,8 +597,8 @@ function renderMarkers() {
       const latin  = p.latin_std || p.latin;
       const modern = p.modern || null;
       if (latin || modern) {
-        // Use min(w,h): a wide-but-thin river marker shouldn't get a large font
-        const fontSize = Math.min(Math.min(w, h) * LP.fontScale, maxLabelFont);
+        // zoom curve × marker-size cap × hard cap
+        const fontSize = Math.min(fontFromZoom(zoom), Math.min(w, h) * LP.fontScale, maxLabelFont);
         if (fontSize >= LP.minFontThreshold) {
           const alpha = Math.min(1, (fontSize - LP.minFontThreshold) * LP.fadeRate);
           if (alpha > 0) {
@@ -1406,9 +1425,9 @@ async function saveLabelParams() {
 }
 
 const SP_DEFS = [
-  { section: "Font & Labels",   label: "Font scale",            key: "fontScale",
-    min: 0.2, max: 5.0, step: 0.1,  fmt: v => v.toFixed(1),
-    desc: "Marker size × this value = font size. E.g. 1.0 means a 12px-tall marker gets a 12px label." },
+  { section: "Font & Labels",   label: "Marker size multiplier", key: "fontScale",
+    min: 0.2, max: 10.0, step: 0.1,  fmt: v => v.toFixed(1),
+    desc: "Secondary ceiling: marker screen size × this = max font from marker size. Set very high to let the zoom curve drive everything." },
   { section: "Font & Labels",   label: "Max font — desktop",    key: "maxFontDesktop",
     min: 6,   max: 48,  step: 1,    fmt: v => v + "px",
     desc: "Hard ceiling on label font size on desktop. Prevents huge labels at high zoom." },
@@ -1416,8 +1435,8 @@ const SP_DEFS = [
     min: 4,   max: 24,  step: 1,    fmt: v => v + "px",
     desc: "Hard ceiling on label font size on mobile/touch screens." },
   { section: "Font & Labels",   label: "Show threshold",        key: "minFontThreshold",
-    min: 2,   max: 20,  step: 1,    fmt: v => v + "px",
-    desc: "Labels whose computed size is below this are hidden. Raise to suppress labels at low zoom." },
+    min: 0,   max: 20,  step: 1,    fmt: v => v === 0 ? "off" : v + "px",
+    desc: "Labels smaller than this are hidden. Set to 0 to always show labels regardless of size." },
   { section: "Font & Labels",   label: "Fade rate",             key: "fadeRate",
     min: 0.1, max: 3.0, step: 0.1,  fmt: v => v.toFixed(1),
     desc: "How quickly labels fade in above the threshold. Higher = more opaque sooner." },
@@ -1425,20 +1444,46 @@ const SP_DEFS = [
     min: 5,   max: 500, step: 5,    fmt: v => v >= 500 ? "∞" : String(v),
     desc: "Maximum labels drawn at once on desktop. Overlap detection may show fewer." },
   { section: "Label Limits",    label: "Max labels — mobile",   key: "maxLabelsMobile",
-    min: 1,   max: 30,  step: 1,    fmt: v => String(v),
-    desc: "Maximum labels drawn at once on mobile. Keep low to avoid clutter on small screens." },
+    min: 1,   max: 100, step: 1,    fmt: v => String(v),
+    desc: "Maximum labels drawn at once on mobile." },
   { section: "Zoom Visibility", label: "Zoom: show mid types",  key: "zoomThreshMid",
     min: 0.1, max: 3.0, step: 0.05, fmt: v => v.toFixed(2),
     desc: "Below this OSD zoom level, road stations are hidden. 0 = always show, 3 = only at high zoom." },
   { section: "Zoom Visibility", label: "Zoom: show all types",  key: "zoomThreshAll",
     min: 0.5, max: 8.0, step: 0.05, fmt: v => v.toFixed(2),
     desc: "Above this OSD zoom level, every place type is visible regardless of category." },
+  // Zoom → font curve (4 control points, piecewise linear)
+  { section: "Zoom → Font Curve", type: "curve-point", pointLabel: "Point 1 (low zoom)",
+    keyZ: "zfZ1", keyF: "zfF1",
+    minZ: 0.05, maxZ: 10, stepZ: 0.05, minF: 0, maxF: 40, stepF: 0.5,
+    desc: "Leftmost anchor. Below this zoom, font stays at this size." },
+  { section: "Zoom → Font Curve", type: "curve-point", pointLabel: "Point 2",
+    keyZ: "zfZ2", keyF: "zfF2",
+    minZ: 0.05, maxZ: 10, stepZ: 0.05, minF: 0, maxF: 40, stepF: 0.5,
+    desc: "Second control point. Interpolated linearly between neighbouring points." },
+  { section: "Zoom → Font Curve", type: "curve-point", pointLabel: "Point 3",
+    keyZ: "zfZ3", keyF: "zfF3",
+    minZ: 0.05, maxZ: 10, stepZ: 0.05, minF: 0, maxF: 40, stepF: 0.5,
+    desc: "Third control point." },
+  { section: "Zoom → Font Curve", type: "curve-point", pointLabel: "Point 4 (high zoom)",
+    keyZ: "zfZ4", keyF: "zfF4",
+    minZ: 0.05, maxZ: 10, stepZ: 0.05, minF: 0, maxF: 40, stepF: 0.5,
+    desc: "Rightmost anchor. Above this zoom, font stays at this size." },
 ];
 
 function buildSettingsPanelBody() {
   const body = document.getElementById("settings-body");
   if (!body) return;
   body.innerHTML = "";
+  function makeSlider(id, min, max, step, value, onChange) {
+    const inp = document.createElement("input");
+    inp.type = "range"; inp.id = id; inp.className = "sp-slider";
+    inp.min = String(min); inp.max = String(max);
+    inp.step = String(step); inp.value = String(value);
+    inp.addEventListener("input", onChange);
+    return inp;
+  }
+
   let lastSection = null;
   for (const def of SP_DEFS) {
     if (def.section !== lastSection) {
@@ -1448,35 +1493,63 @@ function buildSettingsPanelBody() {
       body.appendChild(h);
       lastSection = def.section;
     }
-    const row = document.createElement("div");
-    row.className = "sp-row";
-    const lbl = document.createElement("label");
-    lbl.className = "sp-label";
-    lbl.htmlFor = `sp-${def.key}`;
-    lbl.textContent = def.label;
-    const right = document.createElement("div");
-    right.className = "sp-right";
-    const inp = document.createElement("input");
-    inp.type = "range";
-    inp.id = `sp-${def.key}`;
-    inp.className = "sp-slider";
-    inp.min = String(def.min);
-    inp.max = String(def.max);
-    inp.step = String(def.step);
-    inp.value = String(LP[def.key]);
-    const val = document.createElement("span");
-    val.className = "sp-val";
-    val.textContent = def.fmt(LP[def.key]);
-    inp.addEventListener("input", () => {
-      LP[def.key] = Number(inp.value);
+
+    if (def.type === "curve-point") {
+      // Compact two-slider row: zoom on left, font on right
+      const hdr = document.createElement("div");
+      hdr.className = "sp-curve-pt-label";
+      hdr.textContent = def.pointLabel;
+      body.appendChild(hdr);
+
+      function makeCurveRow(subLabel, key, min, max, step, fmtFn) {
+        const row = document.createElement("div");
+        row.className = "sp-row sp-subrow";
+        const lbl = document.createElement("label");
+        lbl.className = "sp-label";
+        lbl.htmlFor = `sp-${key}`;
+        lbl.textContent = subLabel;
+        const right = document.createElement("div");
+        right.className = "sp-right";
+        const val = document.createElement("span");
+        val.className = "sp-val";
+        val.id = `sp-val-${key}`;
+        val.textContent = fmtFn(LP[key]);
+        const inp = makeSlider(`sp-${key}`, min, max, step, LP[key], () => {
+          LP[key] = Number(inp.value);
+          val.textContent = fmtFn(LP[key]);
+          renderMarkers();
+        });
+        right.appendChild(inp); right.appendChild(val);
+        row.appendChild(lbl); row.appendChild(right);
+        return row;
+      }
+
+      body.appendChild(makeCurveRow("Zoom", def.keyZ, def.minZ, def.maxZ, def.stepZ,
+        v => v.toFixed(2)));
+      body.appendChild(makeCurveRow("Font", def.keyF, def.minF, def.maxF, def.stepF,
+        v => v % 1 === 0 ? v + "px" : v.toFixed(1) + "px"));
+    } else {
+      const row = document.createElement("div");
+      row.className = "sp-row";
+      const lbl = document.createElement("label");
+      lbl.className = "sp-label";
+      lbl.htmlFor = `sp-${def.key}`;
+      lbl.textContent = def.label;
+      const right = document.createElement("div");
+      right.className = "sp-right";
+      const val = document.createElement("span");
+      val.className = "sp-val";
       val.textContent = def.fmt(LP[def.key]);
-      renderMarkers();
-    });
-    right.appendChild(inp);
-    right.appendChild(val);
-    row.appendChild(lbl);
-    row.appendChild(right);
-    body.appendChild(row);
+      const inp = makeSlider(`sp-${def.key}`, def.min, def.max, def.step, LP[def.key], () => {
+        LP[def.key] = Number(inp.value);
+        val.textContent = def.fmt(LP[def.key]);
+        renderMarkers();
+      });
+      right.appendChild(inp); right.appendChild(val);
+      row.appendChild(lbl); row.appendChild(right);
+      body.appendChild(row);
+    }
+
     if (def.desc) {
       const desc = document.createElement("p");
       desc.className = "sp-desc";
