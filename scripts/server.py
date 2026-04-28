@@ -27,6 +27,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
+    # ── GET handler ───────────────────────────────────────────────────────────
+    def do_GET(self):
+        if self.path.startswith('/api/ulm-inset'):
+            self._ulm_inset_get()
+        else:
+            super().do_GET()
+
+    def _ulm_inset_get(self):
+        parsed = urllib.parse.urlparse(self.path)
+        params = urllib.parse.parse_qs(parsed.query)
+        ulm_id = (params.get('id', [None])[0] or '').strip()
+        if not ulm_id or not ulm_id.isdigit():
+            self._json_error('Missing or invalid id')
+            return
+        img_url = self._ulm_inset_url(ulm_id)
+        self._json_ok({'img': img_url})
+
     # ── POST handler ──────────────────────────────────────────────────────────
     def do_POST(self):
         if self.path == "/api/save-calibration":
