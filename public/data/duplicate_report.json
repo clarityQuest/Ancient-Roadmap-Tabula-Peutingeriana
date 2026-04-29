@@ -1,0 +1,868 @@
+{
+  "meta": {
+    "total_groups": 28,
+    "total_remove": 28,
+    "counts": {
+      "certain": 7,
+      "very_likely": 6,
+      "likely": 15
+    }
+  },
+  "groups": [
+    {
+      "confidence": "certain",
+      "ulm_id": 216,
+      "keep": "TP:ULM:2000833",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace1198"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace1198",
+          "source": "omnesviae",
+          "latin": "Aqve cvtillie",
+          "modern": "near Paterno (Barrington) Terme di Cotilia?",
+          "segment": 5,
+          "row": "b",
+          "col": 4,
+          "ulm_id": 216
+        },
+        {
+          "record_id": "TP:ULM:2000833",
+          "source": "tabula",
+          "latin": "Aquae Cutilliae",
+          "modern": "Antrodoco (Rieti)",
+          "segment": 5,
+          "row": "b",
+          "col": 4,
+          "ulm_id": 216
+        }
+      ]
+    },
+    {
+      "confidence": "certain",
+      "ulm_id": 538,
+      "keep": "TP:ULM:2000834",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace1493"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace1493",
+          "source": "omnesviae",
+          "latin": "Thermis",
+          "modern": "Termini Imerese",
+          "segment": 7,
+          "row": "b",
+          "col": 1,
+          "ulm_id": 538
+        },
+        {
+          "record_id": "TP:ULM:2000834",
+          "source": "tabula",
+          "latin": "Thermis",
+          "modern": "",
+          "segment": 7,
+          "row": "b",
+          "col": 1,
+          "ulm_id": 538
+        }
+      ]
+    },
+    {
+      "confidence": "certain",
+      "ulm_id": 775,
+      "keep": "TP:ULM:2000866",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace1710"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace1710",
+          "source": "omnesviae",
+          "latin": "Ad pretorum",
+          "modern": "",
+          "segment": 6,
+          "row": "a",
+          "col": 1,
+          "ulm_id": 775
+        },
+        {
+          "record_id": "TP:ULM:2000866",
+          "source": "tabula",
+          "latin": "Ad pretorum",
+          "modern": "Grebaštica",
+          "segment": 5,
+          "row": "a",
+          "col": 1,
+          "ulm_id": 775
+        }
+      ]
+    },
+    {
+      "confidence": "certain",
+      "ulm_id": 1308,
+      "keep": "TP:1308",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace2202"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace2202",
+          "source": "omnesviae",
+          "latin": "Prvsias",
+          "modern": "",
+          "segment": 9,
+          "row": "b",
+          "col": 2,
+          "ulm_id": 1308
+        },
+        {
+          "record_id": "TP:1308",
+          "source": "tabula",
+          "latin": "Prusias",
+          "modern": "Gemlik",
+          "segment": 9,
+          "row": "b",
+          "col": 2,
+          "ulm_id": 1308
+        }
+      ]
+    },
+    {
+      "confidence": "certain",
+      "ulm_id": 1887,
+      "keep": "TP:2704b",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace2744"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace2744",
+          "source": "omnesviae",
+          "latin": "Magaris",
+          "modern": "settlement in R. Ganges valley? (Barrington)",
+          "segment": 12,
+          "row": "b",
+          "col": 5,
+          "ulm_id": 1887
+        },
+        {
+          "record_id": "TP:2704b",
+          "source": "tabula",
+          "latin": "Fl(umen) Ganges",
+          "modern": "Ganges",
+          "segment": 12,
+          "row": "b",
+          "col": 5,
+          "ulm_id": 1887
+        }
+      ]
+    },
+    {
+      "confidence": "certain",
+      "ulm_id": 2100,
+      "keep": "TP:ULM:2000829",
+      "remove": [
+        "SEG4:2940:1253.0:350.8"
+      ],
+      "records": [
+        {
+          "record_id": "SEG4:2940:1253.0:350.8",
+          "source": "tabula_runtime",
+          "latin": "[Lacus Eupilis]",
+          "modern": "",
+          "segment": null,
+          "row": null,
+          "col": null,
+          "ulm_id": 2100
+        },
+        {
+          "record_id": "TP:ULM:2000829",
+          "source": "tabula",
+          "latin": "Lacus Eupilis",
+          "modern": "Lago di Pusiano",
+          "segment": 4,
+          "row": "a",
+          "col": 2,
+          "ulm_id": 2100
+        }
+      ]
+    },
+    {
+      "confidence": "certain",
+      "ulm_id": 2107,
+      "keep": "TP:ULM:2000865",
+      "remove": [
+        "SEG4:2947:2185.5:1684.0"
+      ],
+      "records": [
+        {
+          "record_id": "SEG4:2947:2185.5:1684.0",
+          "source": "tabula_runtime",
+          "latin": "[Templum Iovis?] (Miller)",
+          "modern": "",
+          "segment": 4,
+          "row": "c",
+          "col": 3,
+          "ulm_id": 2107
+        },
+        {
+          "record_id": "TP:ULM:2000865",
+          "source": "tabula",
+          "latin": "[Templum Iovis?]",
+          "modern": "Giglio",
+          "segment": 3,
+          "row": "c",
+          "col": 3,
+          "ulm_id": 2107
+        }
+      ]
+    },
+    {
+      "confidence": "very_likely",
+      "ulm_id": null,
+      "keep": "TP:3073",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace636"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace636",
+          "source": "omnesviae",
+          "latin": "Ebvrobriga",
+          "modern": "Avrolles",
+          "segment": 2,
+          "row": "a",
+          "col": 4,
+          "ulm_id": 3073
+        },
+        {
+          "record_id": "TP:3073",
+          "source": "tabula",
+          "latin": "Eburobriga",
+          "modern": "Avrolles",
+          "segment": 2,
+          "row": "a",
+          "col": 4,
+          "ulm_id": null
+        }
+      ]
+    },
+    {
+      "confidence": "very_likely",
+      "ulm_id": null,
+      "keep": "OV:https://omnesviae.org/#TPPlace1091",
+      "remove": [
+        "ULM:99"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace1091",
+          "source": "omnesviae",
+          "latin": "Inportv",
+          "modern": "",
+          "segment": 4,
+          "row": "b",
+          "col": 2,
+          "ulm_id": null
+        },
+        {
+          "record_id": "ULM:99",
+          "source": "ulm",
+          "latin": "In Portu",
+          "modern": "Empoli Vecchio? (Empoli) [3] / bei S. Miniato [2] / nicht lokalisierbar [Pleiades]",
+          "segment": 4,
+          "row": "b",
+          "col": 2,
+          "ulm_id": 99
+        }
+      ]
+    },
+    {
+      "confidence": "very_likely",
+      "ulm_id": null,
+      "keep": "TP:414",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace138"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace138",
+          "source": "omnesviae",
+          "latin": "Admercvrivm",
+          "modern": "",
+          "segment": 5,
+          "row": "c",
+          "col": 5,
+          "ulm_id": null
+        },
+        {
+          "record_id": "TP:414",
+          "source": "tabula",
+          "latin": "Ad Mercurium",
+          "modern": "Bou Rekba (Barrington) / Bordj Ali Mansur (Miller)",
+          "segment": 5,
+          "row": "c",
+          "col": 5,
+          "ulm_id": 414
+        }
+      ]
+    },
+    {
+      "confidence": "very_likely",
+      "ulm_id": null,
+      "keep": "TP:722",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace1660"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace1660",
+          "source": "omnesviae",
+          "latin": "Servttio",
+          "modern": "Bosanska Gradiška",
+          "segment": 6,
+          "row": "a",
+          "col": 1,
+          "ulm_id": 722
+        },
+        {
+          "record_id": "TP:722",
+          "source": "tabula",
+          "latin": "Seruttio",
+          "modern": "Bosanska Gradiska (Pannonia)",
+          "segment": 6,
+          "row": "a",
+          "col": 1,
+          "ulm_id": null
+        }
+      ]
+    },
+    {
+      "confidence": "very_likely",
+      "ulm_id": null,
+      "keep": "TP:891",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace1822"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace1822",
+          "source": "omnesviae",
+          "latin": "Adhercvle",
+          "modern": "",
+          "segment": 7,
+          "row": "b",
+          "col": 4,
+          "ulm_id": null
+        },
+        {
+          "record_id": "TP:891",
+          "source": "tabula",
+          "latin": "Adhercule (Ad Herculem)",
+          "modern": "Žitoradja",
+          "segment": 7,
+          "row": "a",
+          "col": 4,
+          "ulm_id": 897
+        }
+      ]
+    },
+    {
+      "confidence": "very_likely",
+      "ulm_id": null,
+      "keep": "TP:2880",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace452"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace452",
+          "source": "omnesviae",
+          "latin": "Addianam",
+          "modern": "~ Hal Timna | ~ Yotvata, יטבתה",
+          "segment": 9,
+          "row": "c",
+          "col": 5,
+          "ulm_id": 2880
+        },
+        {
+          "record_id": "TP:2880",
+          "source": "tabula",
+          "latin": "Ad Dianam",
+          "modern": "el Fattih, Wadi Araba (Jordan)",
+          "segment": 9,
+          "row": "c",
+          "col": 5,
+          "ulm_id": null
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.917,
+      "keep": "TP:2000758",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace14"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace14",
+          "source": "omnesviae",
+          "latin": "Saldas Colonia",
+          "modern": "Béjaia (Barrington) / Bougie (Miller)",
+          "segment": 2,
+          "row": "c",
+          "col": 4,
+          "ulm_id": 435
+        },
+        {
+          "record_id": "TP:2000758",
+          "source": "tabula",
+          "latin": "Sala colonia",
+          "modern": "Rabat",
+          "segment": 2,
+          "row": "c",
+          "col": 3,
+          "ulm_id": null
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.857,
+      "keep": "TP:3214",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace2578"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace2578",
+          "source": "omnesviae",
+          "latin": "Ad serta",
+          "modern": "Kaşyolu",
+          "segment": 11,
+          "row": "c",
+          "col": 1,
+          "ulm_id": 1707
+        },
+        {
+          "record_id": "TP:3214",
+          "source": "tabula",
+          "latin": "DESERTA",
+          "modern": "",
+          "segment": 11,
+          "row": "c",
+          "col": 3,
+          "ulm_id": 2397
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.889,
+      "keep": "TP:3220",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace2702"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace2702",
+          "source": "omnesviae",
+          "latin": "Babylonia",
+          "modern": "Babîl ~ Hillâ, بابل",
+          "segment": 11,
+          "row": "c",
+          "col": 4,
+          "ulm_id": 2403
+        },
+        {
+          "record_id": "TP:3220",
+          "source": "tabula",
+          "latin": "Banylonia",
+          "modern": "",
+          "segment": 11,
+          "row": "c",
+          "col": 4,
+          "ulm_id": null
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.857,
+      "keep": "TP:WL:3208",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace2492"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace2492",
+          "source": "omnesviae",
+          "latin": "Colchion",
+          "modern": "~ Ağrı",
+          "segment": 11,
+          "row": "a",
+          "col": 3,
+          "ulm_id": 1615
+        },
+        {
+          "record_id": "TP:WL:3208",
+          "source": "tabula",
+          "latin": "COLCHI",
+          "modern": "",
+          "segment": 11,
+          "row": "b",
+          "col": 2,
+          "ulm_id": 2390
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.923,
+      "keep": "TP:WL:3208",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace2536"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace2536",
+          "source": "omnesviae",
+          "latin": "Colchis",
+          "modern": "Yukarı Huh",
+          "segment": 11,
+          "row": "b",
+          "col": 3,
+          "ulm_id": 1662
+        },
+        {
+          "record_id": "TP:WL:3208",
+          "source": "tabula",
+          "latin": "COLCHI",
+          "modern": "",
+          "segment": 11,
+          "row": "b",
+          "col": 2,
+          "ulm_id": 2390
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.947,
+      "keep": "TP:891",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace1816"
+      ],
+      "records": [
+        {
+          "record_id": "TP:891",
+          "source": "tabula",
+          "latin": "Adhercule (Ad Herculem)",
+          "modern": "Žitoradja",
+          "segment": 7,
+          "row": "a",
+          "col": 4,
+          "ulm_id": 897
+        },
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace1816",
+          "source": "omnesviae",
+          "latin": "Adhercvlem",
+          "modern": "Žitorađa",
+          "segment": 7,
+          "row": "a",
+          "col": 4,
+          "ulm_id": null
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.917,
+      "keep": "TP:WL:3080",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace1958"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace1958",
+          "source": "omnesviae",
+          "latin": "Portus Callire",
+          "modern": "Varna/Warna/Варна",
+          "segment": 8,
+          "row": "a",
+          "col": 3,
+          "ulm_id": 2253
+        },
+        {
+          "record_id": "TP:WL:3080",
+          "source": "tabula",
+          "latin": "[Port. C]allire",
+          "modern": "",
+          "segment": 8,
+          "row": "a",
+          "col": 3,
+          "ulm_id": null
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.875,
+      "keep": "TP:3438",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace2054"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace2054",
+          "source": "omnesviae",
+          "latin": "Strymon",
+          "modern": "",
+          "segment": 8,
+          "row": "b",
+          "col": 3,
+          "ulm_id": 1148
+        },
+        {
+          "record_id": "TP:3438",
+          "source": "tabula",
+          "latin": "[Fl(uvius) Strymon]",
+          "modern": "Strymon / Struma / Strymonas",
+          "segment": 8,
+          "row": "b",
+          "col": 2,
+          "ulm_id": 2643
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.897,
+      "keep": "TP:WL:3565",
+      "remove": [
+        "ULM:2279"
+      ],
+      "records": [
+        {
+          "record_id": "TP:WL:3565",
+          "source": "tabula",
+          "latin": "Lacvs Tritonvm (Lacus Tritonum)",
+          "modern": "Bu Hayrat Bu Zazirah",
+          "segment": 8,
+          "row": "c",
+          "col": 4,
+          "ulm_id": 2775
+        },
+        {
+          "record_id": "ULM:2279",
+          "source": "ulm",
+          "latin": "Hic Lacus Tritonum",
+          "modern": "",
+          "segment": 8,
+          "row": "c",
+          "col": 4,
+          "ulm_id": 2279
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.875,
+      "keep": "OV:https://omnesviae.org/#TPPlace968",
+      "remove": [
+        "ULM:3400"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace968",
+          "source": "omnesviae",
+          "latin": "Ariolica",
+          "modern": "La Thuile",
+          "segment": 3,
+          "row": "b",
+          "col": 4,
+          "ulm_id": 3432
+        },
+        {
+          "record_id": "ULM:3400",
+          "source": "ulm",
+          "latin": "Abiolica",
+          "modern": "Pontarlier",
+          "segment": 3,
+          "row": "a",
+          "col": 1,
+          "ulm_id": 3400
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.875,
+      "keep": "OV:https://omnesviae.org/#TPPlace938",
+      "remove": [
+        "ULM:3400"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace938",
+          "source": "omnesviae",
+          "latin": "Aviolica",
+          "modern": "",
+          "segment": 3,
+          "row": "b",
+          "col": 1,
+          "ulm_id": null
+        },
+        {
+          "record_id": "ULM:3400",
+          "source": "ulm",
+          "latin": "Abiolica",
+          "modern": "Pontarlier",
+          "segment": 3,
+          "row": "a",
+          "col": 1,
+          "ulm_id": 3400
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.857,
+      "keep": "TP:2907",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace996"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace996",
+          "source": "omnesviae",
+          "latin": "BRIGANTIO",
+          "modern": "Bregenz",
+          "segment": 3,
+          "row": "a",
+          "col": 5,
+          "ulm_id": 3463
+        },
+        {
+          "record_id": "TP:2907",
+          "source": "tabula",
+          "latin": "[Lac(us) Brigantio]",
+          "modern": "Bodensee",
+          "segment": 3,
+          "row": "a",
+          "col": 5,
+          "ulm_id": null
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.923,
+      "keep": "OV:https://omnesviae.org/#TPPlace102",
+      "remove": [
+        "ULM:25"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace102",
+          "source": "omnesviae",
+          "latin": "Nobas Fvsciani",
+          "modern": "",
+          "segment": 3,
+          "row": "c",
+          "col": 5,
+          "ulm_id": null
+        },
+        {
+          "record_id": "ULM:25",
+          "source": "ulm",
+          "latin": "Nodas Fusciani",
+          "modern": "(19 miles W Milev) (Barrington) / Tiberguent (Miller)",
+          "segment": 3,
+          "row": "c",
+          "col": 1,
+          "ulm_id": 25
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.923,
+      "keep": "TP:2704",
+      "remove": [
+        "OV:https://omnesviae.org/#TPPlace2760"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace2760",
+          "source": "omnesviae",
+          "latin": "Ad flumen Ganges",
+          "modern": "j. etwa Furukabad am Ganges (Miller)",
+          "segment": 12,
+          "row": "b",
+          "col": 3,
+          "ulm_id": 1905
+        },
+        {
+          "record_id": "TP:2704",
+          "source": "tabula",
+          "latin": "Flumen Ganges",
+          "modern": "Ganges",
+          "segment": 12,
+          "row": "b",
+          "col": 2,
+          "ulm_id": 2704
+        }
+      ]
+    },
+    {
+      "confidence": "likely",
+      "ulm_id": null,
+      "similarity": 0.857,
+      "keep": "OV:https://omnesviae.org/#TPPlace2798",
+      "remove": [
+        "ULM:1945"
+      ],
+      "records": [
+        {
+          "record_id": "OV:https://omnesviae.org/#TPPlace2798",
+          "source": "omnesviae",
+          "latin": "Mvzeris",
+          "modern": "",
+          "segment": 12,
+          "row": "c",
+          "col": 4,
+          "ulm_id": null
+        },
+        {
+          "record_id": "ULM:1945",
+          "source": "ulm",
+          "latin": "Mvziris (Muziris)",
+          "modern": "Cranganūr",
+          "segment": 12,
+          "row": "c",
+          "col": 5,
+          "ulm_id": 1945
+        }
+      ]
+    }
+  ]
+}

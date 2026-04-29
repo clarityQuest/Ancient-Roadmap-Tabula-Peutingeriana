@@ -47,6 +47,13 @@ const TYPE_COLORS = {
   people:         "#9d174d",
 };
 
+// Draw order: lower = rendered first (background). Regions/rivers behind everything else.
+const TYPE_DRAW_ORDER = {
+  region: 0, river: 1, lake: 2, water: 2,
+  island: 3, mountain: 3, people: 3, roman_province: 3, modern_state: 3,
+  road_station: 4, spa: 5, temple: 5, port: 6, city: 7, major_city: 8,
+};
+
 const TYPE_LABELS = {
   major_city:     "Major City",
   city:           "City",
@@ -459,7 +466,10 @@ function renderMillerOverlay(ctx) {
 
   let drawn = 0;
   let highlightDrawn = false;
-  for (const item of S.millerCalib) {
+  const renderCalib = [...S.millerCalib].sort(
+    (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
+  );
+  for (const item of renderCalib) {
     if (!S.activeTypes.has(item.type)) continue;
     const vx1 = item.rect_x1 / MILLER_W;
     const vx2 = item.rect_x2 / MILLER_W;
@@ -575,7 +585,11 @@ function renderMarkers() {
   let rendered = 0;
   let labelCount = 0;
 
-  for (const p of S.places) {
+  const renderPlaces = [...S.places].sort(
+    (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
+  );
+
+  for (const p of renderPlaces) {
     if (!S.activeTypes.has(p.type)) continue;
     if (p.vx < bx0 || p.vx > bx1 || p.vy < by0 || p.vy > by1) continue;
     if (!isVisibleAtZoom(p.type, zoom)) continue;
@@ -1366,14 +1380,11 @@ function countryFlags(raw) {
 
 function tpOnlineHref(place) {
   if (place.ulm_id) return `https://tp-online.ku.de/trefferanzeige.php?id=${place.ulm_id}`;
+  // Only use record_id when it's the plain TP:XXXX format — that number IS the ULM ID.
+  // TP:WL:XXXX and other prefixed formats use a different ID space.
   const rid = String(place.record_id || place.id || "");
   const m = /^TP:(\d+)$/.exec(rid);
-  if (m) return `https://tp-online.ku.de/trefferanzeige.php?id=${m[1]}`;
-  if (place.source === "tabula") {
-    const did = Number(place.data_id);
-    if (Number.isFinite(did) && did > 0 && did < 2000000)
-      return `https://tp-online.ku.de/trefferanzeige.php?id=${did}`;
-  }
+  if (m && Number(m[1]) < 2000000) return `https://tp-online.ku.de/trefferanzeige.php?id=${m[1]}`;
   return "";
 }
 
@@ -1674,7 +1685,7 @@ async function init() {
     .filter((r) => {
       if (!r || typeof r !== "object") return false;
       if (!MAP_RUNTIME_TYPES.has(r.type)) return false;
-      return Number.isFinite(Number(r.px)) && Number.isFinite(Number(r.py));
+      return r.px != null && r.py != null && Number.isFinite(Number(r.px)) && Number.isFinite(Number(r.py));
     })
     .map((r, idx) => ({
       ...r,

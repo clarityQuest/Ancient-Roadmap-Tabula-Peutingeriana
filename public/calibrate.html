@@ -77,6 +77,14 @@
     .filter-btn[data-type="spa"].active          { border-color: #0891b2; background: rgba(8,145,178,0.22); color: #67e8f9; }
     .filter-btn[data-type="temple"].active       { border-color: #9333ea; background: rgba(147,51,234,0.22); color: #d8b4fe; }
     .filter-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    /* Background-type toggles (water, region) — separated, dashed default */
+    #bg-type-buttons { margin-left: 6px; padding-left: 10px; border-left: 1px solid rgba(255,255,255,0.12); }
+    .bg-type-btn { border-style: dashed !important; opacity: 0.7; }
+    .bg-type-btn:hover { opacity: 1; }
+    .bg-type-btn[data-bgtype="water"].active  { border-color: #0e7490 !important; border-style: solid !important; background: rgba(14,116,144,0.20) !important; color: #67e8f9 !important; font-weight: 700; opacity: 1; }
+    .bg-type-btn[data-bgtype="region"].active { border-color: #7c3aed !important; border-style: solid !important; background: rgba(124,58,237,0.20) !important; color: #c4b5fd !important; font-weight: 700; opacity: 1; }
+    /* Property filter buttons (modern-only, vignette-only) */
+    .prop-btn.active { border-color: #16a34a; background: rgba(22,163,74,0.18); color: #86efac; font-weight: 700; }
     #btn-show-all-markings {
       padding: 4px 11px; border-radius: 5px; border: 1px solid var(--green);
       background: rgba(34,197,94,0.08); color: var(--green);
@@ -106,7 +114,7 @@
     #panel {
       width: 520px; flex-shrink: 0;
       background: var(--panel); border-right: 1px solid var(--border);
-      display: flex; flex-direction: column; padding: 12px 14px; gap: 8px;
+      display: flex; flex-direction: column; padding: 10px 12px; gap: 6px;
       z-index: 10; overflow-y: auto;
     }
     #city-num { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
@@ -122,20 +130,24 @@
     .meta-val { color: var(--text); line-height: 1.4; }
     .meta-val a { color: var(--accent); text-decoration: none; }
     .meta-val a:hover { text-decoration: underline; }
+    #meta-location { font-size: 39px; font-weight: 700; line-height: 1.1; letter-spacing: .02em; }
 
-    /* Tabula cell preview */
-    #tabula-preview { display: none; flex-direction: column; gap: 5px; }
+    /* Tabula cell + ULM inset preview */
+    #tabula-preview { display: none; flex-direction: column; gap: 4px; }
     #tabula-preview.visible { display: flex; }
+
+    /* Top row: tabula cell image + mini segment strip side by side */
+    #preview-top { display: flex; gap: 6px; align-items: flex-start; }
     #tabula-cell-img {
-      width: 100%; aspect-ratio: 16/9;
-      border-radius: 10px; border: 1px solid rgba(255,255,255,0.18);
+      flex: 1; aspect-ratio: 5/3;
+      border-radius: 7px; border: 1px solid rgba(255,255,255,0.18);
       background: #1a1a2a center/cover no-repeat;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
     }
-    #tabula-mini-wrap { position: relative; width: 160px; }
+    #tabula-mini-wrap { position: relative; width: 130px; flex-shrink: 0; }
     #tabula-mini-img {
       width: 100%; aspect-ratio: 16/5.5;
-      border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);
       background: #1a1a2a center/cover no-repeat;
     }
     #tabula-mini-marker {
@@ -144,42 +156,73 @@
       border-radius: 2px; box-shadow: 0 0 0 1px rgba(255,255,255,0.45);
       pointer-events: none; top: 0; left: 0;
     }
+
+    /* ULM inset: full-width row below */
+    #ulm-cell-img {
+      display: none; width: 100%; height: 300px;
+      border-radius: 7px; border: 1px solid rgba(255,255,255,0.22);
+      background: #1a1a2a center/contain no-repeat;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+      cursor: zoom-in;
+    }
+    .preview-sub-label {
+      font-size: 9px; color: var(--muted); text-align: center;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
     #tabula-preview-label {
-      font-size: 11px; color: var(--muted); text-align: center;
-      text-transform: uppercase; letter-spacing: .05em; margin-top: -2px;
+      font-size: 10px; color: var(--muted); text-align: center;
+      text-transform: uppercase; letter-spacing: .05em;
     }
 
-    .coord-block { background: rgba(255,255,255,0.05); border-radius: 6px; padding: 6px 10px; }
-    .coord-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
-    .coord-val { font-size: 10px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* ULM image hover popup */
+    #ulm-img-popup {
+      position: fixed; display: none; z-index: 200; pointer-events: none;
+      background: #0f1117;
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 10px;
+      box-shadow: 0 14px 48px rgba(0,0,0,0.75);
+      padding: 6px;
+    }
+    #ulm-img-popup img {
+      display: block; max-width: 1440px; max-height: 720px;
+      border-radius: 6px;
+    }
+    #ulm-img-popup-cap {
+      font-size: 11px; color: rgba(255,255,255,0.45);
+      text-align: center; margin-top: 4px;
+    }
+
+    .coord-block { background: rgba(255,255,255,0.05); border-radius: 5px; padding: 4px 8px; }
+    .coord-label { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+    .coord-val { font-size: 9px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #cur-val { color: var(--yellow); }
     #new-val { color: var(--green); }
-    #coord-delta { font-size: 9px; color: var(--muted); margin-top: 2px; }
+    #coord-delta { font-size: 8px; color: var(--muted); margin-top: 2px; }
 
     /* Mark mode toggle */
     #btn-mark-mode {
-      padding: 10px 12px; border-radius: 6px; border: 2px solid var(--accent);
+      padding: 7px 10px; border-radius: 6px; border: 2px solid var(--accent);
       background: transparent; color: var(--accent);
-      font-size: 13px; font-weight: 700; cursor: pointer; text-align: center;
+      font-size: 12px; font-weight: 700; cursor: pointer; text-align: center;
       transition: all 0.15s;
     }
     #btn-mark-mode.active {
       background: var(--accent); color: #fff;
     }
-    #btn-mark-mode .hint { font-size: 10px; font-weight: 400; display: block; margin-top: 2px; opacity: 0.8; }
+    #btn-mark-mode .hint { font-size: 9px; font-weight: 400; display: block; margin-top: 1px; opacity: 0.8; }
 
     #hint-box {
-      font-size: 11px; color: var(--muted); line-height: 1.5;
+      font-size: 10px; color: var(--muted); line-height: 1.45;
       border-left: 3px solid var(--accent); padding-left: 8px;
     }
 
     .spacer { flex: 1; }
 
-    #btn-group { display: flex; flex-direction: column; gap: 7px; }
+    #btn-group { display: flex; flex-direction: column; gap: 5px; }
     .nav-btn {
-      padding: 9px 12px; border-radius: 6px; border: 1px solid var(--border);
+      padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border);
       background: rgba(255,255,255,0.04); color: var(--text);
-      font-size: 13px; font-weight: 600; cursor: pointer; text-align: center;
+      font-size: 12px; font-weight: 600; cursor: pointer; text-align: center;
       transition: background 0.15s;
     }
     .nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
@@ -189,7 +232,7 @@
 
     /* Status badge */
     #status-badge {
-      font-size: 11px; padding: 3px 8px; border-radius: 4px;
+      font-size: 10px; padding: 2px 6px; border-radius: 4px;
       text-align: center; font-weight: 600;
     }
     .badge-pending { background: rgba(161,161,170,0.15); color: var(--muted); }
@@ -216,7 +259,7 @@
     .city-item.active { background: rgba(59,130,246,0.15); }
     .city-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .dot-pending { background: var(--muted); }
-    .dot-set { background: var(--green); }
+    .dot-set     { background: var(--green); }
     .dot-skipped { background: var(--yellow); }
 
     /* ── Viewer area ── */
@@ -260,17 +303,19 @@
       <button class="filter-btn" data-type="city">City</button>
       <button class="filter-btn" data-type="port">Port</button>
       <button class="filter-btn" data-type="road_station">Road Station</button>
-      <button class="filter-btn" data-type="region">Region</button>
       <button class="filter-btn" data-type="river">River</button>
       <button class="filter-btn" data-type="island">Island</button>
       <button class="filter-btn" data-type="roman_province">Roman Province</button>
       <button class="filter-btn" data-type="modern_state">Modern State</button>
       <button class="filter-btn" data-type="lake">Lake</button>
-      <button class="filter-btn" data-type="water">Water</button>
       <button class="filter-btn" data-type="spa">Spa</button>
       <button class="filter-btn" data-type="temple">Temple</button>
       <button class="filter-btn" data-type="mountain">Mountain</button>
       <button class="filter-btn" data-type="people">People</button>
+    </div>
+    <div class="filter-group bg-type-group" id="bg-type-buttons">
+      <button class="filter-btn bg-type-btn" data-bgtype="water">Water</button>
+      <button class="filter-btn bg-type-btn" data-bgtype="region">Region</button>
     </div>
     <div class="filter-divider"></div>
     <span class="filter-label">Segment</span>
@@ -299,6 +344,12 @@
       style="background:rgba(255,255,255,0.05);color:var(--text);border:1px solid rgba(255,255,255,0.15);
              border-radius:5px;padding:4px 10px;font-size:12px;width:160px;outline:none;" />
     <div class="filter-divider"></div>
+    <span class="filter-label">Show</span>
+    <div class="filter-group">
+      <button class="filter-btn prop-btn" id="btn-modern-only" title="Only places with a modern name">With Modern</button>
+      <button class="filter-btn prop-btn" id="btn-vignette-only" title="Only places with a vignette symbol">With Vignette</button>
+    </div>
+    <div class="filter-divider"></div>
     <button id="btn-hide-done" title="Hide places already calibrated from the list">Hide done</button>
     <button id="btn-show-all-markings" title="Show/hide all accepted calibration markings on map">All markings ON</button>
   </div>
@@ -320,13 +371,17 @@
         <div class="meta-row" id="meta-ulm-row"><span class="meta-key">Ulm DB</span><span class="meta-val"><button id="btn-ulm-search" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;padding:0;text-decoration:underline;">Search ↗</button></span></div>
       </div>
 
-      <!-- Tabula cell preview (uses tabula-peutingeriana.de images) -->
+      <!-- Tabula cell preview + ULM inset -->
       <div id="tabula-preview">
-        <div id="tabula-cell-img"></div>
-        <div id="tabula-mini-wrap">
-          <div id="tabula-mini-img"></div>
-          <div id="tabula-mini-marker"></div>
+        <div id="preview-top">
+          <div id="tabula-cell-img"></div>
+          <div id="tabula-mini-wrap">
+            <div id="tabula-mini-img"></div>
+            <div id="tabula-mini-marker"></div>
+          </div>
         </div>
+        <div id="ulm-cell-img"></div>
+        <div class="preview-sub-label" id="ulm-label" style="display:none">ULM inset</div>
         <div id="tabula-preview-label">Tabula location on segment</div>
       </div>
 
@@ -375,6 +430,12 @@
   </div>
 </div>
 
+<!-- ULM image hover popup -->
+<div id="ulm-img-popup">
+  <img id="ulm-img-popup-img" src="" alt="" />
+  <div id="ulm-img-popup-cap"></div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
 <script>
 "use strict";
@@ -385,6 +446,13 @@ const IMG_H = 2953;
 // Segments are numbered 2–12 in the data (11 total)
 const SEGMENT_FIRST = 2;
 const SEGMENT_COUNT = 11;
+
+// Grid geometry (used for overlay labels and cell highlights)
+const SEG_W = IMG_W / SEGMENT_COUNT;        // ≈ 4216 px per segment
+const ROW_H = IMG_H / 3;                    // ≈ 984 px per row
+const ROW_Y = { a: 0, b: ROW_H, c: 2 * ROW_H };  // top-y of each row band
+const ROMAN = ['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+let segMaxCol = {};   // segment# → max column number (populated after DB loads)
 
 const TYPE_COLORS = {
   major_city:     "#8B0000",
@@ -424,6 +492,9 @@ const TYPE_LABELS = {
 
 const DRAFT_STORAGE_KEY = "tp_calibrate_miller_v1";
 
+// Types excluded from "All" — only shown via their dedicated toggle buttons
+const BACKGROUND_TYPES = new Set(['water', 'region']);
+
 let allPlaces  = [];   // all loaded places (unfiltered)
 let cities     = [];   // current working list (after filters)
 let reviewDb   = { records: [] };
@@ -434,6 +505,10 @@ let activeSegment = null; // null = All
 let sortMode = "alpha";   // "alpha" | "location"
 let searchQuery = "";     // free-text filter
 let hideDone = false;     // hide calibrated places from sidebar list
+let showBackgroundWater  = false;   // water layer toggle (independent of type filter)
+let showBackgroundRegion = false;   // region layer toggle
+let filterModernOnly   = false;     // only places with a modern name
+let filterVignetteOnly = false;     // only places with a vignette
 
 let newPx   = null;
 let newPy   = null;
@@ -535,12 +610,15 @@ function storedPlacement(city) {
   };
 }
 
-// Estimate a place's position on the Miller map using segment + row metadata.
+// Estimate a place's position on the Miller map using segment + row + column metadata.
 // Segments are numbered 2–12 (11 total); rows are 'a' (top), 'b' (middle), 'c' (bottom).
 function estimateMillerPos(place) {
   const seg = Number(place.tabula_segment);
   const segIdx = Number.isFinite(seg) ? Math.max(0, seg - SEGMENT_FIRST) : Math.floor(SEGMENT_COUNT / 2);
-  const px = (segIdx + 0.5) * (IMG_W / SEGMENT_COUNT);
+  const col = Number(place.tabula_col);
+  const maxCol = (Number.isFinite(seg) && segMaxCol[seg]) || 8;
+  const colFrac = Number.isFinite(col) && col >= 1 ? (col - 0.5) / maxCol : 0.5;
+  const px = (segIdx + colFrac) * SEG_W;
   const rowMap = { a: IMG_H / 6, b: IMG_H / 2, c: 5 * IMG_H / 6 };
   const py = rowMap[place.tabula_row] ?? IMG_H / 2;
   return { px, py };
@@ -585,7 +663,80 @@ function toRuntimeRecord(row, fallbackId) {
 const canvas = document.getElementById("marker-canvas");
 const ctx    = canvas.getContext("2d");
 
-/* ── Ulm image lookup ── */
+/* ── Ulm image loader ── */
+let ulmResolvedUrl = null;   // set when an image loads successfully; used by hover popup
+
+function setUlmImg(url) {
+  const el  = document.getElementById("ulm-cell-img");
+  const lbl = document.getElementById("ulm-label");
+  ulmResolvedUrl = url || null;
+  el.style.backgroundImage  = url ? `url('${url}')` : "";
+  el.style.display          = url ? "block" : "none";
+  if (lbl) lbl.style.display = url ? "" : "none";
+}
+
+function loadUlmImageById(ulmId, targetDataId) {
+  if (!ulmId) { setUlmImg(null); return; }
+  setUlmImg(null);   // hide while loading
+  // Use the exact img_url stored in the DB record (handles .png / .jpg / insetneu1 variants).
+  // Fall back to guessing .png then .jpg for records without ulm_img_url.
+  const city = cities.find(c => c.ulm_id === ulmId && c.data_id === targetDataId)
+             || cities[idx];
+  const directUrl = city?.ulm_img_url || null;
+  const candidates = directUrl
+    ? [directUrl]
+    : [`https://tp-online.ku.de/insetimages/TPPlace${ulmId}insetneu.png`,
+       `https://tp-online.ku.de/insetimages/TPPlace${ulmId}insetneu.jpg`];
+
+  const tryNext = (i) => {
+    if (i >= candidates.length) { setUlmImg(null); return; }
+    const url = candidates[i];
+    const img = new Image();
+    img.onload  = () => {
+      if (!cities.length || cities[idx]?.data_id !== targetDataId) return;
+      setUlmImg(url);
+    };
+    img.onerror = () => tryNext(i + 1);
+    img.src = url;
+  };
+  tryNext(0);
+}
+
+/* ── ULM image hover popup ── */
+(function () {
+  const popup    = document.getElementById('ulm-img-popup');
+  const popupImg = document.getElementById('ulm-img-popup-img');
+  const popupCap = document.getElementById('ulm-img-popup-cap');
+  let hideTimer  = null;
+
+  function positionPopup(e) {
+    const W = popup.offsetWidth  || 1450;
+    const H = popup.offsetHeight || 740;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let x = e.clientX + 16, y = e.clientY + 16;
+    if (x + W > vw - 8) x = e.clientX - W - 12;
+    if (y + H > vh - 8) y = e.clientY - H - 12;
+    popup.style.left = Math.max(4, x) + 'px';
+    popup.style.top  = Math.max(4, y) + 'px';
+  }
+
+  document.getElementById('ulm-cell-img').addEventListener('mousemove', (e) => {
+    clearTimeout(hideTimer);
+    const city = cities[idx];
+    if (!city || !city.ulm_id || !ulmResolvedUrl) return;
+    if (popupImg.src !== ulmResolvedUrl) {
+      popupImg.src = ulmResolvedUrl;
+      popupCap.textContent = city.latin_std || city.latin || '';
+    }
+    positionPopup(e);
+    popup.style.display = 'block';
+  });
+
+  document.getElementById('ulm-cell-img').addEventListener('mouseleave', () => {
+    hideTimer = setTimeout(() => { popup.style.display = 'none'; }, 150);
+  });
+})();
+
 async function loadUlmImage(modernName, latinName, targetDataId) {
   const cacheKey = modernName || latinName;
   if (!cacheKey) return;
@@ -607,18 +758,8 @@ async function loadUlmImage(modernName, latinName, targetDataId) {
     }
     ulmIdCache[cacheKey] = ulmId;
   }
-  // Only apply if user hasn't moved to a different place
   if (!cities.length || cities[idx]?.data_id !== targetDataId) return;
-  if (!ulmId) return;
-  const imgUrl = ulmImgCache[cacheKey] || `https://tp-online.ku.de/insetimages/TPPlace${ulmId}insetneu.png`;
-  const img = new Image();
-  img.onload = () => {
-    if (!cities.length || cities[idx]?.data_id !== targetDataId) return;
-    document.getElementById("tabula-cell-img").style.backgroundImage = `url('${imgUrl}')`;
-    document.getElementById("tabula-preview-label").textContent = "Ulm DB inset · Tabula segment";
-    document.getElementById("tabula-preview").classList.add("visible");
-  };
-  img.src = imgUrl;
+  if (ulmId) loadUlmImageById(ulmId, targetDataId);
 }
 
 /* ── Server auto-save ── */
@@ -692,6 +833,14 @@ async function init() {
     return;
   }
 
+  // Compute max column per segment for grid column labels
+  for (const p of allPlaces) {
+    const s = p.tabula_segment, c = Number(p.tabula_col);
+    if (s != null && Number.isFinite(c)) {
+      segMaxCol[s] = Math.max(segMaxCol[s] || 0, c);
+    }
+  }
+
   // Merge previously saved browser draft.
   results = {};
   const draft = loadDraftResults();
@@ -713,7 +862,8 @@ async function init() {
     };
   }
 
-  // Pre-populate results from DB's miller_rect_* fields (draft takes precedence)
+  // Pre-populate results from DB's miller_rect_* fields (draft takes precedence).
+  // Use status "preloaded" so these don't count as session-done for "Hide done".
   for (const place of allPlaces) {
     const did = place.data_id;
     if (did == null || results[did] != null) continue;
@@ -731,7 +881,7 @@ async function init() {
       rect_w: round1(Math.max(1, nr.maxX - nr.minX)),
       rect_h: round1(Math.max(1, nr.maxY - nr.minY)),
       rect_user_set: true,
-      status: "set",
+      status: "preloaded",
     };
   }
 
@@ -742,13 +892,24 @@ async function init() {
 /* ── Filtering ── */
 function applyFilters() {
   const q = searchQuery.toLowerCase();
-  cities = allPlaces.filter((p) =>
-    (!activeType    || p.type === activeType) &&
-    (!activeSegment || p.tabula_segment === activeSegment) &&
-    !!(p.modern || (p.lat != null && p.lng != null)) &&
-    (!q || (p.latin_std || p.latin || "").toLowerCase().includes(q) ||
-           (p.modern || "").toLowerCase().includes(q))
-  );
+  cities = allPlaces.filter((p) => {
+    const isBg = BACKGROUND_TYPES.has(p.type);
+    if (isBg) {
+      // Background types only shown when their toggle is explicitly on
+      const bgOn = (p.type === 'water' && showBackgroundWater) ||
+                   (p.type === 'region' && showBackgroundRegion);
+      if (!bgOn) return false;
+    } else {
+      if (activeType && p.type !== activeType) return false;
+    }
+    if (activeSegment && p.tabula_segment !== activeSegment) return false;
+    if (!(p.modern || (p.lat != null && p.lng != null) || p.tabula_segment)) return false;
+    if (filterModernOnly   && !p.modern)   return false;
+    if (filterVignetteOnly && !p.vignette) return false;
+    if (q && !((p.latin_std || p.latin || "").toLowerCase().includes(q) ||
+               (p.modern || "").toLowerCase().includes(q))) return false;
+    return true;
+  });
   if (sortMode === "alpha") {
     cities.sort((a, b) => (a.latin_std || a.latin || "").localeCompare(b.latin_std || b.latin || ""));
   } else {
@@ -788,6 +949,7 @@ function clearPanel() {
   document.getElementById("meta-location").textContent = "—";
   document.getElementById("meta-country").textContent = "—";
   document.getElementById("meta-ulm-row").style.display = "";
+  setUlmImg(null);
   document.getElementById("tabula-preview").classList.remove("visible");
   document.getElementById("cur-val").textContent = "—";
   document.getElementById("new-val").textContent = "—";
@@ -800,7 +962,10 @@ function clearPanel() {
 
 function updateProgress() {
   const total = cities.length;
-  const done = cities.filter((c) => !!results[c.data_id]).length;
+  const done  = cities.filter((c) => {
+    const s = results[c.data_id]?.status;
+    return s === "set" || s === "skipped";
+  }).length;
   document.getElementById("progress-label").textContent = `${done} / ${total} done`;
   document.getElementById("progress-fill").style.width = total > 0
     ? `${(done / total) * 100}%` : "0%";
@@ -811,7 +976,8 @@ function buildCityList() {
   const el = document.getElementById("city-list");
   el.innerHTML = "";
   cities.forEach((city, i) => {
-    if (hideDone && dotClass(city.data_id) === "dot-set") return;
+    const _s = results[city.data_id]?.status;
+    if (hideDone && (_s === "set" || _s === "preloaded")) return;
     const item = document.createElement("div");
     item.className = "city-item" + (i === idx ? " active" : "");
     item.dataset.idx = i;
@@ -831,11 +997,13 @@ function buildCityList() {
 function dotClass(did) {
   const r = results[did];
   if (!r) return "dot-pending";
-  return r.status === "set" ? "dot-set" : "dot-skipped";
+  if (r.status === "set" || r.status === "preloaded") return "dot-set";
+  return "dot-skipped";
 }
 
 function updateCityList() {
-  document.querySelectorAll(".city-item").forEach((item, i) => {
+  document.querySelectorAll(".city-item").forEach((item) => {
+    const i = Number(item.dataset.idx);
     item.className = "city-item" + (i === idx ? " active" : "");
     item.querySelector(".city-dot").className = "city-dot " + dotClass(cities[i].data_id);
   });
@@ -1064,12 +1232,6 @@ function panToCity(city, existing, zoomIn = false) {
     usePy = est.py;
   }
   const vpPoint = vp.imageToViewportCoordinates(new OpenSeadragon.Point(usePx, usePy));
-  // Zoom ~10 shows roughly one segment width for the Miller map.
-  // If triggered by explicit user navigation (zoomIn=true), zoom 50% closer.
-  const currentZoom = vp.getZoom();
-  const baseZoom = currentZoom > 1 ? currentZoom : 10;
-  const targetZoom = zoomIn ? baseZoom * 1.5 : (currentZoom > 1 ? currentZoom : 10);
-  vp.zoomTo(targetZoom, null, false);
   vp.panTo(vpPoint, false);
   redraw();
 }
@@ -1157,11 +1319,13 @@ function updatePanel() {
 
   document.getElementById("meta-country").textContent = city.country || "—";
 
-  // Ulm DB search form
-  const ulmRow = document.getElementById("meta-ulm-row");
-  document.getElementById("btn-ulm-search").dataset.modern = rawModern || "";
-  document.getElementById("btn-ulm-search").dataset.latin  = city.latin_std || city.latin || "";
-  ulmRow.style.display = "";
+  // ULM DB link — use direct ID from DB when available, else fall back to name search
+  const ulmBtn = document.getElementById("btn-ulm-search");
+  ulmBtn.dataset.modern = rawModern || "";
+  ulmBtn.dataset.latin  = city.latin_std || city.latin || "";
+  ulmBtn.dataset.ulmId  = city.ulm_id ?? "";
+  ulmBtn.textContent    = city.ulm_id ? `ULM ${city.ulm_id} ↗` : "Search ↗";
+  document.getElementById("meta-ulm-row").style.display = "";
 
   // Tabula cell preview
   const cellUrl  = tabulaCellUrl(city);
@@ -1181,8 +1345,13 @@ function updatePanel() {
     document.getElementById("tabula-cell-img").style.backgroundImage = "";
     preview.classList.remove("visible");
   }
-  // Async: swap in Ulm inset image once resolved (overwrites tabula cell image)
-  loadUlmImage(rawModern, city.latin_std || city.latin || "", city.data_id);
+  // ULM inset image — use ulm_id directly if available, else fall back to API search
+  if (city.ulm_id) {
+    loadUlmImageById(city.ulm_id, city.data_id);
+  } else {
+    setUlmImg(null);
+    loadUlmImage(rawModern, city.latin_std || city.latin || "", city.data_id);
+  }
 
   document.getElementById("cur-val").textContent = `TL (${stored.rect_x1.toFixed(1)}, ${stored.rect_y1.toFixed(1)})  BR (${stored.rect_x2.toFixed(1)}, ${stored.rect_y2.toFixed(1)})`;
 
@@ -1199,13 +1368,10 @@ function updatePanel() {
 
   const statusBadge = document.getElementById("status-badge");
   const r = results[did];
-  if (r) {
-    statusBadge.className = r.status === "set" ? "badge-set" : "badge-skipped";
-    statusBadge.textContent = r.status === "set" ? "✓ Set" : "→ Skipped";
-  } else {
-    statusBadge.className = "badge-pending";
-    statusBadge.textContent = "Pending";
-  }
+  if (r?.status === "set")        { statusBadge.className = "badge-set";     statusBadge.textContent = "✓ Set"; }
+  else if (r?.status === "skipped")  { statusBadge.className = "badge-skipped"; statusBadge.textContent = "→ Skipped"; }
+  else if (r?.status === "preloaded") { statusBadge.className = "badge-set";    statusBadge.textContent = "✓ In DB"; }
+  else                               { statusBadge.className = "badge-pending"; statusBadge.textContent = "Pending"; }
 
   document.getElementById("btn-accept").disabled = newPx === null;
   document.getElementById("btn-back").disabled   = idx === 0;
@@ -1213,28 +1379,148 @@ function updatePanel() {
   updateProgress();
 }
 
+/* ── Grid overlay (segments top, rows left, current cell highlight) ── */
+function drawGrid() {
+  if (!viewer || !viewer.viewport) return;
+  const city = cities[idx];
+  const cw = canvas.clientWidth || canvas.width;
+  const ch = canvas.clientHeight || canvas.height;
+  ctx.save();
+
+  // Segment boundary lines (vertical, dashed)
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  for (let i = 1; i < SEGMENT_COUNT; i++) {
+    const lx = toCanvas(i * SEG_W, 0).x;
+    if (lx < -1 || lx > cw + 1) continue;
+    ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, ch); ctx.stroke();
+  }
+  // Row boundary lines (horizontal, dashed)
+  for (const ry of [ROW_H, 2 * ROW_H]) {
+    const ly = toCanvas(0, ry).y;
+    if (ly < -1 || ly > ch + 1) continue;
+    ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(cw, ly); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Highlight current city's segment-row cell
+  if (city?.tabula_segment && city.tabula_row) {
+    const si = Number(city.tabula_segment) - SEGMENT_FIRST;
+    const ry = ROW_Y[city.tabula_row];
+    if (si >= 0 && si < SEGMENT_COUNT && ry !== undefined) {
+      const p1 = toCanvas(si * SEG_W, ry);
+      const p2 = toCanvas((si + 1) * SEG_W, ry + ROW_H);
+      ctx.globalAlpha = 0.07;
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+      ctx.globalAlpha = 0.40;
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+    }
+  }
+
+  // Row labels a/b/c — fixed to left edge of canvas
+  ctx.globalAlpha = 1;
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for (const [r, iy] of [['a', ROW_H * 0.5], ['b', ROW_H * 1.5], ['c', ROW_H * 2.5]]) {
+    const cy = Math.max(22, Math.min(ch - 22, toCanvas(0, iy).y));
+    const active = city?.tabula_row === r;
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(2, cy - 20, 46, 40);
+    ctx.fillStyle = active ? '#fbbf24' : 'rgba(255,255,255,0.90)';
+    ctx.fillText(r, 5, cy);
+  }
+
+  // Segment labels II–XII — fixed to top edge of canvas
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = 'bold 33px sans-serif';
+  for (let i = 0; i < SEGMENT_COUNT; i++) {
+    const lx = toCanvas(i * SEG_W, 0).x;
+    const rx = toCanvas((i + 1) * SEG_W, 0).x;
+    if (rx < 0 || lx > cw) continue;
+    const label = ROMAN[i + SEGMENT_FIRST] || String(i + SEGMENT_FIRST);
+    const cx2 = Math.max(22, Math.min(cw - 22, (lx + rx) / 2));
+    const tw = ctx.measureText(label).width;
+    const active = city?.tabula_segment === (i + SEGMENT_FIRST);
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(cx2 - tw / 2 - 4, 2, tw + 8, 42);
+    ctx.fillStyle = active ? '#fbbf24' : 'rgba(255,255,255,0.90)';
+    ctx.fillText(label, cx2, 38);
+  }
+
+  // Column labels within each visible segment — only when zoomed in enough
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = 'bold 28px sans-serif';
+  for (let i = 0; i < SEGMENT_COUNT; i++) {
+    const segNum = i + SEGMENT_FIRST;
+    const maxCol = segMaxCol[segNum] || 8;
+    const lx = toCanvas(i * SEG_W, 0).x;
+    const rx = toCanvas((i + 1) * SEG_W, 0).x;
+    if (rx < 0 || lx > cw) continue;
+    const screenColW = (rx - lx) / maxCol;
+    if (screenColW < 40) continue;
+
+    // Column subdivision lines (subtle)
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    for (let c = 1; c < maxCol; c++) {
+      const cx3 = lx + screenColW * c;
+      if (cx3 < 0 || cx3 > cw) continue;
+      ctx.beginPath(); ctx.moveTo(cx3, 0); ctx.lineTo(cx3, ch); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Column number labels (below segment label)
+    for (let c = 1; c <= maxCol; c++) {
+      const cx3 = lx + screenColW * (c - 0.5);
+      if (cx3 < -screenColW || cx3 > cw + screenColW) continue;
+      const activeCol = city?.tabula_segment === segNum && Number(city?.tabula_col) === c;
+      const colLabel = String(c);
+      const tw2 = ctx.measureText(colLabel).width;
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(cx3 - tw2 / 2 - 3, 48, tw2 + 6, 34);
+      ctx.fillStyle = activeCol ? '#fbbf24' : 'rgba(255,255,255,0.75)';
+      ctx.fillText(colLabel, cx3, 78);
+    }
+  }
+
+  ctx.restore();
+}
+
 /* ── Canvas drawing ── */
 function redraw() {
   if (!viewer || !viewer.viewport || !cities.length) return;
   ctx.clearRect(0, 0, canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
 
+  drawGrid();   // grid + cell highlight drawn first (behind everything)
+
   const vp = viewer.viewport;
   const bounds = vp.getBounds(true);
 
   // Draw all accepted markings (dimmed) when toggle is on
+  // Background types (water, region) are drawn first so they don't overlap foreground markers
   if (showAllMarkings) {
-    for (const place of allPlaces) {
-      const r = results[place.data_id];
-      if (!r || r.status !== "set") continue;
-      if (place.data_id === cities[idx]?.data_id) continue; // current city drawn below
-      // Viewport cull — skip rects outside current view
-      const vx1 = r.rect_x1 / IMG_W, vx2 = r.rect_x2 / IMG_W;
-      const vy1 = r.rect_y1 / IMG_W, vy2 = r.rect_y2 / IMG_W;
-      if (vx2 < bounds.x || vx1 > bounds.x + bounds.width) continue;
-      if (vy2 < bounds.y || vy1 > bounds.y + bounds.height) continue;
-
-      const color = TYPE_COLORS[place.type] || "#92400E";
-      drawAllMarkingRect({ x1: r.rect_x1, y1: r.rect_y1, x2: r.rect_x2, y2: r.rect_y2 }, color);
+    for (const isBgPass of [true, false]) {
+      for (const place of allPlaces) {
+        const isBg = BACKGROUND_TYPES.has(place.type);
+        if (isBg !== isBgPass) continue;
+        const r = results[place.data_id];
+        if (!r || (r.status !== "set" && r.status !== "preloaded")) continue;
+        if (place.data_id === cities[idx]?.data_id) continue;
+        const vx1 = r.rect_x1 / IMG_W, vx2 = r.rect_x2 / IMG_W;
+        const vy1 = r.rect_y1 / IMG_W, vy2 = r.rect_y2 / IMG_W;
+        if (vx2 < bounds.x || vx1 > bounds.x + bounds.width) continue;
+        if (vy2 < bounds.y || vy1 > bounds.y + bounds.height) continue;
+        const color = TYPE_COLORS[place.type] || "#92400E";
+        drawAllMarkingRect({ x1: r.rect_x1, y1: r.rect_y1, x2: r.rect_x2, y2: r.rect_y2 }, color, isBg);
+      }
     }
   }
 
@@ -1257,7 +1543,7 @@ function redraw() {
   }
 }
 
-function drawAllMarkingRect(rect, color) {
+function drawAllMarkingRect(rect, color, isBackground = false) {
   const nr = normalizeRect(rect);
   const p1 = toCanvas(nr.minX, nr.minY);
   const p2 = toCanvas(nr.maxX, nr.maxY);
@@ -1267,13 +1553,15 @@ function drawAllMarkingRect(rect, color) {
   const h = Math.max(1, Math.abs(p2.y - p1.y));
 
   ctx.save();
-  ctx.globalAlpha = 0.13;
+  ctx.globalAlpha = isBackground ? 0.06 : 0.13;
   ctx.fillStyle = color;
   ctx.fillRect(x, y, w, h);
-  ctx.globalAlpha = 0.55;
+  ctx.globalAlpha = isBackground ? 0.30 : 0.55;
   ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = isBackground ? 1 : 1.5;
+  if (isBackground) ctx.setLineDash([5, 3]);
   ctx.strokeRect(x, y, w, h);
+  if (isBackground) ctx.setLineDash([]);
   ctx.restore();
 }
 
@@ -1441,6 +1729,31 @@ document.getElementById("sort-buttons").addEventListener("click", (e) => {
   applyFilters();
 });
 
+document.getElementById("bg-type-buttons").addEventListener("click", (e) => {
+  const btn = e.target.closest(".bg-type-btn");
+  if (!btn) return;
+  if (btn.dataset.bgtype === "water") {
+    showBackgroundWater = !showBackgroundWater;
+    btn.classList.toggle("active", showBackgroundWater);
+  } else if (btn.dataset.bgtype === "region") {
+    showBackgroundRegion = !showBackgroundRegion;
+    btn.classList.toggle("active", showBackgroundRegion);
+  }
+  applyFilters();
+});
+
+document.getElementById("btn-modern-only").addEventListener("click", function () {
+  filterModernOnly = !filterModernOnly;
+  this.classList.toggle("active", filterModernOnly);
+  applyFilters();
+});
+
+document.getElementById("btn-vignette-only").addEventListener("click", function () {
+  filterVignetteOnly = !filterVignetteOnly;
+  this.classList.toggle("active", filterVignetteOnly);
+  applyFilters();
+});
+
 document.getElementById("btn-hide-done").addEventListener("click", () => {
   hideDone = !hideDone;
   const btn = document.getElementById("btn-hide-done");
@@ -1594,6 +1907,12 @@ document.getElementById("btn-save-index").addEventListener("click", async () => 
 });
 
 document.getElementById("btn-ulm-search").addEventListener("click", async function() {
+  // Direct link when we have the ULM ID from the DB
+  if (this.dataset.ulmId) {
+    window.open(`https://tp-online.ku.de/trefferanzeige.php?id=${this.dataset.ulmId}`, "_blank");
+    return;
+  }
+  // Fallback: search by name via API
   const name  = this.dataset.modern || "";
   const latin = this.dataset.latin  || "";
   if (!name && !latin) { window.open("https://tp-online.ku.de/suche.php", "_blank"); return; }
@@ -1605,11 +1924,7 @@ document.getElementById("btn-ulm-search").addEventListener("click", async functi
       body: JSON.stringify({ name, latin }),
     });
     const data = await res.json();
-    if (data.url) {
-      window.open(data.url, "_blank");
-    } else {
-      window.open("https://tp-online.ku.de/suche.php", "_blank");
-    }
+    window.open(data.url || "https://tp-online.ku.de/suche.php", "_blank");
   } catch (e) {
     window.open("https://tp-online.ku.de/suche.php", "_blank");
   } finally {

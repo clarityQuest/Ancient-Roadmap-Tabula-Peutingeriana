@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ULM Tabula Peutingeriana Database</title>
+  <style>
+    :root {
+      --bg: #f4f1e8;
+      --paper: #fffdf8;
+      --ink: #1e1b16;
+      --muted: #6b6358;
+      --line: #d8cfbe;
+      --marking: #1f4f7a;
+      --ok: #215a35;
+      --warn: #8a5a12;
+      --alert: #8b1e2d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 10%, #efe5cf 0, transparent 35%),
+        radial-gradient(circle at 85% 25%, #e6dcc5 0, transparent 32%),
+        linear-gradient(180deg, #f8f3e8 0%, var(--bg) 65%, #ece4d5 100%);
+    }
+
+    .wrap {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 10px 12px 0;
+      min-width: 0;
+    }
+
+    .top-header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      padding-bottom: 8px;
+    }
+
+    h1 {
+      font-size: clamp(1.1rem, 2vw, 1.6rem);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.82rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px 12px 0 0;
+      box-shadow: 0 3px 14px rgba(30, 27, 22, 0.08);
+      overflow: hidden;
+    }
+
+    .controls {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr auto;
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      background: #f7f0e0;
+    }
+
+    .col-chooser-btn {
+      padding: 7px 11px;
+      border: 1px solid #cbbda6;
+      border-radius: 7px;
+      background: #fffefa;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.88rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .col-chooser-btn:hover { background: #f0e8d8; }
+
+    input[type="text"], input[type="search"], select {
+      width: 100%;
+      padding: 7px 9px;
+      border: 1px solid #cbbda6;
+      border-radius: 7px;
+      background: #fffefa;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.88rem;
+    }
+
+    .stats {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--line);
+      background: #fff8ec;
+      color: #433c31;
+      font-size: 0.85rem;
+    }
+
+    .chip {
+      border: 1px solid #d6c7af;
+      border-radius: 999px;
+      padding: 2px 9px;
+      background: #fffdf7;
+    }
+
+    .table-wrap {
+      flex: 1;
+      overflow: auto;
+      min-height: 0;
+    }
+
+    /* Column chooser popup */
+    .col-chooser-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.28);
+      z-index: 69;
+      display: none;
+    }
+    .col-chooser-backdrop.open { display: block; }
+
+    .col-chooser-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(820px, calc(100vw - 32px));
+      max-height: calc(100vh - 80px);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.22);
+      z-index: 70;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .col-chooser-popup.open { display: flex; }
+
+    .col-chooser-head {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f7f0e0;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .col-chooser-close {
+      background: transparent;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--muted);
+      line-height: 1;
+      padding: 0 2px;
+    }
+    .col-chooser-close:hover { color: var(--ink); }
+
+    .col-chooser-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px 12px;
+    }
+
+    .col-chooser-desc {
+      margin: 0 0 8px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .column-table {
+      width: 100%;
+      min-width: 0;
+      border-collapse: separate;
+      border-spacing: 5px 4px;
+      font-size: 0.82rem;
+    }
+
+    .column-table td {
+      border: 1px solid #d8cfbe;
+      border-radius: 7px;
+      background: #fffdf8;
+      padding: 4px 7px;
+      vertical-align: middle;
+      width: 25%;
+    }
+
+    .column-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #3f372d;
+    }
+
+    .column-option input[type="checkbox"] {
+      width: auto;
+      flex-shrink: 0;
+    }
+
+    .col-desc {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 1px;
+      line-height: 1.3;
+    }
+
+    /* Main data table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: #efe6d3;
+      text-align: left;
+      padding: 8px 8px 6px;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+      cursor: default;
+    }
+
+    thead th .th-label {
+      display: block;
+      font-weight: 600;
+    }
+
+    thead tr.filter-row th {
+      position: sticky;
+      top: 33px;
+      z-index: 2;
+      padding: 3px 4px;
+      background: #f5edda;
+      border-bottom: 2px solid var(--line);
+    }
+
+    .filter-cell {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+
+    .hide-empty-btn {
+      flex-shrink: 0;
+      width: 20px; height: 20px;
+      border: 1px solid #cbbda6;
+      border-radius: 4px;
+      background: #fffefa;
+      color: var(--muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .hide-empty-btn:hover { background: #f0e8d8; color: var(--ink); }
+    .hide-empty-btn.active { background: var(--marking); color: #fff; border-color: var(--marking); }
+
+    thead tr.filter-row th input {
+      flex: 1;
+      min-width: 0;
+      padding: 3px 6px;
+      font-size: 0.78rem;
+      border: 1px solid #cbbda6;
+      border-radius: 4px;
+      background: #fffefa;
+      color: var(--ink);
+      font-family: inherit;
+      min-width: 40px;
+    }
+
+    thead tr.filter-row th input:focus {
+      outline: none;
+      border-color: var(--marking);
+      background: #fff;
+    }
+
+    .filter-active {
+      background: rgba(31, 79, 122, 0.08) !important;
+      border-color: var(--marking) !important;
+    }
+
+    tbody td {
+      padding: 6px 8px;
+      border-bottom: 1px dashed #dfd4c2;
+      vertical-align: top;
+    }
+
+    tbody tr:nth-child(odd) { background: #fffcf4; }
+    tbody tr:hover { background: #f5ebd4; }
+
+    /* Link styles */
+    .ulm-link-ext {
+      color: var(--marking);
+      text-decoration: none;
+      border-bottom: 1px dotted rgba(31,79,122,0.55);
+      white-space: nowrap;
+      font-size: 0.88rem;
+    }
+    .ulm-link-ext:hover { border-bottom-color: currentColor; }
+
+    .pleiades-link {
+      color: var(--ok);
+      text-decoration: none;
+      border-bottom: 1px dotted rgba(33,90,53,0.55);
+      font-size: 0.82rem;
+    }
+    .pleiades-link:hover { border-bottom-color: currentColor; }
+
+    .has-image {
+      color: var(--warn);
+      cursor: pointer;
+      border-bottom: 1px dotted rgba(138,90,18,0.55);
+      white-space: nowrap;
+      font-size: 0.82rem;
+    }
+    .has-image:hover { border-bottom-color: currentColor; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+      font-size: 0.76rem;
+      white-space: nowrap;
+    }
+    .badge.symbol { color: var(--warn); }
+    .badge.no-symbol { color: var(--muted); }
+    .badge.conf-high   { color: var(--ok); }
+    .badge.conf-medium { color: var(--warn); }
+    .badge.conf-low    { color: var(--muted); }
+    .badge.conf-none   { color: var(--alert); }
+
+    tr.conf-high   { background: #f2fbf2 !important; }
+    tr.conf-medium { background: #fffcee !important; }
+    tr.conf-medium:nth-child(odd) { background: #fffae8 !important; }
+    tr.conf-high:nth-child(odd)   { background: #edfaed !important; }
+
+    .db-link {
+      color: var(--marking);
+      text-decoration: none;
+      border-bottom: 1px dotted rgba(31,79,122,0.5);
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .db-link:hover { border-bottom-color: currentColor; }
+
+    /* Image hover preview */
+    .img-preview {
+      position: fixed;
+      display: none;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      z-index: 80;
+      padding: 6px;
+      pointer-events: none;
+    }
+    .img-preview.open { display: block; }
+    .img-preview img {
+      display: block;
+      max-width: 320px;
+      max-height: 240px;
+      border-radius: 6px;
+    }
+    .img-preview-cap {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    /* ULM detail popup (iframe) */
+    .ulm-popup {
+      position: fixed;
+      display: none;
+      width: min(1000px, calc(100vw - 24px));
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.2);
+      overflow: hidden;
+      z-index: 75;
+      pointer-events: auto;
+    }
+    .ulm-popup.open { display: block; }
+    .ulm-popup-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 11px;
+      border-bottom: 1px solid var(--line);
+      background: #f7f0e0;
+    }
+    .ulm-popup-title { margin: 0; font-size: 0.93rem; }
+    .ulm-popup-open { color: var(--marking); text-decoration: none; font-size: 0.86rem; }
+    .ulm-popup-close {
+      background: transparent;
+      border: none;
+      font-size: 1.3rem;
+      cursor: pointer;
+      color: var(--muted);
+      line-height: 1;
+      padding: 0 4px;
+    }
+    .ulm-popup-close:hover { color: var(--ink); }
+    .ulm-frame-wrap {
+      width: 100%; height: 600px;
+      overflow: hidden; position: relative;
+      background: #f8f4ec;
+    }
+    .ulm-frame-wrap iframe {
+      position: absolute;
+      top: -290px; left: 0;
+      width: 960px; height: 1000px;
+      border: none; pointer-events: none;
+    }
+    .ulm-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 74;
+      display: none;
+    }
+    .ulm-backdrop.open { display: block; }
+
+    @media (max-width: 860px) {
+      .controls { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-header">
+    <h1>ULM Tabula Peutingeriana Database</h1>
+    <div class="meta" id="meta">Loading…</div>
+    <a href="database_viewer.html" style="margin-left:auto;color:var(--marking);font-size:0.82rem;text-decoration:none;white-space:nowrap;border-bottom:1px dotted rgba(31,79,122,0.5)">Review DB ↗</a>
+  </div>
+
+  <section class="panel">
+    <div class="controls">
+      <input id="q" type="search" placeholder="Search Latin, modern name, Planquadrat, Großraum…" />
+      <select id="grossraum-filter">
+        <option value="">All regions (Großraum)</option>
+      </select>
+      <select id="typus-filter">
+        <option value="">All types (Typus)</option>
+      </select>
+      <select id="conf-filter">
+        <option value="">All confidence levels</option>
+        <option value="high">High confidence</option>
+        <option value="medium">Medium confidence</option>
+        <option value="low">Low / no match</option>
+      </select>
+      <button id="col-chooser-btn" class="col-chooser-btn" title="Choose visible columns">Columns ▾</button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr id="head-row"></tr>
+          <tr id="filter-row" class="filter-row"></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- Column chooser -->
+<div class="col-chooser-backdrop" id="col-chooser-backdrop"></div>
+<div class="col-chooser-popup" id="col-chooser-popup" role="dialog" aria-modal="true" aria-label="Column chooser">
+  <div class="col-chooser-head">
+    <span>Visible Columns</span>
+    <button class="col-chooser-close" id="col-chooser-close" aria-label="Close">×</button>
+  </div>
+  <div class="col-chooser-body">
+    <p class="col-chooser-desc">Select columns to display. Settings are saved in your browser.</p>
+    <table class="column-table">
+      <tbody id="column-rows"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Image hover preview -->
+<div class="img-preview" id="img-preview">
+  <img id="img-preview-img" src="" alt="" />
+  <div class="img-preview-cap" id="img-preview-cap"></div>
+</div>
+
+<!-- ULM detail popup -->
+<div class="ulm-backdrop" id="ulm-backdrop"></div>
+<div class="ulm-popup" id="ulm-popup" aria-hidden="true">
+  <div class="ulm-popup-head">
+    <h2 class="ulm-popup-title" id="ulm-popup-title">ULM Detail</h2>
+    <div style="display:flex;gap:12px;align-items:center">
+      <a id="ulm-popup-open" class="ulm-popup-open" href="#" target="_blank" rel="noopener">Open ↗</a>
+      <button class="ulm-popup-close" id="ulm-popup-close" aria-label="Close">×</button>
+    </div>
+  </div>
+  <div class="ulm-frame-wrap">
+    <iframe id="ulm-popup-frame" title="ULM detail" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const STORAGE_KEY = 'tp_ulm_viewer_visible_columns_v1';
+const COLUMNS_PER_ROW = 4;
+
+const ALL_COLUMNS = [
+  { key: '__rownum',        label: '#',              desc: 'Row number' },
+  { key: 'ulm_id',         label: 'ULM ID',         desc: 'ULM database entry ID (click to preview detail page)' },
+  { key: 'latin',          label: 'Latin (resolved)',desc: 'Toponym TP (aufgelöst) — normalized form' },
+  { key: 'latin_tp',       label: 'Latin (TP)',      desc: 'Toponym TP — as written on the map' },
+  { key: 'modern',         label: 'Modern name',     desc: 'Modern place name' },
+  { key: 'planquadrat',    label: 'Planquadrat',     desc: 'Grid position, e.g. 3A1 (segment·row·col). DB segment = ULM segment + 1.' },
+  { key: 'grossraum',      label: 'Großraum',        desc: 'Broad region / Roman province' },
+  { key: 'typus',          label: 'Typus',           desc: 'Toponym type (Ortsname mit/ohne Symbol, etc.)' },
+  { key: 'farbe',          label: 'Farbe',           desc: 'Color of the toponym on the map' },
+  { key: 'vignette',       label: 'Vignette',        desc: 'Vignette type (symbol shown next to place name)' },
+  { key: 'datierung',      label: 'Datierung',       desc: 'Dating of the toponym on the TP' },
+  { key: 'pleiades',       label: 'Pleiades',        desc: 'Link to Pleiades gazetteer entry' },
+  { key: 'img_url',        label: 'Inset image',     desc: 'Map detail image from ULM DB' },
+  { key: '__confidence',   label: 'Match confidence',desc: 'Score 0–105 for best main DB match. Breakdown: loc=location, latin=name, modern=modern name.' },
+  { key: '__db_match',     label: 'DB match',        desc: 'Best matching main database record (Latin name + location)' },
+];
+
+const DEFAULT_VISIBLE = new Set([
+  '__rownum','ulm_id','latin','latin_tp','modern','planquadrat','grossraum','typus','vignette','datierung',
+  '__confidence','__db_match',
+]);
+
+let allEntries = [];
+let matchIndex = {};   // ulm_id → match record
+let filtered = [];
+let visibleColumns = new Set(DEFAULT_VISIBLE);
+let columnFilters = {};
+let columnHideEmpty = new Set();
+
+const refs = {
+  q: document.getElementById('q'),
+  grossraumFilter: document.getElementById('grossraum-filter'),
+  typusFilter:     document.getElementById('typus-filter'),
+  confFilter:      document.getElementById('conf-filter'),
+  headRow:         document.getElementById('head-row'),
+  filterRow:       document.getElementById('filter-row'),
+  rows:            document.getElementById('rows'),
+  stats:           document.getElementById('stats'),
+  meta:            document.getElementById('meta'),
+  colChooserBtn:   document.getElementById('col-chooser-btn'),
+  colChooserPopup: document.getElementById('col-chooser-popup'),
+  colChooserBack:  document.getElementById('col-chooser-backdrop'),
+  colChooserClose: document.getElementById('col-chooser-close'),
+  columnRows:      document.getElementById('column-rows'),
+  imgPreview:      document.getElementById('img-preview'),
+  imgPreviewImg:   document.getElementById('img-preview-img'),
+  imgPreviewCap:   document.getElementById('img-preview-cap'),
+  ulmBackdrop:     document.getElementById('ulm-backdrop'),
+  ulmPopup:        document.getElementById('ulm-popup'),
+  ulmPopupTitle:   document.getElementById('ulm-popup-title'),
+  ulmPopupOpen:    document.getElementById('ulm-popup-open'),
+  ulmPopupClose:   document.getElementById('ulm-popup-close'),
+  ulmPopupFrame:   document.getElementById('ulm-popup-frame'),
+};
+
+// ── Load data ──────────────────────────────────────────────────────────────
+async function load() {
+  const [dbResp, matchResp] = await Promise.all([
+    fetch('data/ulm_db.json'),
+    fetch('data/ulm_matches.json'),
+  ]);
+  const db      = await dbResp.json();
+  const matchDb = await matchResp.json();
+
+  allEntries = db.entries || [];
+
+  // Index matches by ulm_id
+  (matchDb.matches || []).forEach(m => { matchIndex[m.ulm_id] = m; });
+
+  const ms = matchDb.meta?.stats || {};
+  refs.meta.textContent = `Source: tp-online.ku.de · ${db.meta.total} entries · matches: ${ms.high||0} high / ${ms.medium||0} med / ${ms.low||0} low`;
+
+  // Populate filter dropdowns
+  const grossraums = [...new Set(allEntries.map(e => e.grossraum).filter(Boolean))].sort();
+  grossraums.forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = g; opt.textContent = g;
+    refs.grossraumFilter.appendChild(opt);
+  });
+
+  const typen = [...new Set(allEntries.map(e => e.typus).filter(Boolean))].sort();
+  typen.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    refs.typusFilter.appendChild(opt);
+  });
+
+  loadColumnPrefs();
+  buildColumnChooser();
+  applyFilters();
+}
+
+// ── Column prefs ───────────────────────────────────────────────────────────
+function loadColumnPrefs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (Array.isArray(saved)) visibleColumns = new Set(saved);
+  } catch (_) {}
+}
+
+function saveColumnPrefs() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...visibleColumns]));
+}
+
+// ── Column chooser ─────────────────────────────────────────────────────────
+function buildColumnChooser() {
+  const tbody = refs.columnRows;
+  tbody.innerHTML = '';
+  let row;
+  ALL_COLUMNS.forEach((col, i) => {
+    if (i % COLUMNS_PER_ROW === 0) {
+      row = document.createElement('tr');
+      tbody.appendChild(row);
+    }
+    const td = document.createElement('td');
+    const checked = visibleColumns.has(col.key);
+    td.innerHTML = `
+      <label class="column-option">
+        <input type="checkbox" data-col="${col.key}" ${checked ? 'checked' : ''}>
+        <span>
+          <span>${col.label}</span>
+          <div class="col-desc">${col.desc}</div>
+        </span>
+      </label>`;
+    row.appendChild(td);
+  });
+  // Pad last row
+  while (row && row.children.length < COLUMNS_PER_ROW) {
+    row.appendChild(document.createElement('td'));
+  }
+
+  refs.columnRows.addEventListener('change', e => {
+    const cb = e.target;
+    if (cb.dataset.col) {
+      if (cb.checked) visibleColumns.add(cb.dataset.col);
+      else visibleColumns.delete(cb.dataset.col);
+      saveColumnPrefs();
+      buildHeader();
+      renderRows();
+    }
+  });
+}
+
+refs.colChooserBtn.addEventListener('click', () => {
+  refs.colChooserPopup.classList.add('open');
+  refs.colChooserBack.classList.add('open');
+});
+refs.colChooserClose.addEventListener('click', closeColChooser);
+refs.colChooserBack.addEventListener('click', closeColChooser);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeColChooser();
+});
+
+function closeColChooser() {
+  refs.colChooserPopup.classList.remove('open');
+  refs.colChooserBack.classList.remove('open');
+}
+
+// ── Filter / search ────────────────────────────────────────────────────────
+function normalize(s) {
+  return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function applyFilters() {
+  const q          = normalize(refs.q.value);
+  const grossraum  = refs.grossraumFilter.value;
+  const typus      = refs.typusFilter.value;
+  const conf       = refs.confFilter.value;
+
+  filtered = allEntries.filter((e, idx) => {
+    if (grossraum && e.grossraum !== grossraum) return false;
+    if (typus     && e.typus     !== typus)     return false;
+
+    if (conf) {
+      const m = matchIndex[e.ulm_id];
+      const label = m?.confidence_label || 'none';
+      if (conf === 'low' && label !== 'low' && label !== 'none') return false;
+      if (conf === 'medium' && label !== 'medium') return false;
+      if (conf === 'high'   && label !== 'high')   return false;
+    }
+
+    // Per-column filters
+    for (const [col, fv] of Object.entries(columnFilters)) {
+      if (!fv) continue;
+      const cell = normalize(getColValue(e, col));
+      if (!cell.includes(fv)) return false;
+    }
+
+    // Hide-empty column filters
+    for (const col of columnHideEmpty) {
+      if (!getColValue(e, col).trim()) return false;
+    }
+
+    if (!q) return true;
+    const m = matchIndex[e.ulm_id];
+    const hay = [e.latin, e.latin_tp, e.modern, e.planquadrat, e.grossraum,
+                 e.typus, e.vignette, e.datierung, String(e.ulm_id),
+                 m?.db_latin || '', m?.db_modern || ''].join(' ');
+    return normalize(hay).includes(q);
+  });
+
+  updateStats();
+  buildHeader();
+  renderRows();
+}
+
+function getColValue(e, key) {
+  if (key === '__rownum') return '';
+  if (key === '__confidence') {
+    const m = matchIndex[e.ulm_id];
+    return m ? String(m.confidence) + ' ' + m.confidence_label : '';
+  }
+  if (key === '__db_match') {
+    const m = matchIndex[e.ulm_id];
+    return m ? [m.db_latin, m.db_location].filter(Boolean).join(' ') : '';
+  }
+  return String(e[key] ?? '');
+}
+
+function updateStats() {
+  const hasImg     = filtered.filter(e => e.img_url).length;
+  const hasPleiades= filtered.filter(e => e.pleiades).length;
+  const confHigh   = filtered.filter(e => matchIndex[e.ulm_id]?.confidence_label === 'high').length;
+  const confMed    = filtered.filter(e => matchIndex[e.ulm_id]?.confidence_label === 'medium').length;
+  const confLow    = filtered.filter(e => ['low','none'].includes(matchIndex[e.ulm_id]?.confidence_label)).length;
+  refs.stats.innerHTML = `
+    <span class="chip">${filtered.length} of ${allEntries.length} entries</span>
+    <span class="chip" title="High confidence DB match" style="color:var(--ok)">▲ ${confHigh} high match</span>
+    <span class="chip" title="Medium confidence DB match" style="color:var(--warn)">◆ ${confMed} medium</span>
+    <span class="chip" title="Low / no match" style="color:var(--muted)">▽ ${confLow} low/none</span>
+    <span class="chip">${hasImg} with image · ${hasPleiades} with Pleiades</span>
+  `;
+}
+
+// ── Table header ───────────────────────────────────────────────────────────
+function buildHeader() {
+  const cols = ALL_COLUMNS.filter(c => visibleColumns.has(c.key));
+
+  refs.headRow.innerHTML = '';
+  refs.filterRow.innerHTML = '';
+
+  cols.forEach(col => {
+    const th = document.createElement('th');
+    th.title = col.desc;
+    th.innerHTML = `<span class="th-label">${col.label}</span>`;
+    refs.headRow.appendChild(th);
+
+    const tf = document.createElement('th');
+    if (col.key === '__rownum') {
+      tf.appendChild(document.createElement('span'));
+    } else {
+      const cell = document.createElement('div');
+      cell.className = 'filter-cell';
+
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = '⊘';
+      inp.dataset.col = col.key;
+      if (columnFilters[col.key]) {
+        inp.value = columnFilters[col.key];
+        inp.classList.add('filter-active');
+      }
+      inp.addEventListener('input', () => {
+        columnFilters[col.key] = inp.value.toLowerCase().trim();
+        inp.classList.toggle('filter-active', !!inp.value);
+        applyFilters();
+      });
+
+      const btn = document.createElement('button');
+      btn.className = 'hide-empty-btn' + (columnHideEmpty.has(col.key) ? ' active' : '');
+      btn.textContent = '∅';
+      btn.title = 'Hide rows where this column is empty';
+      btn.addEventListener('click', () => {
+        if (columnHideEmpty.has(col.key)) columnHideEmpty.delete(col.key);
+        else columnHideEmpty.add(col.key);
+        btn.classList.toggle('active', columnHideEmpty.has(col.key));
+        applyFilters();
+      });
+
+      cell.appendChild(inp);
+      cell.appendChild(btn);
+      tf.appendChild(cell);
+    }
+    refs.filterRow.appendChild(tf);
+  });
+}
+
+// ── Row rendering ──────────────────────────────────────────────────────────
+function renderRows() {
+  const cols = ALL_COLUMNS.filter(c => visibleColumns.has(c.key));
+  const frag = document.createDocumentFragment();
+
+  filtered.forEach((e, rowIdx) => {
+    const tr = document.createElement('tr');
+    const m = matchIndex[e.ulm_id];
+    if (m?.confidence_label === 'high')   tr.classList.add('conf-high');
+    else if (m?.confidence_label === 'medium') tr.classList.add('conf-medium');
+    cols.forEach(col => {
+      const td = document.createElement('td');
+      td.innerHTML = renderCell(e, col.key, rowIdx);
+      tr.appendChild(td);
+    });
+    frag.appendChild(tr);
+  });
+
+  refs.rows.innerHTML = '';
+  refs.rows.appendChild(frag);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderCell(e, key, rowIdx) {
+  switch (key) {
+    case '__rownum':
+      return String(rowIdx + 1);
+
+    case 'ulm_id':
+      return `<span class="ulm-link-ext" data-ulm-id="${e.ulm_id}" data-ulm-label="${escapeHtml(e.latin || e.modern || '')}" style="cursor:pointer">${e.ulm_id}</span>`;
+
+    case 'pleiades':
+      if (!e.pleiades) return '';
+      return `<a href="${escapeHtml(e.pleiades)}" class="pleiades-link" target="_blank" rel="noopener">Pleiades ↗</a>`;
+
+    case 'img_url':
+      if (!e.img_url) return '';
+      return `<span class="has-image" data-img="${escapeHtml(e.img_url)}" data-label="${escapeHtml(e.latin || String(e.ulm_id))}">📷 view</span>`;
+
+    case 'typus': {
+      if (!e.typus) return '';
+      const hasSym = e.typus.includes('mit Symbol');
+      return `<span class="badge ${hasSym ? 'symbol' : 'no-symbol'}">${escapeHtml(e.typus.replace('Ortsname ', '').replace('ohne Symbol','— no symbol').replace('mit Symbol','★ symbol'))}</span>`;
+    }
+
+    case 'planquadrat': {
+      if (!e.planquadrat) return '';
+      const dbSeg = e.ulm_segment != null ? e.ulm_segment + 1 : '?';
+      return `<span title="DB segment ${dbSeg}">${escapeHtml(e.planquadrat)}</span>`;
+    }
+
+    case '__confidence': {
+      const m = matchIndex[e.ulm_id];
+      if (!m) return '';
+      const bk = m.match_breakdown || {};
+      const bkStr = Object.entries(bk).map(([k,v]) => `${k}:${v}`).join(' ');
+      return `<span class="badge conf-${m.confidence_label}" title="${escapeHtml(bkStr)}">${m.confidence} ${m.confidence_label}</span>`;
+    }
+
+    case '__db_match': {
+      const m = matchIndex[e.ulm_id];
+      if (!m || !m.db_record_id) return '<span style="color:var(--muted);font-size:0.78rem">—</span>';
+      const label = escapeHtml([m.db_latin, m.db_location].filter(Boolean).join(' · '));
+      return `<span class="db-link" data-db-id="${escapeHtml(m.db_record_id)}" title="${label}">${label}</span>`;
+    }
+
+    default:
+      return escapeHtml(e[key] ?? '');
+  }
+}
+
+// ── Image preview ──────────────────────────────────────────────────────────
+let imgHideTimer = null;
+
+document.addEventListener('mouseover', e => {
+  const el = e.target.closest('[data-img]');
+  if (!el) return;
+  clearTimeout(imgHideTimer);
+  refs.imgPreviewImg.src = el.dataset.img;
+  refs.imgPreviewCap.textContent = el.dataset.label || '';
+  positionPreview(refs.imgPreview, e);
+  refs.imgPreview.classList.add('open');
+});
+
+document.addEventListener('mouseout', e => {
+  if (e.target.closest('[data-img]')) {
+    imgHideTimer = setTimeout(() => refs.imgPreview.classList.remove('open'), 180);
+  }
+});
+
+document.addEventListener('mousemove', e => {
+  if (refs.imgPreview.classList.contains('open')) positionPreview(refs.imgPreview, e);
+});
+
+// ── ULM detail popup ───────────────────────────────────────────────────────
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-ulm-id]');
+  if (!el) return;
+  const ulmId = el.dataset.ulmId;
+  const label = el.dataset.ulmLabel;
+  openUlmPopup(ulmId, label);
+});
+
+function openUlmPopup(ulmId, label) {
+  const url = `https://tp-online.ku.de/trefferanzeige.php?id=${ulmId}`;
+  refs.ulmPopupTitle.textContent = label ? `ULM ${ulmId}: ${label}` : `ULM ID ${ulmId}`;
+  refs.ulmPopupOpen.href = url;
+  if (refs.ulmPopupFrame.dataset.loadedId !== String(ulmId)) {
+    refs.ulmPopupFrame.src = url;
+    refs.ulmPopupFrame.dataset.loadedId = String(ulmId);
+  }
+  // Center popup
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const pw = Math.min(1000, vw - 24);
+  const ph = 660;
+  refs.ulmPopup.style.left = Math.round((vw - pw) / 2) + 'px';
+  refs.ulmPopup.style.top  = Math.round((vh - ph) / 2) + 'px';
+  refs.ulmPopup.style.width = pw + 'px';
+  refs.ulmPopup.classList.add('open');
+  refs.ulmBackdrop.classList.add('open');
+}
+
+refs.ulmPopupClose.addEventListener('click', closeUlmPopup);
+refs.ulmBackdrop.addEventListener('click', closeUlmPopup);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeUlmPopup(); closeColChooser(); }
+});
+
+function closeUlmPopup() {
+  refs.ulmPopup.classList.remove('open');
+  refs.ulmBackdrop.classList.remove('open');
+}
+
+// ── Event wiring ───────────────────────────────────────────────────────────
+refs.q.addEventListener('input', applyFilters);
+refs.grossraumFilter.addEventListener('change', applyFilters);
+refs.typusFilter.addEventListener('change', applyFilters);
+refs.confFilter.addEventListener('change', applyFilters);
+
+// ── Positioning ────────────────────────────────────────────────────────────
+function positionPreview(el, mouseEvt) {
+  const W = el.offsetWidth || 340, H = el.offsetHeight || 260;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = mouseEvt.clientX + 14, y = mouseEvt.clientY + 14;
+  if (x + W > vw - 8) x = mouseEvt.clientX - W - 10;
+  if (y + H > vh - 8) y = mouseEvt.clientY - H - 10;
+  el.style.left = Math.max(4, x) + 'px';
+  el.style.top  = Math.max(4, y) + 'px';
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+load().catch(err => {
+  refs.meta.textContent = 'Error loading data: ' + err.message;
+});
+</script>
+</body>
+</html>
