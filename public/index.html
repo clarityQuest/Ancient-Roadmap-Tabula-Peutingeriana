@@ -46,8 +46,10 @@
 
     <!-- Bottom-left category filter -->
     <div id="bottom-left-controls">
-      <button id="toggle-all-types" class="ctrl-btn toggle-btn" title="Select / deselect all categories">Select All</button>
-      <button id="toggle-labels" class="ctrl-btn toggle-btn active" title="Show/hide place name labels">Labels</button>
+      <div class="toggle-row">
+        <button id="toggle-all-types" class="ctrl-btn toggle-btn" title="Show / hide all categories">Show/Hide All</button>
+        <button id="toggle-labels" class="ctrl-btn toggle-btn active" title="Show/hide place name labels">Labels</button>
+      </div>
       <div id="type-filter-buttons" class="type-filter-group" role="group" aria-label="Filter by place type"></div>
     </div>
 
@@ -69,7 +71,8 @@
         <div id="panel-title">
           <h2 id="panel-latin"></h2>
           <h3 id="panel-modern"></h3>
-          <div id="panel-type"><span class="type-dot"></span><span class="type-label"></span></div>
+          <div id="panel-country" class="hidden"></div>
+          <div id="panel-type"><span class="type-icon"></span><span class="type-dot"></span><span class="type-label"></span></div>
         </div>
         <div id="panel-map" class="hidden"></div>
       </div>
@@ -85,8 +88,7 @@
     <div id="legend">
       <button id="legend-toggle" aria-label="Toggle legend">Legend</button>
       <div id="legend-body">
-        <div class="legend-item"><span class="dot" style="background:#8B0000;border-radius:2px;width:12px;height:8px"></span> Major City</div>
-        <div class="legend-item"><span class="dot" style="background:#f97316;border-radius:2px;width:12px;height:8px"></span> City</div>
+        <div class="legend-item"><span class="dot" style="background:#8B0000;border-radius:2px;width:12px;height:8px"></span> City</div>
         <div class="legend-item"><span class="dot" style="background:#1D4ED8;border-radius:2px;width:12px;height:8px"></span> Port</div>
         <div class="legend-item"><span class="dot" style="background:#92400E;border-radius:2px;width:12px;height:8px"></span> Road Station</div>
         <div class="legend-item"><span class="dot" style="background:#9333ea;border-radius:2px;width:12px;height:8px"></span> Temple</div>
@@ -133,6 +135,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260427e"></script>
+  <script src="main.js?v=20260507b"></script>
 </body>
 </html>

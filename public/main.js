@@ -30,8 +30,7 @@ const MILLER_H = 2953;
 const SEGMENT_COUNT = 11;
 
 const TYPE_COLORS = {
-  major_city:     "#8B0000",
-  city:           "#f97316",
+  city:           "#8B0000",
   port:           "#1D4ED8",
   road_station:   "#92400E",
   river:          "#0e7490",
@@ -51,11 +50,10 @@ const TYPE_COLORS = {
 const TYPE_DRAW_ORDER = {
   region: 0, river: 1, lake: 2, water: 2,
   island: 3, mountain: 3, people: 3, roman_province: 3, modern_state: 3,
-  road_station: 4, spa: 5, temple: 5, port: 6, city: 7, major_city: 8,
+  road_station: 4, spa: 5, temple: 5, port: 6, city: 7,
 };
 
 const TYPE_LABELS = {
-  major_city:     "Major City",
   city:           "City",
   port:           "Port",
   road_station:   "Road Station",
@@ -72,6 +70,13 @@ const TYPE_LABELS = {
   people:         "People",
 };
 
+const TYPE_ICONS = {
+  city: "🏛", port: "⚓", road_station: "🛣",
+  river: "〰", lake: "💧", island: "🏝", region: "📍",
+  roman_province: "🗺", modern_state: "🌍", water: "🌊",
+  spa: "♨", temple: "⛩", mountain: "⛰", people: "👥",
+};
+
 const DRAFT_STORAGE_KEY = "tp_calibrate_seg4_rectangles_v1";
 const MAP_RUNTIME_TYPES = new Set(Object.keys(TYPE_COLORS));
 
@@ -83,7 +88,7 @@ const LP_DEFAULTS = {
   maxFontMobile:   999,    // same
   minFontThreshold:  0,    // no threshold — always show if font > 0
   fadeRate:          1.0,  // with threshold=0 this is always opaque; not exposed in UI
-  maxLabelsDesktop: 200,   // hard cap on simultaneous labels (desktop)
+  maxLabelsDesktop:  80,   // hard cap on simultaneous labels (desktop)
   maxLabelsMobile:   10,   // hard cap on simultaneous labels (mobile)
   minFontMobile:     0,    // mobile labels hidden if scaled font falls below this px
   labelPad:          4,    // px padding around each label's overlap bounding box
@@ -93,11 +98,18 @@ const LP_DEFAULTS = {
   zoomThreshAll:     2.5,  // all types visible above this OSD zoom
   // Zoom → font curve: 4 control points (piecewise linear). Font = min(curve, markerCap).
   zfZ1: 0.3,  zfF1:  4,   // point 1 (low zoom)
-  zfZ2: 1.0,  zfF2:  9,   // point 2
+  zfZ2: 1.0,  zfF2:  5,   // point 2
   zfZ3: 3.0,  zfF3: 14,   // point 3
   zfZ4: 8.0,  zfF4: 22,   // point 4 (high zoom)
 };
 let LP = { ...LP_DEFAULTS };
+
+function truncWords(s, n) {
+  if (!s) return s;
+  const main = s.split(" / ")[0].trim();  // drop alternative names after " / "
+  const w = main.split(" ");
+  return w.length <= n ? main : w.slice(0, n).join(" ") + "…";
+}
 
 function fontFromZoom(zoom) {
   const pts = [[LP.zfZ1, LP.zfF1], [LP.zfZ2, LP.zfF2],
@@ -325,15 +337,13 @@ function sizeCanvas() {
 }
 
 function markerRadius(zoom, type) {
-  const base = type === "major_city" ? 6 :
-               type === "city" ? 4.5 :
+  const base = type === "city" ? 5.5 :
                type === "port" ? 4 : 3;
   return Math.min(base * Math.sqrt(zoom + 0.5), 20);
 }
 
 function defaultRectSize(type) {
-  if (type === "major_city") return { w: 12, h: 12 };
-  if (type === "city") return { w: 9, h: 9 };
+  if (type === "city") return { w: 11, h: 11 };
   if (type === "port") return { w: 8, h: 8 };
   return { w: 6, h: 6 };
 }
@@ -383,7 +393,7 @@ function placeRectCorners(place) {
 function isVisibleAtZoom(type, zoom) {
   if (zoom >= LP.zoomThreshAll) return true;
   if (zoom >= LP.zoomThreshMid) return type !== "road_station";
-  return type === "major_city" || type === "city";
+  return type === "city";
 }
 
 /* ============================================================
@@ -505,7 +515,7 @@ function renderMillerOverlay(ctx) {
       if (mfs > 0) {
         const charW = mfs * 0.55;
         const lineH = mfs * 1.3;
-        const txt1 = item.modern    || "";
+        const txt1 = truncWords(item.modern, 4)    || "";
         const txt2 = item.latin_std || "";
         const boxW = Math.max(txt1.length, txt2.length) * charW;
         const boxH = (txt1 ? lineH : 0) + (txt2 ? lineH : 0);
@@ -560,6 +570,11 @@ function renderMarkers() {
   if (!S.viewer || !S.ctx) return;
   const ctx = S.ctx;
   const el = S.viewer.element;
+  // Re-sync canvas if the element has been resized (catches startup layout settle on large screens)
+  const dpr = window.devicePixelRatio || 1;
+  if (S.canvas.width !== el.clientWidth * dpr || S.canvas.height !== el.clientHeight * dpr) {
+    sizeCanvas();
+  }
   ctx.clearRect(0, 0, el.clientWidth, el.clientHeight);
 
   let highlightDrawn = false;
@@ -621,7 +636,7 @@ function renderMarkers() {
 
     if (S.labelsOn && labelCount < MAX_LABELS) {
       const latin  = p.latin_std || p.latin;
-      const modern = p.modern || null;
+      const modern = truncWords(p.modern, 4) || null;
       if (latin || modern) {
         const fontSize = computeFont(zoom);
         if (fontSize > 0) {
@@ -745,19 +760,21 @@ function showTooltip(place, x, y) {
   const tt = document.getElementById("tooltip");
   const color = TYPE_COLORS[place.type] || "#92400E";
   const typeLabel = TYPE_LABELS[place.type] || place.type;
+  const typeIcon = TYPE_ICONS[place.type] || "📍";
   const displayLatin = place.latin_std || place.latin;
-  const flags = countryFlags(place.country);
+  const flagHtml = countryFlagHtml(place.country);
   tt.innerHTML = `
     <div class="tt-latin">${escHtml(displayLatin)}</div>
-    ${place.modern ? `<div class="tt-modern">${flags ? flags + " " : ""}${escHtml(place.modern)}</div>` : (flags ? `<div class="tt-modern">${flags}</div>` : "")}
-    <div class="tt-type"><span class="dot" style="background:${color}"></span>${typeLabel}</div>
+    ${place.modern ? `<div class="tt-modern">${escHtml(place.modern)}</div>` : ""}
+    ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(place.country || "")}</span></div>` : ""}
+    <div class="tt-type"><span class="dot" style="background:${color}"></span><span class="tt-type-icon">${typeIcon}</span>${typeLabel}</div>
   `;
-  tt.style.left = (x + 48) + "px";
+  tt.style.left = (x + 80) + "px";
   tt.style.top  = (y - 8) + "px";
   tt.classList.remove("hidden");
 
   const rect = tt.getBoundingClientRect();
-  if (rect.right > window.innerWidth) tt.style.left = (x - rect.width - 32) + "px";
+  if (rect.right > window.innerWidth) tt.style.left = (x - rect.width - 60) + "px";
   if (rect.bottom > window.innerHeight) tt.style.top = (y - rect.height - 8) + "px";
 }
 
@@ -793,22 +810,24 @@ function showMillerTooltip(item, x, y) {
   const tt = document.getElementById("tooltip");
   const color = TYPE_COLORS[item.type] || "#92400E";
   const typeLabel = TYPE_LABELS[item.type] || item.type;
+  const typeIcon = TYPE_ICONS[item.type] || "📍";
+  const flagHtml = countryFlagHtml(item.country);
 
   tt.innerHTML = `
     <div class="tt-latin">${escHtml(item.latin_std || String(item.data_id))}</div>
     ${item.modern   ? `<div class="tt-modern">${escHtml(item.modern)}</div>` : ""}
-    <div class="tt-type"><span class="dot" style="background:${color}"></span>${typeLabel}</div>
+    ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(item.country || "")}</span></div>` : ""}
+    <div class="tt-type"><span class="dot" style="background:${color}"></span><span class="tt-type-icon">${typeIcon}</span>${typeLabel}</div>
     ${item.province ? `<div class="tt-detail">Province: <span>${escHtml(item.province)}</span></div>` : ""}
-    ${item.country  ? `<div class="tt-detail">${countryFlags(item.country)} <span>${escHtml(item.country)}</span></div>` : ""}
   `;
   tt.classList.add("tt-rich");
-  tt.style.left = (x + 48) + "px";
+  tt.style.left = (x + 80) + "px";
   tt.style.top  = (y - 8) + "px";
   tt.classList.remove("hidden");
 
   // Reposition if off-screen
   const rect = tt.getBoundingClientRect();
-  if (rect.right  > window.innerWidth)  tt.style.left = (x - rect.width  - 32) + "px";
+  if (rect.right  > window.innerWidth)  tt.style.left = (x - rect.width  - 60) + "px";
   if (rect.bottom > window.innerHeight) tt.style.top  = (y - rect.height - 8) + "px";
 }
 
@@ -825,6 +844,21 @@ function showInfoPanel(place) {
   const typeLabel = TYPE_LABELS[place.type] || place.type;
   panel.querySelector(".type-dot").style.background = color;
   panel.querySelector(".type-label").textContent = typeLabel;
+  const typeIconEl = panel.querySelector(".type-icon");
+  if (typeIconEl) typeIconEl.textContent = TYPE_ICONS[place.type] || "📍";
+
+  // Country shown in header, right after modern name
+  const panelCountry = document.getElementById("panel-country");
+  if (panelCountry) {
+    const flagHtml = countryFlagHtml(place.country);
+    if (place.country) {
+      panelCountry.innerHTML = (flagHtml ? flagHtml + " " : "") + escHtml(place.country);
+      panelCountry.classList.remove("hidden");
+    } else {
+      panelCountry.innerHTML = "";
+      panelCountry.classList.add("hidden");
+    }
+  }
 
   const dl = document.getElementById("panel-details");
   dl.innerHTML = "";
@@ -836,7 +870,6 @@ function showInfoPanel(place) {
   const items = [
     ["Segment", segLabel],
     ["Province", place.province],
-    ["Country", place.country],
   ];
 
   for (const [label, value] of items) {
@@ -844,12 +877,7 @@ function showInfoPanel(place) {
     const dt = document.createElement("dt");
     dt.textContent = label;
     const dd = document.createElement("dd");
-    if (label === "Country") {
-      const flags = countryFlags(value);
-      dd.textContent = flags ? `${flags} ${value}` : value;
-    } else {
-      dd.textContent = value;
-    }
+    dd.textContent = value;
     dl.appendChild(dt);
     dl.appendChild(dd);
   }
@@ -1056,15 +1084,15 @@ function setupControls() {
   // Swipe-down to close info panel on mobile
   if (S.isMobile) {
     const panel = document.getElementById("info-panel");
-    let swipeStartY = null;
+    let swipeStartX = null;
     panel.addEventListener("touchstart", (e) => {
-      swipeStartY = e.touches[0].clientY;
+      swipeStartX = e.touches[0].clientX;
     }, { passive: true });
     panel.addEventListener("touchend", (e) => {
-      if (swipeStartY === null) return;
-      const dy = e.changedTouches[0].clientY - swipeStartY;
-      if (dy > 60) hideInfoPanel();
-      swipeStartY = null;
+      if (swipeStartX === null) return;
+      const dx = e.changedTouches[0].clientX - swipeStartX;
+      if (dx < -60) hideInfoPanel();
+      swipeStartX = null;
     }, { passive: true });
   }
 
@@ -1106,12 +1134,12 @@ function setupTypeFilters() {
         S.activeTypes.clear();
         container.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
         toggleAllBtn.classList.remove("active");
-        toggleAllBtn.textContent = "Select All";
+        toggleAllBtn.textContent = "Show/Hide All";
       } else {
         Object.keys(TYPE_COLORS).forEach(t => S.activeTypes.add(t));
         container.querySelectorAll(".type-filter-btn").forEach(b => b.classList.add("active"));
         toggleAllBtn.classList.add("active");
-        toggleAllBtn.textContent = "Select All";
+        toggleAllBtn.textContent = "Show/Hide All";
       }
       renderMarkers();
     });
@@ -1311,6 +1339,7 @@ function setupInteraction() {
   });
 
   S.viewer.addHandler("canvas-click", (e) => {
+    if (S.isMobile && !e.quick) return;
     const pos = e.position;
     const elRect = S.viewer.element.getBoundingClientRect();
     const clientX = elRect.left + pos.x;
@@ -1376,6 +1405,16 @@ function countryFlags(raw) {
     if (!iso || iso.length !== 2) return "";
     return String.fromCodePoint(0x1F1E6 + iso.charCodeAt(0) - 65, 0x1F1E6 + iso.charCodeAt(1) - 65);
   }).filter(Boolean).join("");
+}
+
+function countryFlagHtml(raw) {
+  if (!raw) return "";
+  return raw.split("|").map(c => {
+    const t = c.trim();
+    const iso = COUNTRY_TO_ISO2[t] || (t.length === 2 ? t.toUpperCase() : null);
+    if (!iso || iso.length !== 2) return "";
+    return `<img src="https://flagcdn.com/24x18/${iso.toLowerCase()}.png" alt="${escHtml(t)}" title="${escHtml(t)}" style="height:1.2em;vertical-align:middle;border-radius:1px">`;
+  }).filter(Boolean).join(" ");
 }
 
 function tpOnlineHref(place) {
