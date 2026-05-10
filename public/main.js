@@ -1846,16 +1846,14 @@ async function init() {
   S.viewer.addHandler("resize", () => { sizeCanvas(); renderMarkers(); });
   S.viewer.addHandler("open", () => {
     sizeCanvas();
-    if (!initialFocused) {
-      focusSegment(S.selectedSegment, true);
-      initialFocused = true;
-    }
-    renderMarkers();
+    // Do NOT focusSegment/renderMarkers here — clientHeight may not be settled
+    // yet, which causes focusSegment to compute a wrong zoom and fonts appear
+    // too large. The ResizeObserver below fires once layout has settled and
+    // does the first correct focus + render.
   });
 
-  // On large screens the browser finishes CSS layout after OSD's "open" fires,
-  // so the first render uses wrong zoom. ResizeObserver catches the settle and
-  // forces OSD to recalculate its viewport before re-rendering.
+  // ResizeObserver fires after CSS layout settles, guaranteeing correct
+  // clientWidth/clientHeight when we compute the initial zoom.
   let roSettled = false;
   const ro = new ResizeObserver(() => {
     const w = S.viewer.element.clientWidth;
@@ -1865,11 +1863,25 @@ async function init() {
     if (!roSettled) {
       roSettled = true;
       S.viewer.viewport.resize(new OpenSeadragon.Point(w, h));
-      focusSegment(S.selectedSegment, true);
+      if (!initialFocused) {
+        focusSegment(S.selectedSegment, true);
+        initialFocused = true;
+      }
     }
     renderMarkers();
   });
   ro.observe(S.viewer.element);
+
+  // Fallback: if ResizeObserver doesn't fire within 300 ms (rare), force init.
+  setTimeout(() => {
+    if (roSettled || !S.viewer.viewport) return;
+    roSettled = true;
+    const w = S.viewer.element.clientWidth;
+    const h = S.viewer.element.clientHeight;
+    if (w && h) S.viewer.viewport.resize(new OpenSeadragon.Point(w, h));
+    if (!initialFocused) { focusSegment(S.selectedSegment, true); initialFocused = true; }
+    renderMarkers();
+  }, 300);
 
   window.addEventListener("resize", () => { sizeCanvas(); renderMarkers(); });
 
