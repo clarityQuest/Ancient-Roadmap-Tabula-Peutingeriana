@@ -25,7 +25,11 @@ def parse_ulm_pq(pq):
 
 added = corrected = skipped = 0
 
+SKIP_TYPES = {'roman_province', 'people', 'region', 'modern_state'}
+
 for r in db['records']:
+    if r.get('type') in SKIP_TYPES:
+        continue
     pq = r.get('ulm_planquadrat', '')
     if not pq:
         continue
