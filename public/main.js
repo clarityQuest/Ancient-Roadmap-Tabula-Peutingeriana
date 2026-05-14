@@ -876,6 +876,19 @@ function showMillerTooltip(item, x, y) {
    ============================================================ */
 function showInfoPanel(place) {
   S.selectedPlace = place;
+
+  // Enrich with allRecords data (places.json lacks ulm_img_url / ulm_id)
+  if (S.allRecords.length && (!place.ulm_img_url || !place.ulm_id)) {
+    const rec = S.allRecords.find(r =>
+      (place.data_id != null && r.data_id === place.data_id) ||
+      (place.id      && (r.record_id === place.id || r.id === place.id))
+    );
+    if (rec) {
+      if (!place.ulm_img_url && rec.ulm_img_url) place = { ...place, ulm_img_url: rec.ulm_img_url };
+      if (!place.ulm_id      && rec.ulm_id)      place = { ...place, ulm_id: rec.ulm_id };
+    }
+  }
+
   const panel = document.getElementById("info-panel");
   document.getElementById("panel-latin").textContent = place.latin_std || place.latin;
   document.getElementById("panel-modern").textContent = place.modern || "(unknown modern name)";
@@ -938,6 +951,19 @@ function showInfoPanel(place) {
     } else {
       panelMap.innerHTML = "";
       panelMap.classList.add("hidden");
+    }
+  }
+
+  // ULM image preview
+  const ulmPreview = document.getElementById("panel-ulm-preview");
+  const ulmImg     = document.getElementById("panel-ulm-img");
+  if (ulmPreview && ulmImg) {
+    if (place.ulm_img_url) {
+      ulmImg.src = place.ulm_img_url;
+      ulmPreview.classList.remove("hidden");
+    } else {
+      ulmImg.src = "";
+      ulmPreview.classList.add("hidden");
     }
   }
 
