@@ -73,18 +73,7 @@
     <aside id="info-panel" class="hidden">
       <button id="close-panel" aria-label="Close">&times;</button>
       <div id="panel-top-row">
-        <div id="panel-links">
-          <a id="panel-wiki-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Wikipedia ↗</a>
-          <a id="panel-tp-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Ulm DB ↗</a>
-        </div>
-        <div id="panel-top-right">
-          <div id="panel-segment-badge" class="hidden"></div>
-          <div id="panel-lang-buttons">
-            <button class="lang-btn" data-lang="de">DE</button>
-            <button class="lang-btn" data-lang="sys">Auto</button>
-            <button class="lang-btn" data-lang="en">EN</button>
-          </div>
-        </div>
+        <div id="panel-segment-badge" class="hidden"></div>
       </div>
       <div id="panel-names">
         <div id="panel-latin"></div>
@@ -92,6 +81,10 @@
       </div>
       <div id="panel-country" class="hidden"></div>
       <div id="panel-type"><span class="type-icon"></span><span class="type-dot"></span><span class="type-label"></span></div>
+      <div id="panel-links">
+        <a id="panel-wiki-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Wikipedia ↗</a>
+        <a id="panel-tp-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Ulm DB ↗</a>
+      </div>
       <dl id="panel-details"></dl>
       <div id="panel-map" class="hidden"></div>
       <div id="panel-ulm-section" class="hidden">
@@ -107,6 +100,12 @@
       <button id="close-about" aria-label="Close">&times;</button>
       <h2 class="about-title">Tabula Peutingeriana</h2>
       <p class="about-subtitle">The Road Map of the Ancient World</p>
+
+      <div id="about-lang-row">
+        <button class="lang-btn" data-lang="de">&#127465;&#127466; Deutsch</button>
+        <button class="lang-btn" data-lang="sys">Auto</button>
+        <button class="lang-btn" data-lang="en">&#127468;&#127463; English</button>
+      </div>
 
       <section class="about-section">
         <p>The Tabula Peutingeriana is one of the most remarkable surviving documents of antiquity — a medieval copy of a Roman road map that charts the entire known world, from the Atlantic coast of Britain to the Indian subcontinent, in extraordinary detail.</p>
@@ -216,6 +215,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260515b"></script>
+  <script src="main.js?v=20260515c"></script>
 </body>
 </html>

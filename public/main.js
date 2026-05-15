@@ -180,6 +180,7 @@ const S = {
   savedActiveTypes: null,
   millerOverlayOn: true,
   millerCalib:    [],   // loaded from miller_rect_* fields in review_places_db.json
+  millerCalibHit: [],   // same records, sorted cities-first for hit-testing
   selectedPlace:  null,
   highlightDataId: null,
   highlightUntil:  0,
@@ -364,18 +365,15 @@ function focusSegment(segmentNumber, immediate = false) {
 }
 
 function focusStartup(immediate = false) {
-  // Miller map: fill screen height, center horizontally at seg V/VI boundary (Rome area)
+  // Miller map: same fitBounds approach as focusSegment, centered at seg V/VI boundary (Rome)
   if (S.mapMode === "old" && S.viewer.viewport) {
     const millerAspect = MILLER_H / MILLER_W;
-    const vpW = S.viewer.element.clientWidth  || window.innerWidth;
-    const vpH = S.viewer.element.clientHeight || window.innerHeight;
-    // zoom so image height fills the full viewport
-    const zoom = (vpH / vpW) / millerAspect;
-    // center x = seg 5/6 boundary (Rome sits here); center y = image mid-height
-    const cx = 0.363636;
-    const cy = millerAspect / 2;
-    S.viewer.viewport.zoomTo(zoom, null, immediate);
-    S.viewer.viewport.panTo(new OpenSeadragon.Point(cx, cy), immediate);
+    const segW = 1 / SEGMENT_COUNT; // width of one segment in OSD coords
+    const cx = 0.363636;            // seg 5/6 boundary where Rome sits
+    S.viewer.viewport.fitBounds(
+      new OpenSeadragon.Rect(cx - segW / 2, 0, segW, millerAspect),
+      immediate
+    );
     return;
   }
   focusSegment(S.selectedSegment, immediate);
@@ -572,14 +570,28 @@ function renderMillerOverlay(ctx) {
 
     if (S.markersOn) {
       const ma = LP.markerAlpha ?? 1.0;
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.23 * ma;
-      ctx.fillRect(x, y, w, h);
-      ctx.globalAlpha = 0.65 * ma;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(x, y, w, h);
-      ctx.globalAlpha = 1;
+      const isArea = ["region", "roman_province", "modern_state", "people"].includes(item.type);
+      if (isArea) {
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.07 * ma;
+        ctx.fillRect(x, y, w, h);
+        ctx.globalAlpha = 0.35 * ma;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([7, 5]);
+        ctx.strokeRect(x, y, w, h);
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.23 * ma;
+        ctx.fillRect(x, y, w, h);
+        ctx.globalAlpha = 0.65 * ma;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, y, w, h);
+        ctx.globalAlpha = 1;
+      }
     }
 
     if (item.data_id === S.highlightDataId && Date.now() < S.highlightUntil) {
@@ -909,7 +921,9 @@ function hitTestMillerOverlay(clientX, clientY) {
   const ey = clientY - elRect.top;
   const pad = 4;
 
-  for (const item of S.millerCalib) {
+  // millerCalibHit is sorted cities-first (reverse draw order) so cities win over regions
+  for (const item of S.millerCalibHit) {
+    if (!S.activeTypes.has(item.type)) continue;
     const p1 = imageToCanvas(item.rect_x1, item.rect_y1);
     const p2 = imageToCanvas(item.rect_x2, item.rect_y2);
     const x0 = Math.min(p1.cx, p2.cx) - pad;
@@ -1234,8 +1248,8 @@ function setupControls() {
     });
   }
 
-  // Lang selector inside info panel
-  document.getElementById("info-panel").addEventListener("click", (e) => {
+  // Lang selector inside about panel
+  document.getElementById("about-panel").addEventListener("click", (e) => {
     const lb = e.target.closest(".lang-btn");
     if (!lb) return;
     setLang(lb.dataset.lang);
@@ -1244,14 +1258,23 @@ function setupControls() {
   // Close info panel
   document.getElementById("close-panel").addEventListener("click", hideInfoPanel);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") hideInfoPanel();
+    if (e.key === "Escape") {
+      hideInfoPanel();
+      document.getElementById("about-panel")?.classList.add("hidden");
+    }
   });
   document.addEventListener("click", (e) => {
     const panel = document.getElementById("info-panel");
-    if (panel.classList.contains("hidden")) return;
-    if (Date.now() - infoPanelOpenedAt < 150) return; // ignore click that triggered the panel open
-    if (e.target.closest("#info-panel")) return;
-    hideInfoPanel();
+    if (!panel.classList.contains("hidden")) {
+      if (Date.now() - infoPanelOpenedAt < 150) return;
+      if (!e.target.closest("#info-panel")) hideInfoPanel();
+    }
+    const aboutPanel = document.getElementById("about-panel");
+    if (!aboutPanel.classList.contains("hidden")) {
+      if (!e.target.closest("#about-panel") && !e.target.closest("#about-btn")) {
+        aboutPanel.classList.add("hidden");
+      }
+    }
   });
 
   // Swipe-down to close info panel on mobile
@@ -2044,6 +2067,7 @@ async function init() {
         focusStartup(true);
         initialFocused = true;
       }
+      document.getElementById("about-panel")?.classList.remove("hidden");
     }
     renderMarkers();
   });
@@ -2056,6 +2080,7 @@ async function init() {
     const w = S.viewer.element.clientWidth;
     const h = S.viewer.element.clientHeight;
     if (!initialFocused) { focusStartup(true); initialFocused = true; }
+    document.getElementById("about-panel")?.classList.remove("hidden");
     renderMarkers();
   }, 300);
 
@@ -2115,6 +2140,9 @@ async function reloadDb() {
   }));
   const draftMap = loadCalibrateDraftMap();
   S.millerCalib = loadMillerCalib(rawRecords);
+  S.millerCalibHit = [...S.millerCalib].sort(
+    (a, b) => (TYPE_DRAW_ORDER[b.type] ?? 4) - (TYPE_DRAW_ORDER[a.type] ?? 4)
+  );
   S.places = placeData.map(p => ({
     ...p,
     ...(Number.isFinite(Number(p.data_id)) ? (draftMap.get(Number(p.data_id)) || {}) : {}),

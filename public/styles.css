@@ -176,17 +176,18 @@ body, html {
   font-size: 22px; cursor: pointer; line-height: 1;
 }
 #close-panel:hover { color: #fff; }
-/* Top row: links + right column (segment badge + lang buttons) */
-#panel-top-row { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; padding-right: 22px; gap: 8px; }
-#panel-links { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Segment badge row (close button padding handled by position:absolute) */
+#panel-top-row { display: flex; align-items: center; margin-bottom: 4px; padding-right: 22px; }
+#panel-segment-badge { font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 4px; padding: 3px 8px; white-space: nowrap; }
+/* Links row: standalone block below the type badge */
+#panel-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .panel-link { font-size: 14px; color: var(--accent); text-decoration: none; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); border-radius: 4px; padding: 3px 8px; }
 .panel-link:hover { background: rgba(59,130,246,0.2); text-decoration: none; }
-#panel-top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
-#panel-segment-badge { font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 4px; padding: 3px 8px; white-space: nowrap; }
-#panel-lang-buttons { display: flex; gap: 2px; }
-.lang-btn { padding: 2px 6px; border-radius: 3px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-size: 10px; cursor: pointer; line-height: 1.5; transition: color 0.15s, border-color 0.15s; }
+/* Language buttons (used in About panel) */
+.lang-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; line-height: 1.5; transition: color 0.15s, border-color 0.15s; }
 .lang-btn.active { border-color: var(--accent); color: var(--accent); }
 .lang-btn:hover { color: var(--text-main); }
+#about-lang-row { display: flex; gap: 6px; margin: 10px 0 16px; }
 /* Names: Latin and modern same weight/size */
 #panel-names { margin-bottom: 8px; }
 #panel-latin { font-size: 20px; font-weight: 700; line-height: 1.25; margin-bottom: 3px; }
@@ -380,8 +381,6 @@ body, html {
   }
   #info-panel::before { display: none; }
 
-  /* Vertical stack for left panel */
-  #panel-top-row { flex-direction: column; align-items: flex-start; gap: 6px; }
   #panel-latin, #panel-modern { font-size: 14px; }
   #panel-map:not(.hidden) {
     display: block !important;
