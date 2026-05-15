@@ -79,6 +79,31 @@ const TYPE_ICONS = {
   spa: "♨", temple: "⛩", mountain: "⛰", people: "👥",
 };
 
+const I18N = {
+  en: {
+    city: "City", port: "Port", road_station: "Road Station",
+    river: "River", lake: "Lake", island: "Island", region: "Region",
+    roman_province: "Roman Province", modern_state: "Modern State",
+    water: "Water", spa: "Spa", temple: "Temple", mountain: "Mountain",
+    people: "People",
+    province: "Province",
+    wiki_link: "Wikipedia ↗", ulm_link: "Ulm DB ↗",
+    unknown_modern: "(unknown modern name)",
+    wiki_lang: "en",
+  },
+  de: {
+    city: "Stadt", port: "Hafen", road_station: "Straßenstation",
+    river: "Fluss", lake: "See", island: "Insel", region: "Region",
+    roman_province: "Römische Provinz", modern_state: "Moderner Staat",
+    water: "Gewässer", spa: "Heilbad", temple: "Tempel", mountain: "Berg",
+    people: "Volk",
+    province: "Provinz",
+    wiki_link: "Wikipedia ↗", ulm_link: "Ulm DB ↗",
+    unknown_modern: "(moderner Name unbekannt)",
+    wiki_lang: "de",
+  },
+};
+
 const DRAFT_STORAGE_KEY = "tp_calibrate_seg4_rectangles_v1";
 const MAP_RUNTIME_TYPES = new Set(Object.keys(TYPE_COLORS));
 
@@ -159,6 +184,7 @@ const S = {
   highlightDataId: null,
   highlightUntil:  0,
   highlightVp:     null,  // {vx,vy} viewport centre stored by panToPlace for fallback ring
+  lang: (() => { try { return localStorage.getItem("tp_lang") || "sys"; } catch { return "sys"; } })(),
   isMobile: window.matchMedia("(pointer: coarse), (max-width: 600px)").matches,
   canvas:       null,
   ctx:          null,
@@ -171,6 +197,35 @@ const S = {
     readableSeg4: {},
   },
 };
+
+let infoPanelOpenedAt = 0;
+
+/* ============================================================
+   i18n helpers
+   ============================================================ */
+function getLang() {
+  if (S.lang === "de") return "de";
+  if (S.lang === "en") return "en";
+  return (navigator.language || "en").toLowerCase().startsWith("de") ? "de" : "en";
+}
+
+function getText(key) {
+  const lang = getLang();
+  return (I18N[lang] || I18N.en)[key] ?? I18N.en[key] ?? key;
+}
+
+function setLang(lang) {
+  S.lang = lang;
+  try { localStorage.setItem("tp_lang", lang); } catch {}
+  updateLangButtons();
+  if (S.selectedPlace) showInfoPanel(S.selectedPlace);
+}
+
+function updateLangButtons() {
+  document.querySelectorAll(".lang-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.lang === S.lang);
+  });
+}
 
 /* ============================================================
    Data loading
@@ -309,18 +364,18 @@ function focusSegment(segmentNumber, immediate = false) {
 }
 
 function focusStartup(immediate = false) {
-  // Miller map: full vertical extent, centered at seg V/VI boundary where Rome sits
-  if (S.mapMode === "old") {
+  // Miller map: fill screen height, center horizontally at seg V/VI boundary (Rome area)
+  if (S.mapMode === "old" && S.viewer.viewport) {
     const millerAspect = MILLER_H / MILLER_W;
     const vpW = S.viewer.element.clientWidth  || window.innerWidth;
     const vpH = S.viewer.element.clientHeight || window.innerHeight;
-    const cx = 0.363636; // x boundary between seg 5 and seg 6
-    const rectH = millerAspect;
-    const rectW = millerAspect * (vpW / vpH);
-    S.viewer.viewport.fitBounds(
-      new OpenSeadragon.Rect(cx - rectW / 2, 0, rectW, rectH),
-      immediate
-    );
+    // zoom so image height fills the full viewport
+    const zoom = (vpH / vpW) / millerAspect;
+    // center x = seg 5/6 boundary (Rome sits here); center y = image mid-height
+    const cx = 0.363636;
+    const cy = millerAspect / 2;
+    S.viewer.viewport.zoomTo(zoom, null, immediate);
+    S.viewer.viewport.panTo(new OpenSeadragon.Point(cx, cy), immediate);
     return;
   }
   focusSegment(S.selectedSegment, immediate);
@@ -896,6 +951,7 @@ function showMillerTooltip(item, x, y) {
    ============================================================ */
 function showInfoPanel(place) {
   S.selectedPlace = place;
+  infoPanelOpenedAt = Date.now();
 
   // Enrich with allRecords data (places.json lacks ulm_img_url / ulm_id)
   if (S.allRecords.length && (!place.ulm_img_url || !place.ulm_id)) {
@@ -911,10 +967,10 @@ function showInfoPanel(place) {
 
   const panel = document.getElementById("info-panel");
   document.getElementById("panel-latin").textContent = place.latin_std || place.latin;
-  document.getElementById("panel-modern").textContent = place.modern || "(unknown modern name)";
+  document.getElementById("panel-modern").textContent = place.modern || getText("unknown_modern");
 
   const color = TYPE_COLORS[place.type] || "#92400E";
-  const typeLabel = TYPE_LABELS[place.type] || place.type;
+  const typeLabel = getText(place.type) || TYPE_LABELS[place.type] || place.type;
   panel.querySelector(".type-dot").style.background = color;
   panel.querySelector(".type-label").textContent = typeLabel;
   const typeIconEl = panel.querySelector(".type-icon");
@@ -951,7 +1007,7 @@ function showInfoPanel(place) {
   }
 
   const items = [
-    ["Province", place.province],
+    [getText("province"), place.province],
   ];
 
   for (const [label, value] of items) {
@@ -970,8 +1026,7 @@ function showInfoPanel(place) {
   if (panelMap) {
     const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) &&
                       lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-    const hasModern = Boolean(place.modern && place.modern.trim());
-    if (hasCoords && hasModern) {
+    if (hasCoords) {
       const dLon = 0.9, dLat = 0.55;
       const bbox = `${(lng-dLon).toFixed(4)},${(lat-dLat).toFixed(4)},${(lng+dLon).toFixed(4)},${(lat+dLat).toFixed(4)}`;
       const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat.toFixed(5)},${lng.toFixed(5)}`;
@@ -983,12 +1038,29 @@ function showInfoPanel(place) {
     }
   }
 
-  // Wikipedia link
+  // ULM image preview (desktop only — hidden via CSS on mobile)
+  const ulmSection = document.getElementById("panel-ulm-section");
+  if (ulmSection) {
+    const ulmHref = tpOnlineHref(place);
+    const ulmImg = document.getElementById("panel-ulm-img");
+    const ulmLinkEl = document.getElementById("panel-ulm-link");
+    if (place.ulm_img_url) {
+      if (ulmImg) ulmImg.src = place.ulm_img_url;
+      if (ulmLinkEl) ulmLinkEl.href = ulmHref || "#";
+      ulmSection.classList.remove("hidden");
+    } else {
+      if (ulmImg) ulmImg.src = "";
+      ulmSection.classList.add("hidden");
+    }
+  }
+
+  // Wikipedia link (language-aware)
   const wikiLink = document.getElementById("panel-wiki-link");
   if (wikiLink) {
     const modern = place.modern || "";
     if (modern) {
-      wikiLink.href = `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(modern)}`;
+      wikiLink.href = `https://${getText("wiki_lang")}.wikipedia.org/w/index.php?search=${encodeURIComponent(modern)}`;
+      wikiLink.textContent = getText("wiki_link");
       wikiLink.classList.remove("hidden");
     } else {
       wikiLink.classList.add("hidden");
@@ -1001,13 +1073,14 @@ function showInfoPanel(place) {
     const href = tpOnlineHref(place);
     if (href) {
       tpLink.href = href;
+      tpLink.textContent = getText("ulm_link");
       tpLink.classList.remove("hidden");
     } else {
       tpLink.classList.add("hidden");
     }
   }
 
-
+  updateLangButtons();
   panel.classList.remove("hidden");
 }
 
@@ -1137,7 +1210,7 @@ function setupControls() {
     S.viewer.viewport.applyConstraints();
   });
   document.getElementById("control-home").addEventListener("click", () => {
-    focusSegment(S.selectedSegment);
+    focusStartup();
   });
   document.getElementById("control-fullpage").addEventListener("click", () => {
     if (document.fullscreenElement) {
@@ -1161,6 +1234,13 @@ function setupControls() {
     });
   }
 
+  // Lang selector inside info panel
+  document.getElementById("info-panel").addEventListener("click", (e) => {
+    const lb = e.target.closest(".lang-btn");
+    if (!lb) return;
+    setLang(lb.dataset.lang);
+  });
+
   // Close info panel
   document.getElementById("close-panel").addEventListener("click", hideInfoPanel);
   document.addEventListener("keydown", (e) => {
@@ -1169,8 +1249,8 @@ function setupControls() {
   document.addEventListener("click", (e) => {
     const panel = document.getElementById("info-panel");
     if (panel.classList.contains("hidden")) return;
+    if (Date.now() - infoPanelOpenedAt < 150) return; // ignore click that triggered the panel open
     if (e.target.closest("#info-panel")) return;
-    if (e.target.closest("#openseadragon1")) return; // canvas-click already handles map clicks
     hideInfoPanel();
   });
 
@@ -1262,7 +1342,7 @@ function setupTypeFilters() {
       } else {
         S.regionSolo = true;
         S.savedActiveTypes = new Set(S.activeTypes);
-        S.activeTypes = new Set(["region"]);
+        S.activeTypes = new Set(["region", "people"]);
         regionSoloBtn.classList.add("active");
         container.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
       }

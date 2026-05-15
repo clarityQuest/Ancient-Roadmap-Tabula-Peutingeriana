@@ -55,7 +55,7 @@
         <button id="toggle-labels" class="ctrl-btn toggle-btn active" title="Show/hide place name labels">Labels</button>
       </div>
       <div id="type-filter-buttons" class="type-filter-group" role="group" aria-label="Filter by place type"></div>
-      <button id="region-solo-btn" class="ctrl-btn toggle-btn toggle-btn-sm region-solo-btn" title="Show regions only (all other markers hidden)">Regions</button>
+      <button id="region-solo-btn" class="ctrl-btn toggle-btn toggle-btn-sm region-solo-btn" title="Show regions and people only (all other markers hidden)">Regions / People</button>
     </div>
 
     <!-- OpenSeadragon viewer -->
@@ -77,7 +77,14 @@
           <a id="panel-wiki-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Wikipedia ↗</a>
           <a id="panel-tp-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Ulm DB ↗</a>
         </div>
-        <div id="panel-segment-badge" class="hidden"></div>
+        <div id="panel-top-right">
+          <div id="panel-segment-badge" class="hidden"></div>
+          <div id="panel-lang-buttons">
+            <button class="lang-btn" data-lang="de">DE</button>
+            <button class="lang-btn" data-lang="sys">Auto</button>
+            <button class="lang-btn" data-lang="en">EN</button>
+          </div>
+        </div>
       </div>
       <div id="panel-names">
         <div id="panel-latin"></div>
@@ -87,6 +94,11 @@
       <div id="panel-type"><span class="type-icon"></span><span class="type-dot"></span><span class="type-label"></span></div>
       <dl id="panel-details"></dl>
       <div id="panel-map" class="hidden"></div>
+      <div id="panel-ulm-section" class="hidden">
+        <a id="panel-ulm-link" href="#" target="_blank" rel="noopener" title="Open in Ulm Database">
+          <img id="panel-ulm-img" src="" alt="ULM database image" />
+        </a>
+      </div>
       <div id="panel-sources">Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber) · <a href="https://tp-online.ku.de/" target="_blank" rel="noopener">tp-online.ku.de</a> (Univ. Ulm) · Image: <a href="https://commons.wikimedia.org/wiki/File:Tabula_Peutingeriana.jpg" target="_blank" rel="noopener">K. Miller, 1887</a> · Map: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
     </aside>
 
@@ -204,6 +216,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260515a"></script>
+  <script src="main.js?v=20260515b"></script>
 </body>
 </html>
