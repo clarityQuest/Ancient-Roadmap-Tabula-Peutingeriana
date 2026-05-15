@@ -975,9 +975,12 @@ function hitTestMillerOverlay(clientX, clientY) {
   const ey = clientY - elRect.top;
   const pad = 4;
 
-  // millerCalibHit is sorted cities-first (reverse draw order) so cities win over regions
+  // millerCalibHit is sorted cities-first (reverse draw order) so cities win over regions.
+  // Area types (region/province/people) are always hittable even when not in activeTypes,
+  // so background regions give hover info even in normal map mode.
+  const AREA_TYPES = new Set(["region", "roman_province", "modern_state", "people"]);
   for (const item of S.millerCalibHit) {
-    if (!S.activeTypes.has(item.type)) continue;
+    if (!AREA_TYPES.has(item.type) && !S.activeTypes.has(item.type)) continue;
     const p1 = imageToCanvas(item.rect_x1, item.rect_y1);
     const p2 = imageToCanvas(item.rect_x2, item.rect_y2);
     const x0 = Math.min(p1.cx, p2.cx) - pad;
@@ -1127,10 +1130,13 @@ function showInfoPanel(place) {
     }
   }
 
-  // Wikipedia link — modern name preferred; Latin name as fallback (works well for ancient regions)
+  // Wikipedia link — modern name preferred (language-aware).
+  // Fallback: Latin name with classical V→U normalisation on en.wikipedia.org,
+  // since "Lugdunensis" finds articles that "Lvgdvnensis" never would.
   const wikiLink = document.getElementById("panel-wiki-link");
   if (wikiLink) {
-    const searchTerm = place.modern || place.latin_std || place.latin || "";
+    const latin = place.latin_std || place.latin || "";
+    const searchTerm = place.modern || normalizeLatinV(latin) || latin;
     if (searchTerm) {
       const wikiLang = place.modern ? getText("wiki_lang") : "en";
       wikiLink.href = `https://${wikiLang}.wikipedia.org/w/index.php?search=${encodeURIComponent(searchTerm)}`;
@@ -1367,8 +1373,8 @@ function exitRegionSolo() {
 function setupTypeFilters() {
   const container = document.getElementById("type-filter-buttons");
   if (!container) return;
-  // 'region' is handled separately via the region-solo button
-  const types = Object.keys(TYPE_COLORS).filter(t => t !== "region");
+  // 'region' and 'roman_province' handled via region-solo button; not used as individual filters
+  const types = Object.keys(TYPE_COLORS).filter(t => t !== "region" && t !== "roman_province");
   container.innerHTML = types.map(t => {
     const color = TYPE_COLORS[t];
     const label = TYPE_LABELS[t];
@@ -1420,7 +1426,7 @@ function setupTypeFilters() {
       } else {
         S.regionSolo = true;
         S.savedActiveTypes = new Set(S.activeTypes);
-        S.activeTypes = new Set(["region", "people"]);
+        S.activeTypes = new Set(["region", "roman_province", "people"]);
         regionSoloBtn.classList.add("active");
         container.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
       }
@@ -1723,6 +1729,15 @@ const ISO2_COUNTRY_NAME = {
   en: { DE:"Germany",AT:"Austria",IT:"Italy",FR:"France",ES:"Spain",PT:"Portugal",HU:"Hungary",BE:"Belgium",NL:"Netherlands",CH:"Switzerland",CY:"Cyprus",GB:"United Kingdom",GR:"Greece",TR:"Turkey",BG:"Bulgaria",RO:"Romania",HR:"Croatia",AL:"Albania",MK:"North Macedonia",ME:"Montenegro",BA:"Bosnia & Herzegovina",RS:"Serbia",SI:"Slovenia",XK:"Kosovo",VA:"Vatican",TN:"Tunisia",DZ:"Algeria",MA:"Morocco",LY:"Libya",IL:"Israel",LB:"Lebanon",SY:"Syria",IQ:"Iraq",IR:"Iran",JO:"Jordan",GE:"Georgia",AM:"Armenia",AZ:"Azerbaijan",RU:"Russia",UA:"Ukraine",TM:"Turkmenistan",PK:"Pakistan",AF:"Afghanistan",IN:"India",EG:"Egypt",IE:"Ireland" },
   de: { DE:"Deutschland",AT:"Österreich",IT:"Italien",FR:"Frankreich",ES:"Spanien",PT:"Portugal",HU:"Ungarn",BE:"Belgien",NL:"Niederlande",CH:"Schweiz",CY:"Zypern",GB:"Großbritannien",GR:"Griechenland",TR:"Türkei",BG:"Bulgarien",RO:"Rumänien",HR:"Kroatien",AL:"Albanien",MK:"Nordmazedonien",ME:"Montenegro",BA:"Bosnien-Herzegowina",RS:"Serbien",SI:"Slowenien",XK:"Kosovo",VA:"Vatikan",TN:"Tunesien",DZ:"Algerien",MA:"Marokko",LY:"Libyen",IL:"Israel",LB:"Libanon",SY:"Syrien",IQ:"Irak",IR:"Iran",JO:"Jordanien",GE:"Georgien",AM:"Armenien",AZ:"Aserbaidschan",RU:"Russland",UA:"Ukraine",TM:"Turkmenistan",PK:"Pakistan",AF:"Afghanistan",IN:"Indien",EG:"Ägypten",IE:"Irland" },
 };
+
+function normalizeLatinV(s) {
+  if (!s) return s;
+  return s.replace(/v/gi, (ch, offset, str) => {
+    const prev = str[offset - 1];
+    if (!prev || /[\s\-_]/.test(prev)) return ch; // word-initial V = consonant, keep
+    return ch === ch.toUpperCase() ? 'U' : 'u';   // non-initial V = vowel → U
+  });
+}
 
 function countryName(rawCode) {
   const t = (rawCode || "").trim();

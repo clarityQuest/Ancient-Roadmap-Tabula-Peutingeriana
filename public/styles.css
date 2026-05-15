@@ -269,7 +269,7 @@ body, html {
   position: fixed;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 680px; max-width: calc(100vw - 24px);
+  width: min(1100px, calc(100vw - 24px));
   max-height: 88vh;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
