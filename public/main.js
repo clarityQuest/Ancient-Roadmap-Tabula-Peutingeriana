@@ -48,8 +48,10 @@ const TYPE_COLORS = {
 
 // Draw order: lower = rendered first (background). Regions/rivers behind everything else.
 const TYPE_DRAW_ORDER = {
-  region: 0, river: 1, lake: 2, water: 2,
-  island: 3, mountain: 3, people: 3, roman_province: 3, modern_state: 3,
+  region: 0,
+  water: 1, river: 1, lake: 1,
+  roman_province: 2, modern_state: 2, mountain: 2, island: 2,
+  people: 3,
   road_station: 4, spa: 5, temple: 5, port: 6, city: 7,
 };
 
@@ -306,13 +308,31 @@ function focusSegment(segmentNumber, immediate = false) {
   return true;
 }
 
+function focusStartup(immediate = false) {
+  // Miller map: full vertical extent, centered at seg V/VI boundary where Rome sits
+  if (S.mapMode === "old") {
+    const millerAspect = MILLER_H / MILLER_W;
+    const vpW = S.viewer.element.clientWidth  || window.innerWidth;
+    const vpH = S.viewer.element.clientHeight || window.innerHeight;
+    const cx = 0.363636; // x boundary between seg 5 and seg 6
+    const rectH = millerAspect;
+    const rectW = millerAspect * (vpW / vpH);
+    S.viewer.viewport.fitBounds(
+      new OpenSeadragon.Rect(cx - rectW / 2, 0, rectW, rectH),
+      immediate
+    );
+    return;
+  }
+  focusSegment(S.selectedSegment, immediate);
+}
+
 function setupSegmentSelector() {
   const container = document.getElementById("segment-buttons");
   if (!container) return;
   container.innerHTML = S.segments.map((seg) => {
     const n = Number(seg.number);
     const roman = String(seg.roman || n);
-    return `<button class="seg-btn" data-seg="${n}" title="Segment ${roman}">${roman}</button>`;
+    return `<button class="seg-btn" data-seg="${n}" title="${roman}: ${seg.label || roman}">${roman}</button>`;
   }).join("");
   applySegmentUIState();
   container.addEventListener("click", (e) => {
@@ -920,8 +940,17 @@ function showInfoPanel(place) {
   const segMeta = S.segments.find((s) => Number(s.number) === segNum);
   const segLabel = segMeta ? `${segMeta.roman} - ${segMeta.label}` : (Number.isFinite(segNum) ? `Segment ${segNum}` : "");
 
+  const segBadge = document.getElementById("panel-segment-badge");
+  if (segBadge) {
+    if (segLabel) {
+      segBadge.textContent = segLabel;
+      segBadge.classList.remove("hidden");
+    } else {
+      segBadge.classList.add("hidden");
+    }
+  }
+
   const items = [
-    ["Segment", segLabel],
     ["Province", place.province],
   ];
 
@@ -951,19 +980,6 @@ function showInfoPanel(place) {
     } else {
       panelMap.innerHTML = "";
       panelMap.classList.add("hidden");
-    }
-  }
-
-  // ULM image preview
-  const ulmPreview = document.getElementById("panel-ulm-preview");
-  const ulmImg     = document.getElementById("panel-ulm-img");
-  if (ulmPreview && ulmImg) {
-    if (place.ulm_img_url) {
-      ulmImg.src = place.ulm_img_url;
-      ulmPreview.classList.remove("hidden");
-    } else {
-      ulmImg.src = "";
-      ulmPreview.classList.add("hidden");
     }
   }
 
@@ -1149,6 +1165,13 @@ function setupControls() {
   document.getElementById("close-panel").addEventListener("click", hideInfoPanel);
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") hideInfoPanel();
+  });
+  document.addEventListener("click", (e) => {
+    const panel = document.getElementById("info-panel");
+    if (panel.classList.contains("hidden")) return;
+    if (e.target.closest("#info-panel")) return;
+    if (e.target.closest("#openseadragon1")) return; // canvas-click already handles map clicks
+    hideInfoPanel();
   });
 
   // Swipe-down to close info panel on mobile
@@ -1938,7 +1961,7 @@ async function init() {
     if (!roSettled) {
       roSettled = true;
       if (!initialFocused) {
-        focusSegment(S.selectedSegment, true);
+        focusStartup(true);
         initialFocused = true;
       }
     }
@@ -1952,7 +1975,7 @@ async function init() {
     roSettled = true;
     const w = S.viewer.element.clientWidth;
     const h = S.viewer.element.clientHeight;
-    if (!initialFocused) { focusSegment(S.selectedSegment, true); initialFocused = true; }
+    if (!initialFocused) { focusStartup(true); initialFocused = true; }
     renderMarkers();
   }, 300);
 

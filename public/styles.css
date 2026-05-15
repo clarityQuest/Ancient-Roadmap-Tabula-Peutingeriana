@@ -161,40 +161,41 @@ body, html {
 /* Info Panel */
 #info-panel {
   position: absolute;
-  right: 20px; top: 60px; width: 512px;
+  right: 20px; top: 60px; width: 400px;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
-  border-radius: 8px; padding: 20px; z-index: 30;
+  border-radius: 8px; padding: 16px 16px 12px; z-index: 30;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   pointer-events: auto;
   overflow-y: auto;
   max-height: calc(100vh - 80px);
 }
 #close-panel {
-  position: absolute; top: 12px; right: 12px;
+  position: absolute; top: 10px; right: 10px;
   background: transparent; border: none; color: var(--text-muted);
-  font-size: 24px; cursor: pointer; line-height: 1;
+  font-size: 22px; cursor: pointer; line-height: 1;
 }
 #close-panel:hover { color: #fff; }
-#panel-latin { font-size: 28px; margin-bottom: 6px; }
-#panel-modern { font-size: 22px; color: var(--text-muted); margin-bottom: 8px; font-weight: normal; }
-#panel-country { font-size: 22px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-#panel-country img { height: 1.2em; vertical-align: middle; border-radius: 2px; }
-#panel-type { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-weight: 600; font-size: 26px; }
-.type-icon  { font-size: 1.2em; line-height: 1; }
-#panel-details dt { font-size: 14px; color: var(--text-muted); text-transform: uppercase; margin-top: 14px; }
-#panel-details dd { font-size: 18px; margin-left: 0; margin-top: 4px; }
-#panel-details dd.country-dd { font-size: 22px; margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-#panel-header { display: block; margin-bottom: 0; }
-#panel-map { margin-top: 18px; border-radius: 6px; overflow: hidden; line-height: 0; }
-#panel-map iframe { display: block; width: 100%; height: 360px; border: 0; border-radius: 6px; pointer-events: auto; }
-#panel-ulm-preview { margin-top: 16px; border-radius: 6px; overflow: hidden; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); }
-#panel-ulm-img { display: block; width: 100%; max-height: 180px; object-fit: contain; image-rendering: crisp-edges; }
-#panel-ulm-caption { font-size: 11px; color: var(--text-muted); padding: 4px 8px; text-align: center; }
-#panel-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
-.panel-link { font-size: 12px; color: var(--accent); text-decoration: none; }
-.panel-link:hover { text-decoration: underline; }
-#panel-sources { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+/* Top row: links + segment badge */
+#panel-top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-right: 22px; gap: 8px; flex-wrap: wrap; }
+#panel-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.panel-link { font-size: 12px; color: var(--accent); text-decoration: none; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); border-radius: 4px; padding: 3px 8px; }
+.panel-link:hover { background: rgba(59,130,246,0.2); text-decoration: none; }
+#panel-segment-badge { font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 4px; padding: 3px 8px; white-space: nowrap; }
+/* Names: Latin and modern same weight/size */
+#panel-names { margin-bottom: 8px; }
+#panel-latin { font-size: 20px; font-weight: 700; line-height: 1.25; margin-bottom: 3px; }
+#panel-modern { font-size: 20px; font-weight: 600; color: var(--text-muted); line-height: 1.25; }
+#panel-country { font-size: 14px; margin: 6px 0 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#panel-country img { height: 1em; vertical-align: middle; border-radius: 1px; }
+#panel-type { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-weight: 600; font-size: 16px; }
+.type-icon  { font-size: 1.1em; line-height: 1; }
+#panel-details { margin-bottom: 0; }
+#panel-details dt { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 10px; }
+#panel-details dd { font-size: 14px; margin-left: 0; margin-top: 2px; }
+#panel-map { margin-top: 12px; border-radius: 6px; overflow: hidden; line-height: 0; }
+#panel-map iframe { display: block; width: 100%; height: 280px; border: 0; border-radius: 6px; pointer-events: auto; }
+#panel-sources { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-color); font-size: 10px; color: var(--text-muted); line-height: 1.5; }
 #panel-sources a { color: var(--accent); text-decoration: none; }
 #panel-sources a:hover { text-decoration: underline; }
 #mobile-menu-attribution { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted); text-align: center; line-height: 1.6; }
@@ -238,10 +239,10 @@ body, html {
 .tt-detail { font-size: 13px; color: #999; margin-top: 2px; }
 .tt-detail span { color: #ccc; }
 
-/* Region-solo button — dashed border signals "area" type */
-.region-solo-btn { border-style: dashed !important; color: #a78bfa !important; }
-.region-solo-btn:hover { border-style: dashed !important; }
-.region-solo-btn.active { border-style: solid !important; border-color: #7c3aed !important; color: #c4b5fd !important; background: rgba(124,58,237,0.22) !important; }
+/* Region-solo button — standalone below type filters, dashed border signals "area" */
+#region-solo-btn { align-self: flex-start; margin-top: 4px; border-style: dashed !important; color: #a78bfa !important; }
+#region-solo-btn:hover { border-style: dashed !important; }
+#region-solo-btn.active { border-style: solid !important; border-color: #7c3aed !important; color: #c4b5fd !important; background: rgba(124,58,237,0.22) !important; }
 
 /* About Panel */
 #about-panel {
@@ -371,8 +372,8 @@ body, html {
   #info-panel::before { display: none; }
 
   /* Vertical stack for left panel */
-  #panel-header { display: block !important; height: auto !important; }
-  #panel-title  { flex: none; overflow: hidden; }
+  #panel-top-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  #panel-latin, #panel-modern { font-size: 14px; }
   #panel-map:not(.hidden) {
     display: block !important;
     margin: 10px 0 0;
