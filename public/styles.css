@@ -177,11 +177,14 @@ body, html {
 }
 #close-panel:hover { color: #fff; }
 #panel-email-btn {
-  position: absolute; top: 12px; right: 38px;
-  color: var(--text-muted); font-size: 16px; line-height: 1;
-  text-decoration: none; opacity: 0.6;
+  position: absolute; top: 9px; right: 38px;
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 5px; color: #c4c4cc; font-size: 14px; line-height: 1;
+  text-decoration: none; cursor: pointer;
 }
-#panel-email-btn:hover { color: #fff; opacity: 1; }
+#panel-email-btn:hover { background: rgba(255,255,255,0.14); color: #fff; border-color: rgba(255,255,255,0.35); }
 /* Segment badge row (close button padding handled by position:absolute) */
 #panel-top-row { display: flex; align-items: center; margin-bottom: 4px; padding-right: 22px; }
 #panel-segment-badge { font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 4px; padding: 3px 8px; white-space: nowrap; }

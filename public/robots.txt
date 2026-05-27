@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://tabula-peutingeriana.com/sitemap.xml

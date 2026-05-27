@@ -1,10 +1,80 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tabvla Pevtingeriana â€” Dual Map Viewer</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset=”UTF-8” />
+  <meta name=”viewport” content=”width=device-width, initial-scale=1.0” />
+
+  <!-- Primary SEO -->
+  <title>Tabula Peutingeriana — Interactive Ancient Roman Road Map</title>
+  <meta name=”description” content=”Explore the Tabula Peutingeriana — the world's most detailed surviving Roman road map (4th–5th century AD). Interactive zoomable viewer with 3,500+ annotated ancient places, cities, road stations, rivers and provinces across the known Roman world.” />
+  <meta name=”keywords” content=”Tabula Peutingeriana, Roman road map, ancient Rome, Roman cartography, medieval map, Roman roads, via romana, ancient geography, Roman Empire map, Peutinger map, Peutingersche Tafel, antique map viewer, OmnesViae, Roman places, ancient cities” />
+  <meta name=”author” content=”three-mills.com” />
+  <link rel=”canonical” href=”https://tabula-peutingeriana.com/” />
+  <meta name=”robots” content=”index, follow” />
+
+  <!-- Open Graph (Facebook, LinkedIn, WhatsApp, AI crawlers) -->
+  <meta property=”og:type” content=”website” />
+  <meta property=”og:url” content=”https://tabula-peutingeriana.com/” />
+  <meta property=”og:title” content=”Tabula Peutingeriana — Interactive Ancient Roman Road Map” />
+  <meta property=”og:description” content=”Explore the Tabula Peutingeriana — the world's most detailed surviving Roman road map (4th–5th c. AD). Zoomable viewer with 3,500+ annotated ancient places across the Roman world, from Britain to India.” />
+  <meta property=”og:image” content=”https://tabula-peutingeriana.com/og-image.jpg” />
+  <meta property=”og:image:width” content=”1200” />
+  <meta property=”og:image:height” content=”630” />
+  <meta property=”og:locale” content=”en_GB” />
+  <meta property=”og:locale:alternate” content=”de_DE” />
+  <meta property=”og:site_name” content=”Tabula Peutingeriana” />
+
+  <!-- Twitter / X Cards -->
+  <meta name=”twitter:card” content=”summary_large_image” />
+  <meta name=”twitter:title” content=”Tabula Peutingeriana — Interactive Ancient Roman Road Map” />
+  <meta name=”twitter:description” content=”Zoomable viewer of the 4th-century Roman road map with 3,500+ annotated cities, road stations, rivers and provinces.” />
+  <meta name=”twitter:image” content=”https://tabula-peutingeriana.com/og-image.jpg” />
+
+  <!-- Structured data — WebApplication -->
+  <script type=”application/ld+json”>
+  {
+    “@context”: “https://schema.org”,
+    “@type”: “WebApplication”,
+    “name”: “Tabula Peutingeriana Viewer”,
+    “url”: “https://tabula-peutingeriana.com/”,
+    “description”: “Interactive zoomable viewer of the Tabula Peutingeriana, a medieval copy of a 4th–5th century Roman road map. Covers the Roman Empire from Britain to India with 3,500+ annotated places including cities, road stations, rivers, mountains, islands and provinces.”,
+    “applicationCategory”: “ReferenceApplication”,
+    “operatingSystem”: “Any”,
+    “browserRequirements”: “Requires JavaScript”,
+    “about”: {
+      “@type”: “Map”,
+      “name”: “Tabula Peutingeriana”,
+      “description”: “A 13th-century parchment copy of a late-antique Roman road map, 6.75 metres long, showing roads, distances and settlements across the Roman Empire. Held at the Österreichische Nationalbibliothek, Vienna. UNESCO Memory of the World (2007).”,
+      “spatialCoverage”: {
+        “@type”: “Place”,
+        “name”: “Roman Empire and beyond”,
+        “description”: “From the British Isles and Atlantic coast to the Indian subcontinent and Sri Lanka”
+      }
+    },
+    “offers”: { “@type”: “Offer”, “price”: “0”, “priceCurrency”: “EUR” },
+    “author”: {
+      “@type”: “Organization”,
+      “name”: “three-mills.com”,
+      “url”: “https://three-mills.com”,
+      “email”: “info@three-mills.com”
+    },
+    “keywords”: “Tabula Peutingeriana, Roman road map, ancient cartography, Roman Empire, OmnesViae, Peutinger map”
+  }
+  </script>
+
+  <!-- Structured data — BreadcrumbList -->
+  <script type=”application/ld+json”>
+  {
+    “@context”: “https://schema.org”,
+    “@type”: “BreadcrumbList”,
+    “itemListElement”: [
+      { “@type”: “ListItem”, “position”: 1, “name”: “Tabula Peutingeriana”, “item”: “https://tabula-peutingeriana.com/” }
+    ]
+  }
+  </script>
+
+  <link rel=”sitemap” type=”application/xml” href=”/sitemap.xml” />
+  <link rel=”stylesheet” href=”styles.css” />
 </head>
 <body>
   <div id="app">
@@ -68,7 +138,7 @@
 
     <!-- Click info panel -->
     <aside id="info-panel" class="hidden">
-      <a id="panel-email-btn" href="#" aria-label="Send email about this place" title="Send email about this place">&#9993;</a>
+      <a id="panel-email-btn" href="#" aria-label="Send email about this place" title="Send email about this place"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M2 7l8 5 8-5"/></svg></a>
       <button id="close-panel" aria-label="Close">&times;</button>
       <div id="panel-top-row">
         <div id="panel-segment-badge" class="hidden"></div>
@@ -226,6 +296,27 @@
       Â· Image: Wikimedia Commons (K. Miller, 1887)
     </div>
   </div>
+
+  <!-- Static content for search engines / no-JS fallback -->
+  <noscript>
+    <style>#app{display:none}</style>
+    <div style="max-width:800px;margin:40px auto;font-family:Georgia,serif;padding:20px;line-height:1.7">
+      <h1>Tabula Peutingeriana &mdash; Interactive Ancient Roman Road Map</h1>
+      <p>The <strong>Tabula Peutingeriana</strong> (Peutinger Map) is a medieval copy of a late-antique Roman road map, dating to the 4th&ndash;5th century AD. It is the most detailed surviving cartographic document of the Roman world, stretching 6.75 metres in length and depicting roads, distances in Roman miles, and over 3,500 named settlements across the known world &mdash; from Britain and the Atlantic coast in the west to India and Sri Lanka in the east.</p>
+      <p>This interactive viewer lets you explore the full Tabula in high resolution, search for ancient place names (Latin and modern), and access Wikipedia articles, Pleiades links, and ULM database entries for each location.</p>
+      <h2>Key Facts</h2>
+      <ul>
+        <li>Original date: c. 4th&ndash;5th century AD</li>
+        <li>Surviving copy: c. 1200 AD (Colmar scriptorium)</li>
+        <li>Dimensions: 6.75 m long &times; 34 cm tall</li>
+        <li>3,500+ named places: cities, road stations, rivers, mountains, islands, provinces</li>
+        <li>Preserved at: &Ouml;sterreichische Nationalbibliothek, Vienna</li>
+        <li>UNESCO Memory of the World (2007)</li>
+      </ul>
+      <p>JavaScript is required to use this viewer. Please enable JavaScript in your browser.</p>
+      <p>Contact: <a href="mailto:info@three-mills.com">info@three-mills.com</a></p>
+    </div>
+  </noscript>
 
   <!-- Landscape/fullscreen tip for mobile portrait -->
   <div id="landscape-tip" class="hidden">
