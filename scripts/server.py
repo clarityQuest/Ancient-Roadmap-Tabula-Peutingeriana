@@ -33,6 +33,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._ulm_inset_get()
         elif self.path.startswith('/api/ulm-detail'):
             self._ulm_detail_get()
+        elif self.path.startswith('/api/wiki-stats'):
+            self._wiki_stats_get()
         else:
             super().do_GET()
 
@@ -80,6 +82,33 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 "grossraum":   grossraum,
                 "barrington":  barrington,
                 "wiki_url":    m_wiki.group(1) if m_wiki else None,
+            })
+        except Exception as exc:
+            self._json_error(str(exc))
+
+    def _wiki_stats_get(self):
+        try:
+            db = json.loads(DB_PATH.read_text(encoding='utf-8'))
+            stats = {}
+            for r in db['records']:
+                t = r.get('type') or 'unknown'
+                if t not in stats:
+                    stats[t] = {'total': 0, 'wiki': 0, 'searched': 0, 'unchecked': 0}
+                stats[t]['total'] += 1
+                if r.get('wiki_url'):
+                    stats[t]['wiki'] += 1
+                elif r.get('wiki_confidence') == 0:
+                    stats[t]['searched'] += 1   # checked, nothing found
+                else:
+                    stats[t]['unchecked'] += 1  # never run through the process
+            total_all     = sum(v['total']     for v in stats.values())
+            wiki_all      = sum(v['wiki']      for v in stats.values())
+            searched_all  = sum(v['searched']  for v in stats.values())
+            unchecked_all = sum(v['unchecked'] for v in stats.values())
+            self._json_ok({
+                'by_type': stats,
+                'total': total_all, 'wiki': wiki_all,
+                'searched': searched_all, 'unchecked': unchecked_all,
             })
         except Exception as exc:
             self._json_error(str(exc))

@@ -1136,26 +1136,17 @@ function showInfoPanel(place) {
     }
   }
 
-  // Wikipedia link: set a fallback search URL immediately, then resolve to a direct article URL async
+  // Wikipedia link: only show when a verified wiki_url is in the DB
   const wikiLink = document.getElementById("panel-wiki-link");
   const wikiSummary = document.getElementById("panel-wiki-summary");
   if (wikiSummary) { wikiSummary.textContent = ""; wikiSummary.classList.add("hidden"); }
   const reqId = ++wikiRequestId;
   if (wikiLink) {
-    const hasAnyName = !!(place.modern || place.latin_std || place.latin);
-    if (hasAnyName) {
+    if (place.wiki_url) {
       wikiLink.textContent = getText("wiki_link");
+      wikiLink.href = place.wiki_url;
       wikiLink.classList.remove("hidden");
-      if (place.wiki_url) {
-        wikiLink.href = place.wiki_url;
-        resolveWikiSummaryFromUrl(reqId, wikiSummary, place.wiki_url);
-      } else {
-        const terms = buildWikiSearchTerms(place);
-        const lang  = getText('wiki_lang');
-        const fallback = terms[0] || (place.latin_std || place.latin || place.modern || '');
-        wikiLink.href = `https://${lang}.wikipedia.org/w/index.php?search=${encodeURIComponent(fallback)}`;
-        resolveWikiAndUpdate(reqId, wikiLink, wikiSummary, terms, lang);
-      }
+      resolveWikiSummaryFromUrl(reqId, wikiSummary, place.wiki_url);
     } else {
       wikiLink.classList.add("hidden");
     }
@@ -1175,6 +1166,20 @@ function showInfoPanel(place) {
   }
 
   updateLangButtons();
+
+  // Email button — pre-fill subject/body with place details
+  const emailBtn = document.getElementById("panel-email-btn");
+  if (emailBtn) {
+    const placeName = place.latin_std || place.latin || place.modern || "this place";
+    const modern = place.modern ? ` (${place.modern})` : "";
+    const subject = encodeURIComponent(`Tabula Peutingeriana — ${placeName}${modern}`);
+    const body = encodeURIComponent(
+      `I found this entry in the Tabula Peutingeriana index:\n\nLatin: ${placeName}${modern}\nType: ${place.type || "—"}\nLocation: ${place.tabula_location || "—"}\n`
+      + (place.wiki_url ? `Wikipedia: ${place.wiki_url}\n` : "")
+    );
+    emailBtn.href = `mailto:info@three-mills.com?subject=${subject}&body=${body}`;
+  }
+
   panel.classList.remove("hidden");
 }
 
@@ -2505,5 +2510,48 @@ async function reloadDb() {
     vy: p.py / IMG_W,
   }));
 }
+
+// ── Landscape/fullscreen tip for mobile portrait ────────────────────────────
+(function () {
+  const tip    = document.getElementById("landscape-tip");
+  const fsBtn  = document.getElementById("landscape-tip-fs");
+  const closeB = document.getElementById("landscape-tip-close");
+  if (!tip) return;
+
+  function isPortraitTouch() {
+    return window.matchMedia("(pointer: coarse) and (orientation: portrait)").matches;
+  }
+  function dismiss() {
+    tip.classList.add("hidden");
+    sessionStorage.setItem("landscapeTipDismissed", "1");
+  }
+
+  function maybeShow() {
+    if (sessionStorage.getItem("landscapeTipDismissed")) return;
+    if (isPortraitTouch()) tip.classList.remove("hidden");
+    else                   tip.classList.add("hidden");
+  }
+
+  if (fsBtn) {
+    fsBtn.addEventListener("click", () => {
+      const el = document.documentElement;
+      if (el.requestFullscreen)             el.requestFullscreen();
+      else if (el.webkitRequestFullscreen)  el.webkitRequestFullscreen();
+      dismiss();
+    });
+  }
+  if (closeB) closeB.addEventListener("click", dismiss);
+
+  // Hide automatically when the user rotates to landscape
+  window.addEventListener("orientationchange", () => {
+    setTimeout(() => { if (!isPortraitTouch()) dismiss(); }, 200);
+  });
+  window.matchMedia("(orientation: portrait)").addEventListener("change", e => {
+    if (!e.matches) dismiss();
+  });
+
+  // Show on first load if portrait touch
+  maybeShow();
+})();
 
 window.addEventListener("DOMContentLoaded", init);

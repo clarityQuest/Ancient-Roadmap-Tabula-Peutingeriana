@@ -176,6 +176,12 @@ body, html {
   font-size: 22px; cursor: pointer; line-height: 1;
 }
 #close-panel:hover { color: #fff; }
+#panel-email-btn {
+  position: absolute; top: 12px; right: 38px;
+  color: var(--text-muted); font-size: 16px; line-height: 1;
+  text-decoration: none; opacity: 0.6;
+}
+#panel-email-btn:hover { color: #fff; opacity: 1; }
 /* Segment badge row (close button padding handled by position:absolute) */
 #panel-top-row { display: flex; align-items: center; margin-bottom: 4px; padding-right: 22px; }
 #panel-segment-badge { font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 4px; padding: 3px 8px; white-space: nowrap; }
@@ -415,6 +421,44 @@ body, html {
 
   /* Larger tap targets for controls */
   .ctrl-btn { min-width: 38px; min-height: 38px; }
+}
+
+/* Portrait mode: info panel full-screen width */
+@media (pointer: coarse) and (orientation: portrait) {
+  #info-panel {
+    left: 0 !important; right: 0 !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.6) !important;
+  }
+}
+
+/* Landscape/fullscreen tip banner */
+#landscape-tip {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px;
+  background: rgba(20, 18, 14, 0.92);
+  color: #e8dfc8; font-size: 14px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(6px);
+}
+#landscape-tip.hidden { display: none; }
+#landscape-tip-text { flex: 1; }
+#landscape-tip-fs {
+  padding: 5px 14px; border-radius: 5px;
+  background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.4);
+  color: #93c5fd; font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+#landscape-tip-fs:hover { background: rgba(59,130,246,0.35); }
+#landscape-tip-close {
+  background: transparent; border: none; color: rgba(255,255,255,0.45);
+  font-size: 20px; line-height: 1; cursor: pointer; padding: 0 4px;
+}
+#landscape-tip-close:hover { color: #fff; }
+/* Only show tip on coarse-pointer (touch) devices in portrait */
+@media not ((pointer: coarse) and (orientation: portrait)) {
+  #landscape-tip { display: none !important; }
 }
 
 /* ── Label settings panel ────────────────────────────────────── */

@@ -614,6 +614,42 @@
     .edit-modal-btn.save:hover { background: #163d5e; }
     .edit-modal-btn.delete { background: var(--alert); color: #fff; border-color: var(--alert); }
     .edit-modal-btn.delete:hover { background: #6d172a; }
+
+    /* ── Wiki progress widget ── */
+    #wiki-progress-widget {
+      position: fixed; bottom: 16px; right: 16px; z-index: 200;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    #wiki-progress-toggle {
+      display: block; margin-left: auto;
+      background: var(--paper); border: 1px solid var(--line); border-radius: 4px;
+      padding: 4px 10px; font-size: 0.73rem; color: var(--muted);
+      cursor: pointer; white-space: nowrap; font-family: inherit;
+    }
+    #wiki-progress-toggle:hover { background: var(--bg); color: var(--ink); }
+    #wiki-progress-panel {
+      display: none; background: var(--paper); border: 1px solid var(--line);
+      border-radius: 6px; padding: 8px 10px; margin-bottom: 4px;
+      min-width: 270px; max-height: 60vh; overflow-y: auto;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.13);
+    }
+    #wiki-progress-panel.open { display: block; }
+    .wpp-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 7px; font-size: 0.78rem; font-weight: bold; color: var(--ink);
+    }
+    .wpp-time { font-size: 0.64rem; color: var(--muted); font-weight: normal; }
+    .wpp-row {
+      display: grid; grid-template-columns: 94px 1fr 52px;
+      align-items: center; gap: 5px; margin-bottom: 5px;
+    }
+    .wpp-label { font-size: 0.71rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wpp-label.active { font-weight: bold; color: var(--city); }
+    .wpp-bar-wrap { position: relative; height: 7px; background: var(--line); border-radius: 3px; overflow: hidden; }
+    .wpp-bar-searched { position: absolute; top: 0; left: 0; height: 100%; border-radius: 3px; transition: width 0.5s ease; background: #c8b89a; }
+    .wpp-bar-found { position: absolute; top: 0; left: 0; height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .wpp-pct { font-size: 0.63rem; color: var(--muted); text-align: right; line-height: 1.5; }
+    .wpp-total-row { border-top: 1px solid var(--line); margin-top: 5px; padding-top: 5px; }
   </style>
 </head>
 <body>
@@ -1387,7 +1423,7 @@
     if (col === 'tabula_location') return r.tabula_location ?? '';
     if (col === 'source') return r.source ?? '';
     if (col === 'match_status') return r.match_status ?? '';
-    if (col === 'type') return r.type ?? '';
+    if (col === 'type') return titleCase(r.type ?? '');
     return String(r[col] ?? '');
   }
 
@@ -1416,7 +1452,7 @@
       // Global text search
       if (q) {
         const hay = [r.latin,r.modern_preferred,r.modern_tabula,r.modern_omnesviae,
-                     r.type,r.country,r.tabula_location,r.match_status,
+                     r.type,titleCase(r.type||''),r.country,r.tabula_location,r.match_status,
                      String(r.data_id??''),r.source].join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -1759,6 +1795,99 @@
   });
 
   loadData();
+</script>
+
+<!-- Wiki progress widget -->
+<div id="wiki-progress-widget">
+  <div id="wiki-progress-panel">
+    <div class="wpp-header">
+      <span>Wiki Coverage</span>
+      <span id="wpp-updated" class="wpp-time"></span>
+    </div>
+    <div id="wpp-content">Loading…</div>
+  </div>
+  <button id="wiki-progress-toggle">&#x1F4CA; wiki stats</button>
+</div>
+<script>
+(function () {
+  const toggle  = document.getElementById('wiki-progress-toggle');
+  const panel   = document.getElementById('wiki-progress-panel');
+  const content = document.getElementById('wpp-content');
+  const updEl   = document.getElementById('wpp-updated');
+  let timer = null, open = false;
+
+  const ORDER = ['city','road_station','region','modern_state','river','mountain',
+                 'island','port','water','spa','temple','people'];
+
+  function tc(s) { return (s||'').replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase()); }
+  function col(p) { return p>=80?'var(--ok)':p>=40?'var(--warn)':'var(--alert)'; }
+
+  function activeType() {
+    const inp = document.querySelector('[data-col-filter="type"]');
+    return inp ? inp.value.trim().toLowerCase().replace(/ /g,'_') : '';
+  }
+
+  async function refresh() {
+    try {
+      const r = await fetch('/api/wiki-stats');
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      const d = await r.json();
+      render(d);
+      updEl.textContent = new Date().toLocaleTimeString();
+    } catch {
+      content.innerHTML = '<span style="color:var(--alert);font-size:.7rem">fetch error</span>';
+    }
+  }
+
+  function render(d) {
+    const cur = activeType();
+    const types = Object.keys(d.by_type||{}).sort((a,b)=>{
+      const ai=ORDER.indexOf(a), bi=ORDER.indexOf(b);
+      return ai<0&&bi<0?a.localeCompare(b):ai<0?1:bi<0?-1:ai-bi;
+    });
+    let h = '';
+    for (const t of types) {
+      const {total,wiki} = d.by_type[t];
+      if (!total) continue;
+      const p = Math.round(wiki/total*100);
+      const searched = d.by_type[t].searched || 0;
+      const unchecked = d.by_type[t].unchecked || 0;
+      const searchedPct = Math.round((wiki + searched) / total * 100);
+      h += `<div class="wpp-row">
+        <span class="wpp-label${t===cur?' active':''}" title="${t}">${tc(t)}</span>
+        <div class="wpp-bar-wrap">
+          <div class="wpp-bar-searched" style="width:${searchedPct}%"></div>
+          <div class="wpp-bar-found" style="width:${p}%;background:${col(p)}"></div>
+        </div>
+        <span class="wpp-pct">
+          <span style="color:var(--ok)">&#x25A0; ${wiki}</span> found<br>
+          <span style="font-size:.58rem;opacity:.8">&#x25A0; ${searched} checked &nbsp;&#x25A0; ${unchecked} unchecked</span>
+        </span>
+      </div>`;
+    }
+    const tp = d.total ? Math.round(d.wiki/d.total*100) : 0;
+    const tsp = d.total ? Math.round((d.wiki+(d.searched||0))/d.total*100) : 0;
+    h += `<div class="wpp-row wpp-total-row">
+      <span class="wpp-label" style="font-weight:bold">Total</span>
+      <div class="wpp-bar-wrap">
+        <div class="wpp-bar-searched" style="width:${tsp}%"></div>
+        <div class="wpp-bar-found" style="width:${tp}%;background:var(--marking)"></div>
+      </div>
+      <span class="wpp-pct">
+        <span style="color:var(--ok)">&#x25A0; ${d.wiki}</span> found<br>
+        <span style="font-size:.58rem;opacity:.8">&#x25A0; ${d.searched||0} checked &nbsp;&#x25A0; ${d.unchecked||0} unchecked</span>
+      </span>
+    </div>`;
+    content.innerHTML = h;
+  }
+
+  toggle.addEventListener('click', () => {
+    open = !open;
+    panel.classList.toggle('open', open);
+    if (open) { refresh(); timer = setInterval(refresh, 60000); }
+    else       { clearInterval(timer); timer = null; }
+  });
+})();
 </script>
 </body>
 </html>

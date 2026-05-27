@@ -68,6 +68,7 @@
 
     <!-- Click info panel -->
     <aside id="info-panel" class="hidden">
+      <a id="panel-email-btn" href="#" aria-label="Send email about this place" title="Send email about this place">&#9993;</a>
       <button id="close-panel" aria-label="Close">&times;</button>
       <div id="panel-top-row">
         <div id="panel-segment-badge" class="hidden"></div>
@@ -226,7 +227,14 @@
     </div>
   </div>
 
+  <!-- Landscape/fullscreen tip for mobile portrait -->
+  <div id="landscape-tip" class="hidden">
+    <span id="landscape-tip-text">&#8635; Rotate to landscape for best experience</span>
+    <button id="landscape-tip-fs">Fullscreen</button>
+    <button id="landscape-tip-close" aria-label="Dismiss">&times;</button>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260515k"></script>
+  <script src="main.js?v=20260527"></script>
 </body>
 </html>

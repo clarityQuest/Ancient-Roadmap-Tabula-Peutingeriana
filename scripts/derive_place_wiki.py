@@ -34,6 +34,18 @@ if "--min-conf" in sys.argv:
     if idx + 1 < len(sys.argv):
         MIN_CONF = int(sys.argv[idx + 1])
 
+LIMIT = None
+if "--limit" in sys.argv:
+    idx = sys.argv.index("--limit")
+    if idx + 1 < len(sys.argv):
+        LIMIT = int(sys.argv[idx + 1])
+
+OFFSET = 0
+if "--offset" in sys.argv:
+    idx = sys.argv.index("--offset")
+    if idx + 1 < len(sys.argv):
+        OFFSET = int(sys.argv[idx + 1])
+
 ACCEPT_IDS = set()
 if "--accept" in sys.argv:
     idx = sys.argv.index("--accept")
@@ -57,6 +69,12 @@ def clean_modern(raw):
     s = (raw or "").strip()
     if len(s) < 3:
         return None, 0
+
+    # Strip source citations early — before vague check so "[Pleiades]" etc.
+    # don't falsely trigger the vague filter on an otherwise clean name.
+    s = re.sub(r'\s*\[(?:Pleiades|Barrington|Miller|ULM|\d+)\]\s*', ' ', s, flags=re.I).strip()
+    s = re.sub(r'\s*\((?:Barrington|Miller|Pleiades|ULM)\)\s*', ' ', s, flags=re.I).strip()
+
     if _VAGUE.search(s) or _LOCATIONAL.match(s):
         return None, 0
     if re.match(r'^\d', s):
@@ -76,12 +94,10 @@ def clean_modern(raw):
         s = parts[0].strip()
         conf = min(conf, 1)
 
-    # Strip surrounding parentheses/brackets
-    s = re.sub(r'^\s*[\(\[]', '', s).strip()
-    s = re.sub(r'[\)\]]\s*$', '', s).strip()
-    # Strip source tags [1], (Barrington), (Miller)
-    s = re.sub(r'\s*\[\d+\]\s*', ' ', s).strip()
-    s = re.sub(r'\s*\(Barrington\)\s*|\s*\(Miller\)\s*', ' ', s, flags=re.I).strip()
+    # Strip surrounding parentheses/brackets only when they form a matched outer pair.
+    # "Billig (Euskirchen)" is a valid WP disambiguation title — don't break it.
+    if (s.startswith('(') and s.endswith(')')) or (s.startswith('[') and s.endswith(']')):
+        s = s[1:-1].strip()
     s = s.rstrip('.,;~').strip("? ")
 
     if len(s) < 3:
@@ -94,6 +110,8 @@ def clean_modern(raw):
 
 
 # ── Language priority per type/name ───────────────────────────────────────
+SKIP_LATIN_TYPES = {"road_station"}  # Latin names rarely have standalone WP articles
+
 def lang_order(name, rec_type):
     n = name.lower()
     # Arabic/North-African
@@ -161,10 +179,9 @@ def _title_match_ok(name, title):
         return True
     t_words = set(re.split(r"\W+", t))
     key = [w for w in re.split(r"\W+", n) if len(w) >= 4 and w not in _GENERIC]
-    if key:
-        return all(w in t_words for w in key)
-    first = re.split(r"\W+", n)[0] if n else ""
-    return len(first) >= 4 and first in t_words
+    if not key:
+        return False  # only generic/short words — no distinctive match possible
+    return all(w in t_words for w in key)
 
 
 def _fetch_json(url, retries=2):
@@ -173,7 +190,7 @@ def _fetch_json(url, retries=2):
         "Accept": "application/json"})
     for attempt in range(retries + 1):
         try:
-            with urllib.request.urlopen(req, timeout=15) as r:
+            with urllib.request.urlopen(req, timeout=10) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < retries:
@@ -294,17 +311,64 @@ def main():
         if TYPE_FILTER:
             targets = [r for r in records
                        if r.get("type") == TYPE_FILTER and not r.get("wiki_url")
+                       and r.get("wiki_confidence") != 0
                        and _base_filter(r)]
         else:
             targets = [r for r in records
-                       if not r.get("wiki_url") and _base_filter(r)]
+                       if not r.get("wiki_url") and r.get("wiki_confidence") != 0
+                       and _base_filter(r)]
         type_label = TYPE_FILTER or "all"
-        print(f"Targets ({type_label}): {len(targets)} without wiki_url  (min-conf={MIN_CONF})\n")
+        targets.sort(key=lambda r: (r.get("latin_std") or r.get("latin") or "").lower())
+        total_targets = len(targets)
+        targets = targets[OFFSET:]
+        if LIMIT is not None:
+            targets = targets[:LIMIT]
+        batch_info = f"  offset={OFFSET} limit={LIMIT}" if (OFFSET or LIMIT is not None) else ""
+        print(f"Targets ({type_label}): {total_targets} not yet checked  (min-conf={MIN_CONF}){batch_info}\n")
 
     results = []
+    searched_no_match = []  # records that were searched but produced no result
     seq = 0
+    processed = 0           # total records iterated (including skips)
+    total_saved = 0
+    total_marked = 0
+    CHECKPOINT = 25         # write to disk every N processed records
+
+    apply_all = WRITE and not ACCEPT_IDS
+
+    def _flush(label="checkpoint"):
+        nonlocal total_saved, total_marked
+        saved = 0
+        for _, rec, name, conf, wiki_url, lat, lng, lang, atitle, country, slabel, old_url in results:
+            if not (apply_all or _ in ACCEPT_IDS):
+                continue
+            if wiki_url and (UPGRADE or not rec.get("wiki_url")):
+                rec["wiki_url"]        = wiki_url
+                rec["wiki_confidence"] = conf
+                rec["wiki_manual"]     = False
+            if rec.get("lat") is None and lat is not None:
+                rec["lat"] = round(lat, 6)
+                rec["lng"] = round(lng, 6)
+            if country and not rec.get("country"):
+                rec["country"] = country
+            saved += 1
+        marked = 0
+        for rec in searched_no_match:
+            if not rec.get("wiki_url") and rec.get("wiki_confidence") is None:
+                rec["wiki_confidence"] = 0
+                marked += 1
+        if saved > 0 or marked > 0:
+            tmp = DB_PATH.with_suffix(".tmp")
+            tmp.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.replace(DB_PATH)
+            print(f"  [{label}] +{saved} saved, +{marked} marked → {DB_PATH.name}", flush=True)
+        results.clear()
+        searched_no_match.clear()
+        total_saved  += saved
+        total_marked += marked
 
     for rec in targets:
+        processed += 1
         raw = best_modern(rec)
         name, base_conf = clean_modern(raw)
         lat_name = latin_clean(rec)
@@ -330,7 +394,8 @@ def main():
             search_label = 'latin/upgrade'
         else:
             # 1. Try Latin name first — Wikipedia often has the ancient-name article
-            if lat_name and len(lat_name) >= 4:
+            #    Skip for types where Latin names rarely have standalone articles
+            if lat_name and len(lat_name) >= 4 and rec_type not in SKIP_LATIN_TYPES:
                 print(f"  [{data_id:8d}] {latin:30s} latin='{lat_name[:30]}' … ", end="", flush=True)
                 wiki_url, lat, lng, lang, article_title, match_type = wiki_search(lat_name, rec_type)
                 if lat is not None:
@@ -342,15 +407,19 @@ def main():
                     print(f"  [{data_id:8d}] {latin:30s} modern='{name[:30]}' … ", end="", flush=True)
                 else:
                     print(f"not found (latin) → trying modern '{name[:30]}' … ", end="", flush=True)
+                search_label = 'modern'  # mark attempted regardless of result
                 wiki_url, lat, lng, lang, article_title, match_type = wiki_search(name, rec_type)
-                if lat is not None:
-                    search_label = 'modern'
+                if lat is None:
+                    search_label = 'modern/no-match'
 
             if lat is None:
                 if search_label:
                     print("not found")
                 else:
                     print(f"  [{data_id:8d}] SKIP  {raw[:55]!r}")
+                searched_no_match.append(rec)  # mark as processed (searched or no name)
+                if WRITE and processed % CHECKPOINT == 0:
+                    _flush(f"checkpoint @{data_id}")
                 continue
 
         conf = base_conf if search_label == 'modern' else 2
@@ -372,6 +441,9 @@ def main():
         else:
             print(f"[{seq}] conf={conf}  {lat:.4f},{lng:.4f}  {country or '?':2}  ({lang}/{match_type}/{search_label})  → {article_title}")
 
+        if WRITE and processed % CHECKPOINT == 0:
+            _flush(f"checkpoint @seq{seq}")
+
     # ── Summary ───────────────────────────────────────────────────────────
     print(f"\n{'═'*90}")
     print(f"{'#':>4}  {'data_id':>8}  {'name':28}  {'c'}  {'lat':>9}  {'lng':>9}  {'ct'}  wiki_url")
@@ -383,34 +455,16 @@ def main():
         if UPGRADE and old_url:
             print(f"       was: {old_url[:70]}")
 
-    if not results:
-        print("No candidates found.")
-        return
-
     if not WRITE and not ACCEPT_IDS:
-        print(f"\nDry run.  --write to accept all  |  --accept 1,2,3 --write for specific")
+        if not results:
+            print("No candidates found.")
+        else:
+            print(f"\nDry run.  --write to accept all  |  --accept 1,2,3 --write for specific")
         return
 
-    apply_all = WRITE and not ACCEPT_IDS
-    saved = 0
-    for seq, rec, name, conf, wiki_url, lat, lng, lang, atitle, country, slabel, old_url in results:
-        if not (apply_all or seq in ACCEPT_IDS):
-            continue
-        if wiki_url and (UPGRADE or not rec.get("wiki_url")):
-            rec["wiki_url"] = wiki_url
-            rec["wiki_confidence"] = conf
-            rec["wiki_manual"] = False
-        if rec.get("lat") is None and lat is not None:
-            rec["lat"] = round(lat, 6)
-            rec["lng"] = round(lng, 6)
-        if country and not rec.get("country"):
-            rec["country"] = country
-        saved += 1
-
-    tmp = DB_PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(DB_PATH)
-    print(f"\n✓ Saved {saved} entries → {DB_PATH.name}")
+    # Final flush for any remaining pending records
+    _flush("final")
+    print(f"\n✓ Total: {total_saved} saved, {total_marked} marked as searched/no-match")
 
 
 if __name__ == "__main__":
