@@ -1716,6 +1716,7 @@ function setupInteraction() {
         data_id:        millerItem.data_id,
         record_id:      millerItem.record_id,
         ulm_id:         millerItem.ulm_id,
+        wiki_url:       millerItem.wiki_url || null,
         tabula_segment: millerItem.tabula_segment,
         tabula_row:     millerItem.tabula_row,
         tabula_col:     millerItem.tabula_col,
