@@ -234,6 +234,7 @@ const S = {
   userLocVp:      null,   // {vx,vy} viewport coords where crosshair is drawn
   userLocLat:     null,
   userLocLng:     null,
+  userLocLabel:   "",     // short label drawn near the crosshair
   lang: (() => { try { return localStorage.getItem("tp_lang") || "sys"; } catch { return "sys"; } })(),
   defaultLat: (() => { try { const v = Number(localStorage.getItem("tp_defaultLat")); return Number.isFinite(v) && v !== 0 ? v : 45.4473; } catch { return 45.4473; } })(),
   defaultLng: (() => { try { const v = Number(localStorage.getItem("tp_defaultLng")); return Number.isFinite(v) && v !== 0 ? v : 8.6191; } catch { return 8.6191; } })(),
@@ -590,28 +591,61 @@ function startHighlight(place) {
   requestAnimationFrame(tick);
 }
 
-function drawUserCrosshair(ctx, cx, cy) {
-  const R = 9, arm = 16;
+function drawUserCrosshairWithLabel(ctx, cx, cy) {
+  drawUserCrosshair(ctx, cx, cy);
+  if (!S.userLocLabel) return;
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.7)";
-  ctx.shadowBlur = 4;
-  ctx.strokeStyle = "#FF2222";
-  ctx.lineWidth = 2;
+  ctx.font = "bold 11px 'Segoe UI', Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const tw = ctx.measureText(S.userLocLabel).width;
+  const px = cx, py = cy + 22;
+  ctx.fillStyle = "rgba(0,0,0,0.72)";
+  ctx.fillRect(px - tw / 2 - 5, py - 2, tw + 10, 16);
+  ctx.shadowColor = "rgba(0,0,0,0.0)";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(S.userLocLabel, px, py);
+  ctx.restore();
+}
+
+function drawUserCrosshair(ctx, cx, cy) {
+  const R = 14, arm = 24;
+  ctx.save();
   ctx.globalAlpha = 0.92;
-  ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, Math.PI * 2);
-  ctx.stroke();
+
+  // White halo for contrast against any background
+  ctx.strokeStyle = "rgba(255,255,255,0.75)";
+  ctx.lineWidth = 5;
+  ctx.shadowColor = "rgba(0,0,0,0.0)";
+  ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(cx - arm, cy); ctx.lineTo(cx - R - 2, cy);
   ctx.moveTo(cx + R + 2, cy); ctx.lineTo(cx + arm, cy);
   ctx.moveTo(cx, cy - arm); ctx.lineTo(cx, cy - R - 2);
   ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
   ctx.stroke();
-  ctx.shadowBlur = 0;
+
+  // Red crosshair on top
+  ctx.strokeStyle = "#FF2222";
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = "rgba(0,0,0,0.8)";
+  ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath();
-  ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+  ctx.moveTo(cx - arm, cy); ctx.lineTo(cx - R - 2, cy);
+  ctx.moveTo(cx + R + 2, cy); ctx.lineTo(cx + arm, cy);
+  ctx.moveTo(cx, cy - arm); ctx.lineTo(cx, cy - R - 2);
+  ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
+  ctx.stroke();
+
+  // Center dot
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = "#FF2222";
-  ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+
   ctx.restore();
 }
 
@@ -797,7 +831,7 @@ function renderMarkers() {
   if (S.mapMode === "old" || S.newSourceKind === "stitched" || !S.places.length) {
     if (S.userLocVp) {
       const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
-      drawUserCrosshair(ctx, cx, cy);
+      drawUserCrosshairWithLabel(ctx, cx, cy);
     }
     return;
   }
@@ -1458,31 +1492,31 @@ function setUserLocation(lat, lng, isDefault = false) {
       // Close enough: snap to the place
       panToPlace(best);
       S.userLocVp = S.highlightVp ? { ...S.highlightVp } : null;
+      S.userLocLabel = name;
       startHighlight(best);
-      showInfoPanel(best);
-      if (statusEl) {
-        statusEl.textContent = prefix + `At ${name} (~${distRound} km)`;
-        setTimeout(() => { statusEl.textContent = ""; }, 6000);
-      }
+      if (!S.isMobile) showInfoPanel(best);
+      const msg = prefix + `At ${name} (~${distRound} km)`;
+      if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
+      showLocateMarkerPopup(msg);
 
     } else if (distKm <= LOCATE_MAX_DIST_KM) {
       // Within Tabula world but not near a named place: interpolate
       S.userLocVp = interpolateTabulaVp(lat, lng);
-      if (statusEl) {
-        statusEl.textContent = prefix + `Interpolated position (nearest: ${name} ~${distRound} km)`;
-        setTimeout(() => { statusEl.textContent = ""; }, 6000);
-      }
+      S.userLocLabel = `~${name}`;
+      const msg = prefix + `Interpolated position — nearest: ${name} (~${distRound} km)`;
+      if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
+      showLocateMarkerPopup(msg);
 
     } else {
       // Outside Tabula coverage
       S.userLocVp = null;
-      if (statusEl) {
-        statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`;
-        setTimeout(() => { statusEl.textContent = ""; }, 8000);
-      }
+      S.userLocLabel = "";
+      const msg = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`;
+      if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
       if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
+      showLocateMarkerPopup(msg);
     }
   }
 
@@ -1491,6 +1525,11 @@ function setUserLocation(lat, lng, isDefault = false) {
   if (_leafletMap && _leafletMarker) {
     _leafletMarker.setLatLng([lat, lng]);
   }
+}
+
+function showLocateMarkerPopup(text) {
+  if (!_leafletMap || !_leafletMarker) return;
+  _leafletMarker.bindPopup(text, { closeButton: false, offset: [0, -16], maxWidth: 240 }).openPopup();
 }
 
 function loadLeaflet() {
