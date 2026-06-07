@@ -1075,6 +1075,7 @@ function showMillerTooltip(item, x, y) {
 function showInfoPanel(place) {
   S.selectedPlace = place;
   S.selectedDataId = place.data_id != null ? Number(place.data_id) : null;
+  renderMarkers();
   infoPanelOpenedAt = Date.now();
 
   // Enrich with allRecords data (places.json lacks ulm_img_url / ulm_id)
