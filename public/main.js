@@ -1508,12 +1508,11 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocVp = placeVp(best);
       S.userLocLabel = name;
       startHighlight(best);
-      panToPlace(best, 0.08);   // wider zoom than search result; pans on all devices
+      panToPlace(best, 0.08);
       if (!S.isMobile) showInfoPanel(best);
-      const msg = prefix + `At ${name} (~${distRound} km)`;
-      if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+      if (statusEl) { statusEl.textContent = prefix + `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
-      showLocateMarkerPopup(msg);
+      showLocateMarkerPopup(`${name} (~${distRound} km)`);
 
     } else if (distKm <= LOCATE_MAX_DIST_KM) {
       // Within Tabula world: interpolate between nearby places
@@ -1521,21 +1520,17 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocLabel = `~${name}`;
       if (S.userLocVp)
         S.viewer.viewport.panTo(new OpenSeadragon.Point(S.userLocVp.vx, S.userLocVp.vy), true);
-      const msg = prefix + `Interpolated position — nearest: ${name} (~${distRound} km)`;
-      if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+      if (statusEl) { statusEl.textContent = prefix + `Interpolated — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
-      showLocateMarkerPopup(msg);
+      showLocateMarkerPopup(`~${name} (~${distRound} km)`);
 
     } else {
-      // Far outside coverage (>500 km): show crosshair at interpolated edge position
+      // Far outside coverage (>500 km): interpolate but do not pan
       S.userLocVp = interpolateTabulaVp(lat, lng);
       S.userLocLabel = `~${name}`;
-      if (S.userLocVp)
-        S.viewer.viewport.panTo(new OpenSeadragon.Point(S.userLocVp.vx, S.userLocVp.vy), true);
-      const msg = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`;
-      if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
+      if (statusEl) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
       if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
-      showLocateMarkerPopup(msg);
+      showLocateMarkerPopup(`Outside (~${distRound} km)`);
     }
   }
 
@@ -1548,7 +1543,7 @@ function setUserLocation(lat, lng, isDefault = false) {
 
 function showLocateMarkerPopup(text) {
   if (!_leafletMap || !_leafletMarker) return;
-  _leafletMarker.bindPopup(text, { closeButton: false, offset: [0, -16], className: "locate-popup" }).openPopup();
+  _leafletMarker.bindPopup(text, { closeButton: false, offset: [0, -8], className: "locate-popup", autoPan: false }).openPopup();
 }
 
 function loadLeaflet() {

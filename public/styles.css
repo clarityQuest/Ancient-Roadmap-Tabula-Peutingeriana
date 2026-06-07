@@ -508,22 +508,22 @@ body, html {
 /* Compact Leaflet popup for locate marker */
 .locate-popup .leaflet-popup-content-wrapper {
   padding: 0 !important;
+  min-width: 0 !important;
+  width: auto !important;
   background: rgba(18,16,12,0.93) !important;
   border: 1px solid rgba(200,160,80,0.45) !important;
   border-radius: 4px !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.55) !important;
-  color: #d4c5a0 !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.55) !important;
 }
 .locate-popup .leaflet-popup-content {
-  margin: 5px 9px !important;
+  margin: 4px 8px !important;
   font-size: 11px !important;
   line-height: 1.3 !important;
   color: #d4c5a0 !important;
   white-space: nowrap !important;
+  min-width: 0 !important;
 }
-.locate-popup .leaflet-popup-tip {
-  background: rgba(18,16,12,0.93) !important;
-}
+.locate-popup .leaflet-popup-tip-container { display: none !important; }
 
 /* ── Developer settings panel ───────────────────────────────── */
 #settings-panel {
