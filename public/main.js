@@ -231,6 +231,9 @@ const S = {
   highlightDataId: null,
   highlightUntil:  0,
   highlightVp:     null,  // {vx,vy} viewport centre stored by panToPlace for fallback ring
+  userLocVp:      null,   // {vx,vy} viewport coords where crosshair is drawn
+  userLocLat:     null,
+  userLocLng:     null,
   lang: (() => { try { return localStorage.getItem("tp_lang") || "sys"; } catch { return "sys"; } })(),
   defaultLat: (() => { try { const v = Number(localStorage.getItem("tp_defaultLat")); return Number.isFinite(v) && v !== 0 ? v : 45.4473; } catch { return 45.4473; } })(),
   defaultLng: (() => { try { const v = Number(localStorage.getItem("tp_defaultLng")); return Number.isFinite(v) && v !== 0 ? v : 8.6191; } catch { return 8.6191; } })(),
@@ -587,6 +590,31 @@ function startHighlight(place) {
   requestAnimationFrame(tick);
 }
 
+function drawUserCrosshair(ctx, cx, cy) {
+  const R = 9, arm = 16;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.7)";
+  ctx.shadowBlur = 4;
+  ctx.strokeStyle = "#FF2222";
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.92;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - arm, cy); ctx.lineTo(cx - R - 2, cy);
+  ctx.moveTo(cx + R + 2, cy); ctx.lineTo(cx + arm, cy);
+  ctx.moveTo(cx, cy - arm); ctx.lineTo(cx, cy - R - 2);
+  ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+  ctx.fillStyle = "#FF2222";
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawHighlightRing(ctx, cx, cy, baseR) {
   const now = Date.now();
   ctx.save();
@@ -765,8 +793,14 @@ function renderMarkers() {
   if (S.millerOverlayOn && S.millerCalib.length && S.mapMode === "old")
     highlightDrawn = renderMillerOverlay(ctx) || false;
 
-  // SegIV readable markers (disabled when on old map)
-  if (S.mapMode === "old" || S.newSourceKind === "stitched" || !S.places.length) return;
+  // User location crosshair (old map / stitched path)
+  if (S.mapMode === "old" || S.newSourceKind === "stitched" || !S.places.length) {
+    if (S.userLocVp) {
+      const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
+      drawUserCrosshair(ctx, cx, cy);
+    }
+    return;
+  }
 
   const vp = S.viewer.viewport;
   const zoom = vp.getZoom(true);
@@ -941,6 +975,12 @@ function renderMarkers() {
     ctx.stroke();
     ctx.restore();
     drawHighlightRing(ctx, cx, cy, 11);
+  }
+
+  // User location crosshair (seg4 path)
+  if (S.userLocVp) {
+    const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
+    drawUserCrosshair(ctx, cx, cy);
   }
 }
 
@@ -1349,29 +1389,31 @@ function panToPlace(place) {
 }
 
 /* ============================================================
-   Controls
+   Locate Me — crosshair + location popup
    ============================================================ */
-function locateMe() {
-  function findNearest(lat, lng) {
-    const pool = S.mapMode === "old" ? S.millerCalib : S.places;
-    let best = null, bestDist = Infinity;
-    for (const p of pool) {
-      const plat = Number(p.lat), plng = Number(p.lng);
-      if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-      const d = (lat - plat) ** 2 + (lng - plng) ** 2;
-      if (d < bestDist) { bestDist = d; best = p; }
-    }
-    return best;
+let _leafletMap = null;
+let _leafletMarker = null;
+
+function setUserLocation(lat, lng, isDefault = false) {
+  const pool = S.mapMode === "old" ? S.millerCalib : S.places;
+  let best = null, bestDist = Infinity;
+  for (const p of pool) {
+    const plat = Number(p.lat), plng = Number(p.lng);
+    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+    const d = (lat - plat) ** 2 + (lng - plng) ** 2;
+    if (d < bestDist) { bestDist = d; best = p; }
   }
 
-  function navigateTo(lat, lng, isDefault = false) {
-    const place = findNearest(lat, lng);
-    if (!place) return;
-    panToPlace(place);
-    startHighlight(place);
-    showInfoPanel(place);
-    const name = place.latin_std || place.latin || "";
-    const distKm = Math.round(Math.sqrt((lat - Number(place.lat)) ** 2 + (lng - Number(place.lng)) ** 2) * 111);
+  S.userLocLat = lat;
+  S.userLocLng = lng;
+
+  if (best) {
+    panToPlace(best);
+    S.userLocVp = S.highlightVp ? { ...S.highlightVp } : null;
+    startHighlight(best);
+    showInfoPanel(best);
+    const name = best.latin_std || best.latin || "";
+    const distKm = Math.round(Math.sqrt((lat - Number(best.lat)) ** 2 + (lng - Number(best.lng)) ** 2) * 111);
     const statusEl = document.getElementById("status");
     if (statusEl) {
       statusEl.textContent = (isDefault ? "Default location — " : "") + `Nearest on Tabula: ${name} (~${distKm} km)`;
@@ -1379,18 +1421,84 @@ function locateMe() {
     }
   }
 
-  if (navigator.geolocation) {
-    const statusEl = document.getElementById("status");
-    if (statusEl) statusEl.textContent = "Locating…";
-    navigator.geolocation.getCurrentPosition(
-      pos => navigateTo(pos.coords.latitude, pos.coords.longitude),
-      () => navigateTo(S.defaultLat, S.defaultLng, true),
-      { timeout: 8000 }
-    );
-  } else {
-    navigateTo(S.defaultLat, S.defaultLng, true);
+  renderMarkers();
+
+  if (_leafletMap && _leafletMarker) {
+    _leafletMarker.setLatLng([lat, lng]);
   }
 }
+
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  return new Promise((resolve, reject) => {
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    script.onload = () => resolve(window.L);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+async function openLocatePopup() {
+  const popup = document.getElementById("locate-map-popup");
+  popup.classList.remove("hidden");
+
+  const L = await loadLeaflet();
+  const lat = S.userLocLat ?? S.defaultLat;
+  const lng = S.userLocLng ?? S.defaultLng;
+
+  if (!_leafletMap) {
+    _leafletMap = L.map("locate-leaflet-map").setView([lat, lng], 10);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
+      maxZoom: 19,
+    }).addTo(_leafletMap);
+    _leafletMarker = L.marker([lat, lng], { draggable: true }).addTo(_leafletMap);
+    _leafletMarker.on("dragend", () => {
+      const pos = _leafletMarker.getLatLng();
+      setUserLocation(pos.lat, pos.lng);
+    });
+    _leafletMap.on("click", (e) => {
+      _leafletMarker.setLatLng(e.latlng);
+      setUserLocation(e.latlng.lat, e.latlng.lng);
+    });
+  } else {
+    _leafletMarker.setLatLng([lat, lng]);
+    _leafletMap.setView([lat, lng], _leafletMap.getZoom());
+  }
+  setTimeout(() => _leafletMap.invalidateSize(), 60);
+}
+
+function closeLocatePopup() {
+  document.getElementById("locate-map-popup").classList.add("hidden");
+}
+
+function acquireGps() {
+  if (!navigator.geolocation) { setUserLocation(S.defaultLat, S.defaultLng, true); return; }
+  const statusEl = document.getElementById("status");
+  if (statusEl) statusEl.textContent = "Locating…";
+  navigator.geolocation.getCurrentPosition(
+    pos => setUserLocation(pos.coords.latitude, pos.coords.longitude),
+    () => setUserLocation(S.defaultLat, S.defaultLng, true),
+    { timeout: 8000 }
+  );
+}
+
+function locateMe() {
+  openLocatePopup();
+  acquireGps();
+}
+
+/* ============================================================
+   Controls
+   ============================================================ */
 
 function setupControls() {
   document.getElementById("control-zoom-in").addEventListener("click", () => {
@@ -1412,6 +1520,8 @@ function setupControls() {
     }
   });
   document.getElementById("control-locate").addEventListener("click", locateMe);
+  document.getElementById("locate-map-close").addEventListener("click", closeLocatePopup);
+  document.getElementById("locate-gps-btn").addEventListener("click", acquireGps);
   document.addEventListener("fullscreenchange", () => {
     // Let OSD adapt to the new size after fullscreen transition
     setTimeout(() => renderMarkers(), 150);

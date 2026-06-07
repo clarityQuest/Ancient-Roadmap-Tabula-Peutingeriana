@@ -476,6 +476,36 @@ body, html {
   #landscape-tip { display: none !important; }
 }
 
+/* ── Location map popup ─────────────────────────────────────── */
+#locate-map-popup {
+  position: absolute;
+  top: 10px; left: 60px;
+  width: 300px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  z-index: 25;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  pointer-events: auto;
+  overflow: hidden;
+}
+#locate-map-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 12px; font-weight: 600;
+}
+#locate-map-close {
+  background: transparent; border: none; color: var(--text-muted);
+  font-size: 22px; cursor: pointer; line-height: 1; padding: 0 2px;
+}
+#locate-map-close:hover { color: #fff; }
+#locate-leaflet-map { width: 100%; height: 260px; }
+#locate-map-hint {
+  font-size: 10px; color: var(--text-muted);
+  margin: 4px 12px 6px; text-align: center;
+}
+
 /* ── Developer settings panel ───────────────────────────────── */
 #settings-panel {
   position: absolute;
