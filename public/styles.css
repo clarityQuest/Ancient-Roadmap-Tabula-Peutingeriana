@@ -50,13 +50,24 @@ body, html {
 }
 
 /* Top Controls */
+/* Vertical zoom/nav strip — top-left */
+#zoom-controls {
+  position: absolute;
+  top: 10px; left: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: auto;
+}
+
 #top-bar {
-  position: absolute; 
-  top: 10px; left: 10px; right: 10px;
-  display: flex; 
+  position: absolute;
+  top: 10px; left: 52px; right: 10px;
+  display: flex;
   justify-content: space-between;
-  z-index: 10; 
-  pointer-events: none; /* Let un-clickable gaps pass through */
+  z-index: 10;
+  pointer-events: none;
 }
 
 #left-controls, #right-controls, #search-container {
@@ -378,6 +389,8 @@ body, html {
 
 /* ── Mobile responsive overrides ────────────────────────────── */
 @media (pointer: coarse), (max-width: 600px) {
+  /* Hide top-bar hamburger (bottom-left filter btn replaces it) */
+  #hamburger-wrap { display: none !important; }
   /* Show hamburger, hide desktop filter row + segment strip */
   #mobile-menu-btn { display: flex !important; }
   /* Settings button lives in About panel, not top bar */
