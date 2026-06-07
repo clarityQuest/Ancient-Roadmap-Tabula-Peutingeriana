@@ -1381,10 +1381,25 @@ function setupSearch() {
   });
 }
 
-function panToPlace(place) {
+// Returns viewport {vx,vy} of a place without any panning side-effect.
+function placeVp(place) {
+  if (S.mapMode === "old") {
+    const mc = S.millerCalib.find(m => m.data_id === place.data_id);
+    if (mc) return { vx: (Number(mc.rect_x1) + Number(mc.rect_x2)) / 2 / MILLER_W,
+                    vy: (Number(mc.rect_y1) + Number(mc.rect_y2)) / 2 / MILLER_W };
+    const millerAspect = MILLER_H / MILLER_W;
+    const seg = Number(place.tabula_segment), segIdx = Number.isFinite(seg) ? seg - 2 : 5;
+    const rowMap = { a: 1 / 6, b: 1 / 2, c: 5 / 6 };
+    return { vx: (segIdx + 0.5) / 11, vy: (rowMap[place.tabula_row] ?? 0.5) * millerAspect };
+  }
+  const vx = Number(place.vx), vy = Number(place.vy);
+  return { vx: Number.isFinite(vx) ? vx : 0.5, vy: Number.isFinite(vy) ? vy : 0.5 };
+}
+
+function panToPlace(place, hw = null) {
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
-    const mhw = S.isMobile ? 0.008 : 0.02;
+    const mhw = hw ?? (S.isMobile ? 0.008 : 0.02);
     const mc = S.millerCalib.find(m => m.data_id === place.data_id);
     if (mc) {
       const cx = (mc.rect_x1 + mc.rect_x2) / 2 / MILLER_W;
@@ -1416,9 +1431,9 @@ function panToPlace(place) {
   const vx = Number.isFinite(place.vx) ? place.vx : 0.5;
   const vy = Number.isFinite(place.vy) ? place.vy : 0.5;
   S.highlightVp = { vx, vy };
-  const hw = S.isMobile ? 0.008 : 0.02;
+  const usedHw = hw ?? (S.isMobile ? 0.008 : 0.02);
   S.viewer.viewport.fitBounds(
-    new OpenSeadragon.Rect(vx - hw, vy - hw * aspect, hw * 2, hw * 2 * aspect)
+    new OpenSeadragon.Rect(vx - usedHw, vy - usedHw * aspect, usedHw * 2, usedHw * 2 * aspect)
   );
 }
 
@@ -1428,8 +1443,8 @@ function panToPlace(place) {
 let _leafletMap = null;
 let _leafletMarker = null;
 
-const LOCATE_SNAP_KM    = 15;    // snap to nearest place within this distance
-const LOCATE_MAX_DIST_KM = 1500;  // no crosshair beyond this (outside coverage)
+const LOCATE_SNAP_KM    = 15;   // snap to nearest place within this distance
+const LOCATE_MAX_DIST_KM = 500;  // beyond this: show crosshair at edge of coverage
 
 function locDistKm(lat1, lng1, lat2, lng2) {
   const dlat = lat1 - lat2;
@@ -1489,30 +1504,34 @@ function setUserLocation(lat, lng, isDefault = false) {
     const distRound = Math.round(distKm);
 
     if (distKm <= LOCATE_SNAP_KM) {
-      // Close enough: snap to the place
-      panToPlace(best);
-      S.userLocVp = S.highlightVp ? { ...S.highlightVp } : null;
+      // Close enough: snap to the ancient place
+      S.userLocVp = placeVp(best);
       S.userLocLabel = name;
       startHighlight(best);
-      if (!S.isMobile) showInfoPanel(best);
+      if (!S.isMobile) {
+        panToPlace(best, 0.08);   // wider zoom than search result
+        showInfoPanel(best);
+      }
       const msg = prefix + `At ${name} (~${distRound} km)`;
       if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(msg);
 
     } else if (distKm <= LOCATE_MAX_DIST_KM) {
-      // Within Tabula world but not near a named place: interpolate
+      // Within Tabula world: interpolate between nearby places
       S.userLocVp = interpolateTabulaVp(lat, lng);
       S.userLocLabel = `~${name}`;
+      if (!S.isMobile && S.userLocVp)
+        S.viewer.viewport.panTo(new OpenSeadragon.Point(S.userLocVp.vx, S.userLocVp.vy), true);
       const msg = prefix + `Interpolated position — nearest: ${name} (~${distRound} km)`;
       if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(msg);
 
     } else {
-      // Outside Tabula coverage
-      S.userLocVp = null;
-      S.userLocLabel = "";
+      // Far outside coverage (>500 km): show crosshair at interpolated edge position
+      S.userLocVp = interpolateTabulaVp(lat, lng);
+      S.userLocLabel = `~${name}`;
       const msg = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`;
       if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
       if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
