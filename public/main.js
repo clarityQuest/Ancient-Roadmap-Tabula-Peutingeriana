@@ -55,6 +55,13 @@ const TYPE_DRAW_ORDER = {
   road_station: 4, spa: 5, temple: 5, port: 6, city: 7,
 };
 
+// Lower number = label allocated first (higher priority)
+const TYPE_LABEL_PRIORITY = {
+  city: 0, temple: 0, spa: 0, port: 1,
+  mountain: 2, island: 2, water: 2, river: 2, lake: 2, people: 2,
+  road_station: 3,
+};
+
 const TYPE_LABELS = {
   city:           "City",
   port:           "Port",
@@ -220,6 +227,7 @@ const S = {
   millerCalib:    [],   // loaded from miller_rect_* fields in review_places_db.json
   millerCalibHit: [],   // same records, sorted cities-first for hit-testing
   selectedPlace:  null,
+  selectedDataId: null,
   highlightDataId: null,
   highlightUntil:  0,
   highlightVp:     null,  // {vx,vy} viewport centre stored by panToPlace for fallback ring
@@ -592,19 +600,31 @@ function drawHighlightRing(ctx, cx, cy, baseR) {
   ctx.restore();
 }
 
+function drawSelectionFrame(ctx, x, y, w, h) {
+  const pad = 3;
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.strokeStyle = "#FFD700";
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(x - pad, y - pad, w + pad * 2, h + pad * 2);
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = "#FFD700";
+  ctx.fillRect(x - pad, y - pad, w + pad * 2, h + pad * 2);
+  ctx.restore();
+}
+
 function renderMillerOverlay(ctx) {
   if (!S.viewer || !S.viewer.viewport) return false;
   const vp = S.viewer.viewport;
   const bounds = vp.getBounds(true);
   const zoom = vp.getZoom(true);
 
-  const maxMLabels  = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
-  const mLabelRects = [];
+  const maxMLabels = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
   const MPAD = LP.labelPad;
-  let mLabelCount = 0;
 
-  let drawn = 0;
+  // Pass 1: draw markers in z-order, collect label candidates with geometry
   let highlightDrawn = false;
+  const mLabelCandidates = [];
   const renderCalib = [...S.millerCalib].sort(
     (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
   );
@@ -651,23 +671,42 @@ function renderMillerOverlay(ctx) {
       }
     }
 
+    if (item.data_id === S.selectedDataId) {
+      drawSelectionFrame(ctx, x, y, w, h);
+    }
     if (item.data_id === S.highlightDataId && Date.now() < S.highlightUntil) {
       drawHighlightRing(ctx, x + w / 2, y + h / 2, Math.max(w, h) / 2 + 4);
       highlightDrawn = true;
     }
 
-    if (S.labelsOn && mLabelCount < maxMLabels) {
-      const mfs = computeFont(zoom);
-      if (mfs > 0) {
-        const charW = mfs * 0.55;
-        const lineH = mfs * 1.3;
-        const txt1 = truncWords(item.modern, 4)    || "";
-        const txt2 = item.latin_std || "";
+    if (S.labelsOn) {
+      const txt2 = item.latin_std || "";
+      const txt1 = truncWords(item.modern, 4) || "";
+      if (txt1 || txt2) mLabelCandidates.push({ item, x, y, w, h, txt1, txt2 });
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Pass 2: draw labels in priority order (cities/temples/spas first)
+  if (S.labelsOn && mLabelCandidates.length) {
+    const mfs = computeFont(zoom);
+    if (mfs > 0) {
+      mLabelCandidates.sort(
+        (a, b) => (TYPE_LABEL_PRIORITY[a.item.type] ?? 2) - (TYPE_LABEL_PRIORITY[b.item.type] ?? 2)
+      );
+      const charW = mfs * 0.55;
+      const lineH = mfs * 1.3;
+      const fsBold = Math.round(mfs);
+      const fsNorm = Math.max(6, fsBold - 1);
+      const skipOverlap = zoom >= (S.isMobile ? LP.labelPadZoomThreshMobile : LP.labelPadZoomThresh);
+      const mLabelRects = [];
+      let mLabelCount = 0;
+      for (const { x, y, w, h, txt1, txt2 } of mLabelCandidates) {
+        if (mLabelCount >= maxMLabels) break;
         const boxW = Math.max(txt1.length, txt2.length) * charW;
-        const boxH = (txt1 ? lineH : 0) + (txt2 ? lineH : 0);
+        const boxH = (txt2 ? lineH : 0) + (txt1 ? lineH : 0);
         const bx = x + 2;
         const by = y + Math.max(2, h - boxH - 2) + lineH * 0.3;
-        const skipOverlap = zoom >= (S.isMobile ? LP.labelPadZoomThreshMobile : LP.labelPadZoomThresh);
         let overlaps = false;
         if (!skipOverlap) {
           for (const r of mLabelRects) {
@@ -677,9 +716,8 @@ function renderMillerOverlay(ctx) {
           }
         }
         if (!overlaps) {
-          const mReserveW = Math.min(boxW, w);
           mLabelRects.push({ x1: bx - MPAD, y1: by - MPAD,
-                             x2: bx + mReserveW + MPAD, y2: by + boxH + MPAD });
+                             x2: bx + Math.min(boxW, w) + MPAD, y2: by + boxH + MPAD });
           mLabelCount++;
           ctx.save();
           ctx.strokeStyle = "rgba(0,0,0,0.8)";
@@ -687,7 +725,7 @@ function renderMillerOverlay(ctx) {
           ctx.lineJoin = "round";
           let dy = by;
           if (txt2) {
-            ctx.font = `${Math.round(Math.max(6, mfs - 1))}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.font = `${fsNorm}px 'Segoe UI', system-ui, sans-serif`;
             ctx.textBaseline = "top";
             ctx.strokeText(txt2, bx, dy);
             ctx.fillStyle = "#e5e7eb";
@@ -695,7 +733,7 @@ function renderMillerOverlay(ctx) {
             dy += lineH;
           }
           if (txt1) {
-            ctx.font = `bold ${Math.round(mfs)}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.font = `bold ${fsBold}px 'Segoe UI', system-ui, sans-serif`;
             ctx.textBaseline = "top";
             ctx.strokeText(txt1, bx, dy);
             ctx.fillStyle = "#ffffff";
@@ -705,9 +743,7 @@ function renderMillerOverlay(ctx) {
         }
       }
     }
-    drawn++;
   }
-  ctx.globalAlpha = 1;
 
   return highlightDrawn;
 }
@@ -739,16 +775,16 @@ function renderMarkers() {
   const by0 = bounds.y;
   const by1 = bounds.y + bounds.height;
 
-  const MAX_LABELS   = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
-  const labelRects = [];
-  const LABEL_PAD = LP.labelPad;
-
+  const MAX_LABELS  = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
+  const LABEL_PAD   = LP.labelPad;
   let rendered = 0;
-  let labelCount = 0;
 
+  // Pass 1: draw markers in z-order, collect label + region candidates with cached geometry
   const renderPlaces = [...S.places].sort(
     (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
   );
+
+  const labelCandidates = [];
 
   for (const p of renderPlaces) {
     if (!S.activeTypes.has(p.type)) continue;
@@ -765,13 +801,11 @@ function renderMarkers() {
     const cx = (p1.cx + p2.cx) / 2;
     const cy = (p1.cy + p2.cy) / 2;
     const color = TYPE_COLORS[p.type] || "#92400E";
-
     const isRegion = p.type === "region";
 
     if (S.markersOn) {
       const ma = LP.markerAlpha ?? 1.0;
       if (isRegion) {
-        // Regions: semi-transparent fill + dashed border — area style, not point style
         ctx.fillStyle = color;
         ctx.globalAlpha = 0.07 * ma;
         ctx.fillRect(x, y, w, h);
@@ -794,87 +828,99 @@ function renderMarkers() {
       }
     }
 
+    if (p.data_id === S.selectedDataId) {
+      drawSelectionFrame(ctx, x, y, w, h);
+    }
     if (p.data_id === S.highlightDataId && Date.now() < S.highlightUntil) {
       drawHighlightRing(ctx, cx, cy, Math.max(w, h) / 2 + 4);
       highlightDrawn = true;
     }
 
     if (S.labelsOn) {
-      const latin  = p.latin_std || p.latin;
+      const latin  = p.latin_std || p.latin || null;
       const modern = truncWords(p.modern, 4) || null;
-      if (latin || modern) {
-        const fontSize = computeFont(zoom);
-        if (fontSize > 0) {
-          if (isRegion) {
-            // Region label: uppercase italic, centered in the area, no overlap check
-            const regionFs = Math.max(7, Math.round(fontSize * 1.4));
-            const label = (latin || modern || "").toUpperCase();
-            ctx.save();
-            ctx.font = `italic ${regionFs}px 'Segoe UI', system-ui, sans-serif`;
-            ctx.textBaseline = "middle";
-            ctx.textAlign = "center";
-            ctx.strokeStyle = "rgba(0,0,0,0.7)";
-            ctx.lineWidth = 3;
-            ctx.lineJoin = "round";
-            ctx.strokeText(label, cx, cy);
-            ctx.fillStyle = color;
-            ctx.globalAlpha = 0.85;
-            ctx.fillText(label, cx, cy);
-            ctx.globalAlpha = 1;
-            ctx.restore();
-          } else if (labelCount < MAX_LABELS) {
-            const charW = fontSize * 0.55;
-            const lineH = fontSize * 1.3;
-            const boxW = Math.max(
-              modern ? modern.length * charW : 0,
-              latin  ? latin.length  * charW : 0
-            );
-            const boxH = (modern ? lineH : 0) + (latin ? lineH : 0);
-            const bx = x + 2;
-            const by = y + Math.max(2, h - boxH - 2) + lineH * 0.3;
-            const skipOverlap = zoom >= (S.isMobile ? LP.labelPadZoomThreshMobile : LP.labelPadZoomThresh);
-            let overlaps = false;
-            if (!skipOverlap) {
-              for (const r of labelRects) {
-                if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) {
-                  overlaps = true; break;
-                }
-              }
-            }
-            if (!overlaps) {
-              const reserveW = Math.min(boxW, w);
-              labelRects.push({ x1: bx - LABEL_PAD, y1: by - LABEL_PAD,
-                                x2: bx + reserveW + LABEL_PAD, y2: by + boxH + LABEL_PAD });
-              labelCount++;
-              ctx.save();
-              ctx.strokeStyle = "rgba(0,0,0,0.8)";
-              ctx.lineWidth = 3;
-              ctx.lineJoin = "round";
-              const fsBold = Math.round(fontSize);
-              const fsNorm = Math.max(6, fsBold - 1);
-              let dy = by;
-              if (latin) {
-                ctx.font = `${fsNorm}px 'Segoe UI', system-ui, sans-serif`;
-                ctx.textBaseline = "top";
-                ctx.strokeText(latin, bx, dy);
-                ctx.fillStyle = "#e5e7eb";
-                ctx.fillText(latin, bx, dy);
-                dy += lineH;
-              }
-              if (modern) {
-                ctx.font = `bold ${fsBold}px 'Segoe UI', system-ui, sans-serif`;
-                ctx.textBaseline = "top";
-                ctx.strokeText(modern, bx, dy);
-                ctx.fillStyle = "#ffffff";
-                ctx.fillText(modern, bx, dy);
-              }
-              ctx.restore();
+      if (latin || modern) labelCandidates.push({ p, x, y, w, h, cx, cy, color, isRegion, latin, modern });
+    }
+    rendered++;
+  }
+
+  // Pass 2: draw labels — regions inline (no budget), point features in priority order
+  if (S.labelsOn && labelCandidates.length) {
+    const fontSize = computeFont(zoom);
+    if (fontSize > 0) {
+      const regionFs  = Math.max(7, Math.round(fontSize * 1.4));
+      const fsBold    = Math.round(fontSize);
+      const fsNorm    = Math.max(6, fsBold - 1);
+      const charW     = fontSize * 0.55;
+      const lineH     = fontSize * 1.3;
+      const skipOverlap = zoom >= (S.isMobile ? LP.labelPadZoomThreshMobile : LP.labelPadZoomThresh);
+      const labelRects2 = [];
+      let labelCount2 = 0;
+
+      // Region labels first (always shown, no budget limit)
+      for (const { cx, cy, color, latin, modern, isRegion } of labelCandidates) {
+        if (!isRegion) continue;
+        const label = (latin || modern || "").toUpperCase();
+        ctx.save();
+        ctx.font = `italic ${regionFs}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "center";
+        ctx.strokeStyle = "rgba(0,0,0,0.7)";
+        ctx.lineWidth = 3;
+        ctx.lineJoin = "round";
+        ctx.strokeText(label, cx, cy);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.85;
+        ctx.fillText(label, cx, cy);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+
+      // Point-feature labels in priority order (city/temple/spa first)
+      const pointCandidates = labelCandidates.filter(c => !c.isRegion)
+        .sort((a, b) => (TYPE_LABEL_PRIORITY[a.p.type] ?? 2) - (TYPE_LABEL_PRIORITY[b.p.type] ?? 2));
+      for (const { x, y, w, h, latin, modern } of pointCandidates) {
+        if (labelCount2 >= MAX_LABELS) break;
+        const boxW = Math.max(modern ? modern.length * charW : 0, latin ? latin.length * charW : 0);
+        const boxH = (latin ? lineH : 0) + (modern ? lineH : 0);
+        const bx = x + 2;
+        const by = y + Math.max(2, h - boxH - 2) + lineH * 0.3;
+        let overlaps = false;
+        if (!skipOverlap) {
+          for (const r of labelRects2) {
+            if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) {
+              overlaps = true; break;
             }
           }
         }
+        if (!overlaps) {
+          labelRects2.push({ x1: bx - LABEL_PAD, y1: by - LABEL_PAD,
+                             x2: bx + Math.min(boxW, w) + LABEL_PAD, y2: by + boxH + LABEL_PAD });
+          labelCount2++;
+          ctx.save();
+          ctx.strokeStyle = "rgba(0,0,0,0.8)";
+          ctx.lineWidth = 3;
+          ctx.lineJoin = "round";
+          let dy = by;
+          if (latin) {
+            ctx.font = `${fsNorm}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.textBaseline = "top";
+            ctx.strokeText(latin, bx, dy);
+            ctx.fillStyle = "#e5e7eb";
+            ctx.fillText(latin, bx, dy);
+            dy += lineH;
+          }
+          if (modern) {
+            ctx.font = `bold ${fsBold}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.textBaseline = "top";
+            ctx.strokeText(modern, bx, dy);
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(modern, bx, dy);
+          }
+          ctx.restore();
+        }
       }
     }
-    rendered++;
   }
 
   // Fallback: draw a dot + ring at the estimated position when no real marker was rendered
@@ -1028,6 +1074,7 @@ function showMillerTooltip(item, x, y) {
    ============================================================ */
 function showInfoPanel(place) {
   S.selectedPlace = place;
+  S.selectedDataId = place.data_id != null ? Number(place.data_id) : null;
   infoPanelOpenedAt = Date.now();
 
   // Enrich with allRecords data (places.json lacks ulm_img_url / ulm_id)
@@ -1186,6 +1233,8 @@ function showInfoPanel(place) {
 function hideInfoPanel() {
   document.getElementById("info-panel").classList.add("hidden");
   S.selectedPlace = null;
+  S.selectedDataId = null;
+  renderMarkers();
 }
 
 /* ============================================================
@@ -1589,6 +1638,7 @@ function setupMobileMenu() {
   function closeMenu() { menu.classList.add("hidden"); }
 
   btn.addEventListener("click", openMenu);
+  document.getElementById("bottom-filter-btn")?.addEventListener("click", openMenu);
   backdrop.addEventListener("click", closeMenu);
 }
 
