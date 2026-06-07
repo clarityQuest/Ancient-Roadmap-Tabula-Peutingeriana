@@ -232,6 +232,8 @@ const S = {
   highlightUntil:  0,
   highlightVp:     null,  // {vx,vy} viewport centre stored by panToPlace for fallback ring
   lang: (() => { try { return localStorage.getItem("tp_lang") || "sys"; } catch { return "sys"; } })(),
+  defaultLat: (() => { try { const v = Number(localStorage.getItem("tp_defaultLat")); return Number.isFinite(v) && v !== 0 ? v : 45.4473; } catch { return 45.4473; } })(),
+  defaultLng: (() => { try { const v = Number(localStorage.getItem("tp_defaultLng")); return Number.isFinite(v) && v !== 0 ? v : 8.6191; } catch { return 8.6191; } })(),
   isMobile: window.matchMedia("(pointer: coarse), (max-width: 600px)").matches,
   canvas:       null,
   ctx:          null,
@@ -1349,6 +1351,47 @@ function panToPlace(place) {
 /* ============================================================
    Controls
    ============================================================ */
+function locateMe() {
+  function findNearest(lat, lng) {
+    const pool = S.mapMode === "old" ? S.millerCalib : S.places;
+    let best = null, bestDist = Infinity;
+    for (const p of pool) {
+      const plat = Number(p.lat), plng = Number(p.lng);
+      if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+      const d = (lat - plat) ** 2 + (lng - plng) ** 2;
+      if (d < bestDist) { bestDist = d; best = p; }
+    }
+    return best;
+  }
+
+  function navigateTo(lat, lng, isDefault = false) {
+    const place = findNearest(lat, lng);
+    if (!place) return;
+    panToPlace(place);
+    startHighlight(place);
+    showInfoPanel(place);
+    const name = place.latin_std || place.latin || "";
+    const distKm = Math.round(Math.sqrt((lat - Number(place.lat)) ** 2 + (lng - Number(place.lng)) ** 2) * 111);
+    const statusEl = document.getElementById("status");
+    if (statusEl) {
+      statusEl.textContent = (isDefault ? "Default location — " : "") + `Nearest on Tabula: ${name} (~${distKm} km)`;
+      setTimeout(() => { statusEl.textContent = ""; }, 6000);
+    }
+  }
+
+  if (navigator.geolocation) {
+    const statusEl = document.getElementById("status");
+    if (statusEl) statusEl.textContent = "Locating…";
+    navigator.geolocation.getCurrentPosition(
+      pos => navigateTo(pos.coords.latitude, pos.coords.longitude),
+      () => navigateTo(S.defaultLat, S.defaultLng, true),
+      { timeout: 8000 }
+    );
+  } else {
+    navigateTo(S.defaultLat, S.defaultLng, true);
+  }
+}
+
 function setupControls() {
   document.getElementById("control-zoom-in").addEventListener("click", () => {
     S.viewer.viewport.zoomBy(1.4);
@@ -1368,6 +1411,7 @@ function setupControls() {
       document.documentElement.requestFullscreen();
     }
   });
+  document.getElementById("control-locate").addEventListener("click", locateMe);
   document.addEventListener("fullscreenchange", () => {
     // Let OSD adapt to the new size after fullscreen transition
     setTimeout(() => renderMarkers(), 150);
@@ -1614,7 +1658,7 @@ function setupMobileMenu() {
     dispContainer.innerHTML = `
       <button class="ctrl-btn toggle-btn${S.markersOn ? " active" : ""}" id="mobile-toggle-markers">Markers</button>
       <button class="ctrl-btn toggle-btn${S.labelsOn ? " active" : ""}" id="mobile-toggle-labels">Labels</button>
-      <button class="ctrl-btn" id="mobile-settings-open">Label Settings</button>
+      <button class="ctrl-btn" id="mobile-settings-open">Developer Settings</button>
     `;
     dispContainer.querySelector("#mobile-toggle-markers").addEventListener("click", (e) => {
       S.markersOn = !S.markersOn;
@@ -2117,7 +2161,7 @@ function tabulaSourceHref(place) {
 }
 
 /* ============================================================
-   Label settings — persistence and panel UI
+   Developer settings — persistence and panel UI
    ============================================================ */
 async function loadLabelParams() {
   // Prefer the project file (written by Save button via server)
@@ -2226,6 +2270,46 @@ function buildSettingsPanelBody() {
     wrap.appendChild(makeStepBtn("+", inp, 1, onChange));
     return wrap;
   }
+
+  // Location section
+  const locHWrap = document.createElement("div");
+  locHWrap.className = "sp-section-row";
+  const locH = document.createElement("h4");
+  locH.className = "sp-section";
+  locH.textContent = "Location";
+  locHWrap.appendChild(locH);
+  body.appendChild(locHWrap);
+
+  function makeCoordRow(labelText, id, min, max, currentVal, onSave) {
+    const row = document.createElement("div");
+    row.className = "sp-row";
+    const lbl = document.createElement("label");
+    lbl.className = "sp-label";
+    lbl.htmlFor = id;
+    lbl.textContent = labelText;
+    const inp = document.createElement("input");
+    inp.type = "number"; inp.id = id; inp.className = "sp-coord-input";
+    inp.min = String(min); inp.max = String(max); inp.step = "0.0001";
+    inp.value = currentVal.toFixed(4);
+    inp.addEventListener("change", () => {
+      const v = Number(inp.value);
+      if (Number.isFinite(v) && v >= min && v <= max) onSave(v);
+    });
+    row.appendChild(lbl); row.appendChild(inp);
+    return row;
+  }
+  body.appendChild(makeCoordRow("Default lat", "sp-default-lat", -90, 90, S.defaultLat, v => {
+    S.defaultLat = v;
+    try { localStorage.setItem("tp_defaultLat", v); } catch {}
+  }));
+  body.appendChild(makeCoordRow("Default lng", "sp-default-lng", -180, 180, S.defaultLng, v => {
+    S.defaultLng = v;
+    try { localStorage.setItem("tp_defaultLng", v); } catch {}
+  }));
+  const locDesc = document.createElement("p");
+  locDesc.className = "sp-desc";
+  locDesc.textContent = 'Fallback coordinates used by "Locate Me" when device GPS is unavailable. Default: Novara (45.4473, 8.6191).';
+  body.appendChild(locDesc);
 
   let lastSection = null;
   for (const def of SP_DEFS) {
