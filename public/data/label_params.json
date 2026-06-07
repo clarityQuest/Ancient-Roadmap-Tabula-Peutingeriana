@@ -9,7 +9,7 @@
   "maxLabelsMobile": 26,
   "minFontMobile": 7,
   "labelPad": 10,
-  "labelPadZoomThresh": 24.25,
+  "labelPadZoomThresh": 11.75,
   "labelPadZoomThreshMobile": 13.75,
   "zoomThreshMid": 3,
   "zoomThreshAll": 8,
