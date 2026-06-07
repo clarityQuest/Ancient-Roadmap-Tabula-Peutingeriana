@@ -1394,6 +1394,8 @@ function panToPlace(place) {
 let _leafletMap = null;
 let _leafletMarker = null;
 
+const LOCATE_MAX_DIST_KM = 1500;
+
 function setUserLocation(lat, lng, isDefault = false) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
   let best = null, bestDist = Infinity;
@@ -1407,17 +1409,32 @@ function setUserLocation(lat, lng, isDefault = false) {
   S.userLocLat = lat;
   S.userLocLng = lng;
 
+  const statusEl = document.getElementById("status");
+  const hint = document.getElementById("locate-map-hint");
+
   if (best) {
-    panToPlace(best);
-    S.userLocVp = S.highlightVp ? { ...S.highlightVp } : null;
-    startHighlight(best);
-    showInfoPanel(best);
     const name = best.latin_std || best.latin || "";
     const distKm = Math.round(Math.sqrt((lat - Number(best.lat)) ** 2 + (lng - Number(best.lng)) ** 2) * 111);
-    const statusEl = document.getElementById("status");
-    if (statusEl) {
-      statusEl.textContent = (isDefault ? "Default location — " : "") + `Nearest on Tabula: ${name} (~${distKm} km)`;
-      setTimeout(() => { statusEl.textContent = ""; }, 6000);
+
+    if (distKm <= LOCATE_MAX_DIST_KM) {
+      // Within coverage: navigate, show crosshair, open info panel
+      panToPlace(best);
+      S.userLocVp = S.highlightVp ? { ...S.highlightVp } : null;
+      startHighlight(best);
+      showInfoPanel(best);
+      if (statusEl) {
+        statusEl.textContent = (isDefault ? "Default location — " : "") + `Nearest on Tabula: ${name} (~${distKm} km)`;
+        setTimeout(() => { statusEl.textContent = ""; }, 6000);
+      }
+      if (hint) hint.textContent = "Click map or drag marker to set location";
+    } else {
+      // Outside coverage: clear crosshair, warn user
+      S.userLocVp = null;
+      if (statusEl) {
+        statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distKm} km)`;
+        setTimeout(() => { statusEl.textContent = ""; }, 8000);
+      }
+      if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
     }
   }
 
@@ -1460,6 +1477,14 @@ async function openLocatePopup() {
       attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
       maxZoom: 19,
     }).addTo(_leafletMap);
+    // Tabula coverage bounding box: lat 20–58°N, lng -15–105°E
+    L.rectangle([[20, -15], [58, 105]], {
+      color: "#c8a050", weight: 1.5,
+      fillColor: "#c8a050", fillOpacity: 0.08,
+      dashArray: "6 4", interactive: false,
+    }).addTo(_leafletMap)
+      .bindTooltip("Tabula Peutingeriana coverage area", { sticky: true });
+
     _leafletMarker = L.marker([lat, lng], { draggable: true }).addTo(_leafletMap);
     _leafletMarker.on("dragend", () => {
       const pos = _leafletMarker.getLatLng();
