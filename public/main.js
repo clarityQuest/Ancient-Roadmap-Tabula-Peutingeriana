@@ -1508,10 +1508,8 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocVp = placeVp(best);
       S.userLocLabel = name;
       startHighlight(best);
-      if (!S.isMobile) {
-        panToPlace(best, 0.08);   // wider zoom than search result
-        showInfoPanel(best);
-      }
+      panToPlace(best, 0.08);   // wider zoom than search result; pans on all devices
+      if (!S.isMobile) showInfoPanel(best);
       const msg = prefix + `At ${name} (~${distRound} km)`;
       if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
@@ -1521,7 +1519,7 @@ function setUserLocation(lat, lng, isDefault = false) {
       // Within Tabula world: interpolate between nearby places
       S.userLocVp = interpolateTabulaVp(lat, lng);
       S.userLocLabel = `~${name}`;
-      if (!S.isMobile && S.userLocVp)
+      if (S.userLocVp)
         S.viewer.viewport.panTo(new OpenSeadragon.Point(S.userLocVp.vx, S.userLocVp.vy), true);
       const msg = prefix + `Interpolated position — nearest: ${name} (~${distRound} km)`;
       if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
@@ -1532,6 +1530,8 @@ function setUserLocation(lat, lng, isDefault = false) {
       // Far outside coverage (>500 km): show crosshair at interpolated edge position
       S.userLocVp = interpolateTabulaVp(lat, lng);
       S.userLocLabel = `~${name}`;
+      if (S.userLocVp)
+        S.viewer.viewport.panTo(new OpenSeadragon.Point(S.userLocVp.vx, S.userLocVp.vy), true);
       const msg = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`;
       if (statusEl) { statusEl.textContent = msg; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
       if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
@@ -1548,7 +1548,7 @@ function setUserLocation(lat, lng, isDefault = false) {
 
 function showLocateMarkerPopup(text) {
   if (!_leafletMap || !_leafletMarker) return;
-  _leafletMarker.bindPopup(text, { closeButton: false, offset: [0, -16], maxWidth: 240 }).openPopup();
+  _leafletMarker.bindPopup(text, { closeButton: false, offset: [0, -16], className: "locate-popup" }).openPopup();
 }
 
 function loadLeaflet() {

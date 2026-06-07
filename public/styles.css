@@ -505,6 +505,25 @@ body, html {
   font-size: 10px; color: var(--text-muted);
   margin: 4px 12px 6px; text-align: center;
 }
+/* Compact Leaflet popup for locate marker */
+.locate-popup .leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  background: rgba(18,16,12,0.93) !important;
+  border: 1px solid rgba(200,160,80,0.45) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.55) !important;
+  color: #d4c5a0 !important;
+}
+.locate-popup .leaflet-popup-content {
+  margin: 5px 9px !important;
+  font-size: 11px !important;
+  line-height: 1.3 !important;
+  color: #d4c5a0 !important;
+  white-space: nowrap !important;
+}
+.locate-popup .leaflet-popup-tip {
+  background: rgba(18,16,12,0.93) !important;
+}
 
 /* ── Developer settings panel ───────────────────────────────── */
 #settings-panel {
