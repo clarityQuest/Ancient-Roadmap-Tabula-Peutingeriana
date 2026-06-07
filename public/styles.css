@@ -346,11 +346,7 @@ body, html {
 .hidden { display: none !important; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.5); }
 
-/* ── Hamburger + settings button wrapper ─────────────────────── */
-#hamburger-wrap { display: flex; gap: 8px; }
-
 /* ── Mobile menu overlay ─────────────────────────────────────── */
-#mobile-menu-btn { display: none; }
 #bottom-filter-btn { display: none; }
 #mobile-menu {
   position: fixed; inset: 0; z-index: 50;
@@ -389,10 +385,6 @@ body, html {
 
 /* ── Mobile responsive overrides ────────────────────────────── */
 @media (pointer: coarse), (max-width: 600px) {
-  /* Hide top-bar hamburger (bottom-left filter btn replaces it) */
-  #hamburger-wrap { display: none !important; }
-  /* Show hamburger, hide desktop filter row + segment strip */
-  #mobile-menu-btn { display: flex !important; }
   /* Settings button lives in About panel, not top bar */
   #segment-buttons { display: none; }
   /* On mobile: hide full category row + Markers/Labels from toggle-row; show bottom filter btn */

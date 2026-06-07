@@ -1547,7 +1547,7 @@ function setupMobileMenu() {
   const btn = document.getElementById("mobile-menu-btn");
   const menu = document.getElementById("mobile-menu");
   const backdrop = document.getElementById("mobile-menu-backdrop");
-  if (!btn || !menu) return;
+  if (!menu) return;
 
   function openMenu() {
     // Sync type filter buttons (region excluded — handled by region-solo button)
@@ -1637,7 +1637,7 @@ function setupMobileMenu() {
 
   function closeMenu() { menu.classList.add("hidden"); }
 
-  btn.addEventListener("click", openMenu);
+  btn?.addEventListener("click", openMenu);
   document.getElementById("bottom-filter-btn")?.addEventListener("click", openMenu);
   backdrop.addEventListener("click", closeMenu);
 }
