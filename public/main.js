@@ -235,9 +235,11 @@ const S = {
   userLocLat:     null,
   userLocLng:     null,
   userLocLabel:   "",     // short label drawn near the crosshair
+  userLocOutside: false,  // true when projected to Tabula edge
+  userLocCentVp:  null,   // centroid viewport position (used for outside arrow direction)
   lang: (() => { try { return localStorage.getItem("tp_lang") || "sys"; } catch { return "sys"; } })(),
-  defaultLat: (() => { try { const v = Number(localStorage.getItem("tp_defaultLat")); return Number.isFinite(v) && v !== 0 ? v : 45.4473; } catch { return 45.4473; } })(),
-  defaultLng: (() => { try { const v = Number(localStorage.getItem("tp_defaultLng")); return Number.isFinite(v) && v !== 0 ? v : 8.6191; } catch { return 8.6191; } })(),
+  defaultLat: (() => { try { const v = Number(localStorage.getItem("tp_defaultLat")); return Number.isFinite(v) && v !== 0 ? v : 41.8902; } catch { return 41.8902; } })(),
+  defaultLng: (() => { try { const v = Number(localStorage.getItem("tp_defaultLng")); return Number.isFinite(v) && v !== 0 ? v : 12.4922; } catch { return 12.4922; } })(),
   isMobile: window.matchMedia("(pointer: coarse), (max-width: 600px)").matches,
   canvas:       null,
   ctx:          null,
@@ -591,20 +593,67 @@ function startHighlight(place) {
   requestAnimationFrame(tick);
 }
 
-function drawUserCrosshairWithLabel(ctx, cx, cy) {
-  drawUserCrosshair(ctx, cx, cy);
+function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle = null) {
+  if (outsideAngle !== null) drawOutsideCrosshair(ctx, cx, cy, outsideAngle);
+  else drawUserCrosshair(ctx, cx, cy);
   if (!S.userLocLabel) return;
   ctx.save();
   ctx.font = "bold 11px 'Segoe UI', Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   const tw = ctx.measureText(S.userLocLabel).width;
-  const px = cx, py = cy + 22;
-  ctx.fillStyle = "rgba(0,0,0,0.72)";
+  const px = cx, py = cy + 42; // push label below arrow when outside
+  ctx.fillStyle = outsideAngle !== null ? "rgba(80,40,0,0.85)" : "rgba(0,0,0,0.72)";
   ctx.fillRect(px - tw / 2 - 5, py - 2, tw + 10, 16);
   ctx.shadowColor = "rgba(0,0,0,0.0)";
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = outsideAngle !== null ? "#FFB040" : "#ffffff";
   ctx.fillText(S.userLocLabel, px, py);
+  ctx.restore();
+}
+
+function drawOutsideCrosshair(ctx, cx, cy, arrowAngle) {
+  const R = 14, arm = 24;
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  // White halo
+  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 5;
+  ctx.shadowColor = "rgba(0,0,0,0.0)"; ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - arm, cy); ctx.lineTo(cx - R - 2, cy);
+  ctx.moveTo(cx + R + 2, cy); ctx.lineTo(cx + arm, cy);
+  ctx.moveTo(cx, cy - arm); ctx.lineTo(cx, cy - R - 2);
+  ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
+  ctx.stroke();
+  // Orange ring + arms
+  ctx.strokeStyle = "#FF8800"; ctx.lineWidth = 2.5;
+  ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - arm, cy); ctx.lineTo(cx - R - 2, cy);
+  ctx.moveTo(cx + R + 2, cy); ctx.lineTo(cx + arm, cy);
+  ctx.moveTo(cx, cy - arm); ctx.lineTo(cx, cy - R - 2);
+  ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
+  ctx.stroke();
+  // Outward direction arrow
+  const ax = Math.cos(arrowAngle), ay = Math.sin(arrowAngle);
+  const aLen = 28, aHead = 10, aSpread = 0.42;
+  const sx = cx + ax * (R + 4), sy = cy + ay * (R + 4);
+  const ex = cx + ax * (R + aLen), ey = cy + ay * (R + aLen);
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+  ctx.strokeStyle = "#FF8800"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+  ctx.fillStyle = "#FF8800";
+  ctx.beginPath();
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - aHead * Math.cos(arrowAngle - aSpread), ey - aHead * Math.sin(arrowAngle - aSpread));
+  ctx.lineTo(ex - aHead * Math.cos(arrowAngle + aSpread), ey - aHead * Math.sin(arrowAngle + aSpread));
+  ctx.closePath(); ctx.fill();
+  // Center dot
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#FF8800"; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
@@ -831,7 +880,12 @@ function renderMarkers() {
   if (S.mapMode === "old" || S.newSourceKind === "stitched" || !S.places.length) {
     if (S.userLocVp) {
       const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
-      drawUserCrosshairWithLabel(ctx, cx, cy);
+      let outsideAngle = null;
+      if (S.userLocOutside && S.userLocCentVp) {
+        const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
+        outsideAngle = Math.atan2(cy - ccy, cx - ccx);
+      }
+      drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
     }
     return;
   }
@@ -1014,7 +1068,12 @@ function renderMarkers() {
   // User location crosshair (seg4 path)
   if (S.userLocVp) {
     const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
-    drawUserCrosshair(ctx, cx, cy);
+    let outsideAngle = null;
+    if (S.userLocOutside && S.userLocCentVp) {
+      const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
+      outsideAngle = Math.atan2(cy - ccy, cx - ccx);
+    }
+    drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
   }
 }
 
@@ -1069,19 +1128,24 @@ function showTooltip(place, x, y) {
   const typeIcon = TYPE_ICONS[place.type] || "📍";
   const displayLatin = place.latin_std || place.latin;
   const flagHtml = countryFlagHtml(place.country);
+  const segNum = Number(place.tabula_segment ?? place.segment);
+  const segMeta = Number.isFinite(segNum) ? S.segments.find(s => Number(s.number) === segNum) : null;
+  const segLine = segMeta ? `<div class="tt-detail">Segment: <span>${escHtml(segMeta.roman + " – " + segMeta.label)}</span></div>` : "";
+  const provLine = place.province ? `<div class="tt-detail">Province: <span>${escHtml(place.province)}</span></div>` : "";
   tt.innerHTML = `
     <div class="tt-latin">${escHtml(displayLatin)}</div>
     ${place.modern ? `<div class="tt-modern">${escHtml(place.modern)}</div>` : ""}
     ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(place.country || "")}</span></div>` : ""}
     <div class="tt-type"><span class="dot" style="background:${color}"></span><span class="tt-type-icon">${typeIcon}</span>${typeLabel}</div>
+    ${provLine}${segLine}
   `;
-  tt.style.left = (x + 80) + "px";
-  tt.style.top  = (y - 8) + "px";
+  tt.style.left = (x + 18) + "px";
+  tt.style.top  = (y - 12) + "px";
   tt.classList.remove("hidden");
 
   const rect = tt.getBoundingClientRect();
-  if (rect.right > window.innerWidth) tt.style.left = (x - rect.width - 60) + "px";
-  if (rect.bottom > window.innerHeight) tt.style.top = (y - rect.height - 8) + "px";
+  if (rect.right > window.innerWidth - 8) tt.style.left = (x - rect.width - 12) + "px";
+  if (rect.bottom > window.innerHeight - 8) tt.style.top = (y - rect.height - 4) + "px";
 }
 
 function hideTooltip() {
@@ -1263,7 +1327,11 @@ function showInfoPanel(place) {
   // Wikipedia link: only show when a verified wiki_url is in the DB
   const wikiLink = document.getElementById("panel-wiki-link");
   const wikiSummary = document.getElementById("panel-wiki-summary");
+  const wikiImg = document.getElementById("panel-wiki-img");
   if (wikiSummary) { wikiSummary.textContent = ""; wikiSummary.classList.add("hidden"); }
+  if (wikiImg) { wikiImg.src = ""; wikiImg.classList.add("hidden"); }
+  const wikiSection = document.getElementById("panel-wiki-section");
+  if (wikiSection) wikiSection.classList.remove("has-image");
   const reqId = ++wikiRequestId;
   if (wikiLink) {
     if (place.wiki_url) {
@@ -1452,7 +1520,9 @@ function locDistKm(lat1, lng1, lat2, lng2) {
   return Math.sqrt(dlat * dlat + dlng * dlng) * 111.32;
 }
 
-function interpolateTabulaVp(lat, lng) {
+// maxDistKm: when set, only use places within that radius for IDW (B: keeps edge crosshair
+// on the map's visual perimeter by excluding distant interior places from the weight pool).
+function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
   const candidates = [];
   for (const p of pool) {
@@ -1472,7 +1542,14 @@ function interpolateTabulaVp(lat, lng) {
   }
   if (!candidates.length) return null;
   candidates.sort((a, b) => a.d - b.d);
-  const top = candidates.slice(0, 8);
+  // B: restrict to nearby places; fall back to closest 3 if too few pass the filter.
+  let top;
+  if (maxDistKm < Infinity) {
+    const nearby = candidates.filter(c => c.d <= maxDistKm);
+    top = nearby.length >= 3 ? nearby.slice(0, 8) : candidates.slice(0, Math.min(3, candidates.length));
+  } else {
+    top = candidates.slice(0, 8);
+  }
   let sumW = 0, sumVx = 0, sumVy = 0;
   for (const c of top) {
     const w = 1 / Math.max(c.d, 0.1) ** 2;
@@ -1481,14 +1558,95 @@ function interpolateTabulaVp(lat, lng) {
   return { vx: sumVx / sumW, vy: sumVy / sumW };
 }
 
+// Projects a real-world location onto the edge of the Tabula's geographic bbox.
+// Returns { vp, centVp, cLat, cLng, edgeLat, edgeLng } — edge viewport position,
+// centroid VP, and centroid lat/lng for compass/arrow direction.
+function projectToTabulaEdge(userLat, userLng) {
+  const pool = S.mapMode === "old" ? S.millerCalib : S.places;
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  let minVx = Infinity, maxVx = -Infinity, minVy = Infinity, maxVy = -Infinity;
+  let sumLat = 0, sumLng = 0, count = 0;
+  for (const p of pool) {
+    const lat = Number(p.lat), lng = Number(p.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+    minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+    sumLat += lat; sumLng += lng; count++;
+    // Track viewport extremes for edge clamping (C)
+    let vx, vy;
+    if (S.mapMode === "old") {
+      if (!Number.isFinite(Number(p.rect_x1))) continue;
+      vx = (Number(p.rect_x1) + Number(p.rect_x2)) / 2 / MILLER_W;
+      vy = (Number(p.rect_y1) + Number(p.rect_y2)) / 2 / MILLER_W;
+    } else {
+      vx = Number(p.vx); vy = Number(p.vy);
+      if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
+    }
+    minVx = Math.min(minVx, vx); maxVx = Math.max(maxVx, vx);
+    minVy = Math.min(minVy, vy); maxVy = Math.max(maxVy, vy);
+  }
+  if (!count) return { vp: null, centVp: null, cLat: 0, cLng: 0, edgeLat: 0, edgeLng: 0 };
+  const cLat = sumLat / count, cLng = sumLng / count;
+  const centVp = interpolateTabulaVp(cLat, cLng);
+  const dLat = userLat - cLat, dLng = userLng - cLng;
+  let t = Infinity, hitBoundary = "none";
+  if (dLat > 0) { const tv = (maxLat - cLat) / dLat; if (tv < t) { t = tv; hitBoundary = "N"; } }
+  else if (dLat < 0) { const tv = (minLat - cLat) / dLat; if (tv < t) { t = tv; hitBoundary = "S"; } }
+  if (dLng > 0) { const tv = (maxLng - cLng) / dLng; if (tv < t) { t = tv; hitBoundary = "E"; } }
+  else if (dLng < 0) { const tv = (minLng - cLng) / dLng; if (tv < t) { t = tv; hitBoundary = "W"; } }
+  if (!Number.isFinite(t)) return { vp: centVp, centVp, cLat, cLng, edgeLat: cLat, edgeLng: cLng };
+  const edgeLat = Math.max(minLat, Math.min(maxLat, cLat + t * dLat));
+  const edgeLng = Math.max(minLng, Math.min(maxLng, cLng + t * dLng));
+  // B: restrict IDW to places within 500 km of the edge point
+  let vp = interpolateTabulaVp(edgeLat, edgeLng, 500);
+  // C: clamp to actual viewport boundary so crosshair lands on the visual map edge
+  if (vp && Number.isFinite(minVx)) {
+    vp = { ...vp };
+    if (hitBoundary === "N") vp.vy = minVy;
+    else if (hitBoundary === "S") vp.vy = maxVy;
+    else if (hitBoundary === "E") vp.vx = maxVx;
+    else if (hitBoundary === "W") vp.vx = minVx;
+  }
+  return { vp, centVp, cLat, cLng, edgeLat, edgeLng };
+}
+
+function compassBearing(fromLat, fromLng, toLat, toLng) {
+  const dLat = toLat - fromLat, dLng = toLng - fromLng;
+  const angle = Math.atan2(dLng, dLat) * 180 / Math.PI;
+  return ['N','NE','E','SE','S','SW','W','NW'][Math.round(((angle + 360) % 360) / 45) % 8];
+}
+
+// Pan + zoom to a viewport position with location-appropriate zoom level.
+function panToLocVp(vx, vy) {
+  if (!S.viewer?.viewport) return;
+  S.highlightVp = { vx, vy };
+  const hw = S.isMobile ? 0.10 : 0.036;
+  if (S.mapMode === "old") {
+    const millerAspect = MILLER_H / MILLER_W;
+    S.viewer.viewport.fitBounds(
+      new OpenSeadragon.Rect(vx - hw, vy - hw * millerAspect, hw * 2, hw * 2 * millerAspect)
+    );
+  } else {
+    const aspect = IMG_H / IMG_W;
+    S.viewer.viewport.fitBounds(
+      new OpenSeadragon.Rect(vx - hw, vy - hw * aspect, hw * 2, hw * 2 * aspect)
+    );
+  }
+}
+
 function setUserLocation(lat, lng, isDefault = false) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
+  // Area-type places (regions, peoples) span large geographic areas — exclude them
+  // from the coverage-distance check so distant users aren't misclassified as "inside".
+  const AREA_TYPES_LOC = new Set(["region", "roman_province", "modern_state", "people"]);
   let best = null, bestDist = Infinity;
+  let bestPoint = null, bestPointDist = Infinity;
   for (const p of pool) {
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
     const d = (lat - plat) ** 2 + (lng - plng) ** 2;
     if (d < bestDist) { bestDist = d; best = p; }
+    if (!AREA_TYPES_LOC.has(p.type) && d < bestPointDist) { bestPointDist = d; bestPoint = p; }
   }
 
   S.userLocLat = lat;
@@ -1502,32 +1660,49 @@ function setUserLocation(lat, lng, isDefault = false) {
     const name = best.latin_std || best.latin || "";
     const distKm = locDistKm(lat, lng, Number(best.lat), Number(best.lng));
     const distRound = Math.round(distKm);
+    // Use point-type distance for inside/outside decision
+    const coverDist = bestPoint
+      ? locDistKm(lat, lng, Number(bestPoint.lat), Number(bestPoint.lng))
+      : distKm;
 
     if (distKm <= LOCATE_SNAP_KM) {
-      // Close enough: snap to the ancient place
       S.userLocVp = placeVp(best);
       S.userLocLabel = name;
+      S.userLocOutside = false; S.userLocCentVp = null;
       startHighlight(best);
-      panToPlace(best, 0.08);
+      panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
       if (!S.isMobile) showInfoPanel(best);
       if (statusEl) { statusEl.textContent = prefix + `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(`${name} (~${distRound} km)`);
 
-    } else if (distKm <= LOCATE_MAX_DIST_KM) {
-      // Within Tabula world: interpolate between nearby places
+    } else if (coverDist <= LOCATE_MAX_DIST_KM) {
       S.userLocVp = interpolateTabulaVp(lat, lng);
       S.userLocLabel = `~${name}`;
-      if (S.userLocVp)
-        S.viewer.viewport.panTo(new OpenSeadragon.Point(S.userLocVp.vx, S.userLocVp.vy), true);
+      S.userLocOutside = false; S.userLocCentVp = null;
+      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
+      if (!S.isMobile) showInfoPanel(best);
       if (statusEl) { statusEl.textContent = prefix + `Interpolated — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(`~${name} (~${distRound} km)`);
 
     } else {
-      // Far outside coverage (>500 km): interpolate but do not pan
-      S.userLocVp = interpolateTabulaVp(lat, lng);
-      S.userLocLabel = `~${name}`;
+      const edgeResult = projectToTabulaEdge(lat, lng);
+      S.userLocVp = edgeResult.vp;
+      S.userLocCentVp = edgeResult.centVp;
+      S.userLocOutside = true;
+      S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
+      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
+      // A: find nearest point-type place to the edge position so info panel and crosshair agree.
+      let edgeBest = null, edgeBestDist = Infinity;
+      for (const p of pool) {
+        const plat = Number(p.lat), plng = Number(p.lng);
+        if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+        if (AREA_TYPES_LOC.has(p.type)) continue;
+        const d = locDistKm(edgeResult.edgeLat, edgeResult.edgeLng, plat, plng);
+        if (d < edgeBestDist) { edgeBestDist = d; edgeBest = p; }
+      }
+      if (!S.isMobile) showInfoPanel(edgeBest || best);
       if (statusEl) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
       if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
       showLocateMarkerPopup(`Outside (~${distRound} km)`);
@@ -1572,8 +1747,9 @@ async function openLocatePopup() {
   const lat = S.userLocLat ?? S.defaultLat;
   const lng = S.userLocLng ?? S.defaultLng;
 
+  const locateZoom = window.innerWidth >= 1000 ? 12 : 5;
   if (!_leafletMap) {
-    _leafletMap = L.map("locate-leaflet-map").setView([lat, lng], 10);
+    _leafletMap = L.map("locate-leaflet-map").setView([lat, lng], locateZoom);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
       maxZoom: 19,
@@ -1597,7 +1773,7 @@ async function openLocatePopup() {
     });
   } else {
     _leafletMarker.setLatLng([lat, lng]);
-    _leafletMap.setView([lat, lng], _leafletMap.getZoom());
+    _leafletMap.panTo([lat, lng]); // preserve user's zoom level on reopen
   }
   setTimeout(() => _leafletMap.invalidateSize(), 60);
 }
@@ -1606,20 +1782,26 @@ function closeLocatePopup() {
   document.getElementById("locate-map-popup").classList.add("hidden");
 }
 
-function acquireGps() {
-  if (!navigator.geolocation) { setUserLocation(S.defaultLat, S.defaultLng, true); return; }
+function acquireGps(openAfter = false) {
+  const done = () => { if (openAfter) openLocatePopup(); };
   const statusEl = document.getElementById("status");
   if (statusEl) statusEl.textContent = "Locating…";
+  if (!navigator.geolocation) {
+    setUserLocation(S.defaultLat, S.defaultLng, true);
+    done();
+    return;
+  }
   navigator.geolocation.getCurrentPosition(
-    pos => setUserLocation(pos.coords.latitude, pos.coords.longitude),
-    () => setUserLocation(S.defaultLat, S.defaultLng, true),
+    pos => { setUserLocation(pos.coords.latitude, pos.coords.longitude); done(); },
+    ()  => { setUserLocation(S.defaultLat, S.defaultLng, true); done(); },
     { timeout: 8000 }
   );
 }
 
 function locateMe() {
-  openLocatePopup();
-  acquireGps();
+  const statusEl = document.getElementById("status");
+  if (statusEl) statusEl.textContent = "Locating…";
+  acquireGps(true);
 }
 
 /* ============================================================
@@ -1992,8 +2174,8 @@ function setupInteraction() {
           showTooltip(place, clientX, clientY);
           lastHovered = place;
         } else {
-          tt.style.left = (clientX + 24) + "px";
-          tt.style.top  = (clientY - 20) + "px";
+          tt.style.left = (clientX + 18) + "px";
+          tt.style.top  = (clientY - 12) + "px";
         }
         return;
       }
@@ -2227,9 +2409,9 @@ async function resolveWikiArticle(terms, lang) {
   return null;
 }
 
-// Wikipedia REST summary API: returns the extract (first paragraph) for a resolved title.
-async function fetchWikiSummary(title, lang) {
-  const key = `sum\x00${lang}\x00${title}`;
+// Wikipedia REST summary API: returns { extract, thumbnail } for a resolved title.
+async function fetchWikiData(title, lang) {
+  const key = `data\x00${lang}\x00${title}`;
   if (wikiCache.has(key)) return wikiCache.get(key);
   try {
     const encodedTitle = encodeURIComponent(title.replace(/ /g, '_'));
@@ -2237,53 +2419,61 @@ async function fetchWikiSummary(title, lang) {
     const r = await fetch(url);
     if (!r.ok) { wikiCache.set(key, null); return null; }
     const d = await r.json();
-    const extract = d.extract || null;
-    wikiCache.set(key, extract);
-    return extract;
-  } catch (_) {
-    return null;
-  }
+    const result = { extract: d.extract || null, thumbnail: d.thumbnail?.source || null };
+    wikiCache.set(key, result);
+    wikiCache.set(`sum\x00${lang}\x00${title}`, result.extract); // backward-compat key
+    return result;
+  } catch (_) { return null; }
 }
 
-// Fetches a Wikipedia summary directly from a known URL (for hard-linked wiki_url entries).
-async function resolveWikiSummaryFromUrl(reqId, summaryEl, url) {
-  if (!summaryEl) return;
-  const m = url.match(/https?:\/\/([a-z]+)\.wikipedia\.org\/wiki\/(.+)/);
-  if (!m) return;
-  const lang = m[1], title = decodeURIComponent(m[2].replace(/_/g, ' '));
-  const extract = await fetchWikiSummary(title, lang);
-  if (wikiRequestId !== reqId) return;
-  if (!extract) return;
-  let text = extract;
-  if (text.length > 300) {
-    const match = text.match(/^.{60,280}[.!?]/);
-    text = match ? match[0] : text.slice(0, 280).replace(/\s+\S*$/, '') + '…';
-  }
-  summaryEl.textContent = text;
-  summaryEl.classList.remove("hidden");
+async function fetchWikiSummary(title, lang) {
+  const data = await fetchWikiData(title, lang);
+  return data?.extract || null;
 }
 
-// Async: resolves Wikipedia article URL and fetches the summary, updating the panel live.
-async function resolveWikiAndUpdate(reqId, linkEl, summaryEl, terms, lang) {
-  const article = await resolveWikiArticle(terms, lang);
-  if (wikiRequestId !== reqId) return; // panel changed while fetching
-  if (!article) return;
-
-  linkEl.href = article.url;
-
-  if (!summaryEl) return;
-  const extract = await fetchWikiSummary(article.title, lang);
-  if (wikiRequestId !== reqId) return;
-  if (!extract) return;
-
-  // Show the first sentence(s), capped at ~280 chars
-  let text = extract;
+function applyWikiData(data, summaryEl) {
+  if (!data?.extract) return;
+  let text = data.extract;
   if (text.length > 300) {
     const m = text.match(/^.{60,280}[.!?]/);
     text = m ? m[0] : text.slice(0, 280).replace(/\s+\S*$/, '') + '…';
   }
   summaryEl.textContent = text;
   summaryEl.classList.remove("hidden");
+  const imgEl = document.getElementById("panel-wiki-img");
+  const section = document.getElementById("panel-wiki-section");
+  if (imgEl && data.thumbnail) {
+    imgEl.src = data.thumbnail;
+    imgEl.classList.remove("hidden");
+    if (section) section.classList.add("has-image");
+  } else if (imgEl) {
+    imgEl.src = "";
+    imgEl.classList.add("hidden");
+    if (section) section.classList.remove("has-image");
+  }
+}
+
+// Fetches Wikipedia summary directly from a known wiki_url in the DB.
+async function resolveWikiSummaryFromUrl(reqId, summaryEl, url) {
+  if (!summaryEl) return;
+  const m = url.match(/https?:\/\/([a-z]+)\.wikipedia\.org\/wiki\/(.+)/);
+  if (!m) return;
+  const lang = m[1], title = decodeURIComponent(m[2].replace(/_/g, ' '));
+  const data = await fetchWikiData(title, lang);
+  if (wikiRequestId !== reqId) return;
+  applyWikiData(data, summaryEl);
+}
+
+// Async: resolves Wikipedia article URL and fetches summary + thumbnail, updating the panel live.
+async function resolveWikiAndUpdate(reqId, linkEl, summaryEl, terms, lang) {
+  const article = await resolveWikiArticle(terms, lang);
+  if (wikiRequestId !== reqId) return;
+  if (!article) return;
+  linkEl.href = article.url;
+  if (!summaryEl) return;
+  const data = await fetchWikiData(article.title, lang);
+  if (wikiRequestId !== reqId) return;
+  applyWikiData(data, summaryEl);
 }
 
 // Rough bounding boxes (minLat, maxLat, minLng, maxLng) ordered smallest→largest so
@@ -2668,6 +2858,74 @@ function initSettingsPanel() {
 }
 
 /* ============================================================
+   Resizable panels
+   ============================================================ */
+function initResizablePanels() {
+  function makeHandle(panel, cls, minW, minH, onResize) {
+    const h = document.createElement("div");
+    h.className = "resize-handle " + cls;
+    panel.appendChild(h);
+    h.addEventListener("mousedown", e => {
+      e.preventDefault();
+      const sx = e.clientX, sy = e.clientY;
+      const sw = panel.offsetWidth, sh = panel.offsetHeight;
+      const onMove = e => {
+        const dx = e.clientX - sx, dy = e.clientY - sy;
+        const newW = Math.max(minW, cls === "resize-bl" ? sw - dx : sw + dx);
+        const newH = Math.max(minH, sh + dy);
+        panel.style.width  = newW + "px";
+        panel.style.height = newH + "px";
+        if (onResize) onResize();
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup",   onUp);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup",   onUp);
+    });
+  }
+
+  function makeDraggable(panel, handle) {
+    handle.addEventListener("mousedown", e => {
+      if (e.target.closest("button, a, input, select")) return;
+      e.preventDefault();
+      const pr = panel.getBoundingClientRect();
+      const cr = (panel.offsetParent || document.documentElement).getBoundingClientRect();
+      const initLeft = pr.left - cr.left, initTop = pr.top - cr.top;
+      const sx = e.clientX, sy = e.clientY;
+      // Convert from right-anchored to left-anchored once
+      panel.style.left  = initLeft + "px";
+      panel.style.right = "auto";
+      panel.style.top   = initTop  + "px";
+      const onMove = e => {
+        panel.style.left = Math.max(0, initLeft + e.clientX - sx) + "px";
+        panel.style.top  = Math.max(0, initTop  + e.clientY - sy) + "px";
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup",   onUp);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup",   onUp);
+    });
+  }
+
+  const locPopup = document.getElementById("locate-map-popup");
+  if (locPopup) {
+    makeHandle(locPopup, "resize-br", 220, 200, () => { if (_leafletMap) _leafletMap.invalidateSize(); });
+    const locHeader = document.getElementById("locate-map-header");
+    if (locHeader) makeDraggable(locPopup, locHeader);
+  }
+  const infoPanel = document.getElementById("info-panel");
+  if (infoPanel) {
+    makeHandle(infoPanel, "resize-bl", 260, 120, null);
+    const dragBar = document.getElementById("panel-drag-bar");
+    if (dragBar) makeDraggable(infoPanel, dragBar);
+  }
+}
+
+/* ============================================================
    Initialisation
    ============================================================ */
 async function init() {
@@ -2812,7 +3070,7 @@ async function init() {
     renderMarkers();
   }, 500);
 
-  window.addEventListener("resize", () => { sizeCanvas(); renderMarkers(); });
+  window.addEventListener("resize", () => { sizeCanvas(); renderMarkers(); if (_leafletMap) _leafletMap.invalidateSize(); });
 
   // Setup UI
   await loadLabelParams();
@@ -2822,6 +3080,7 @@ async function init() {
   setupSearch();
   setupInteraction();
   initSettingsPanel();
+  initResizablePanels();
   applyI18n(); // apply language to About panel content and type filter labels
 
   console.log(`Tabula Peutingeriana loaded: ${S.places.length} seg4 places, ${S.millerCalib.length} Miller calibrations`);

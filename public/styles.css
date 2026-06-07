@@ -178,7 +178,7 @@ body, html {
   border-radius: 8px; padding: 16px 16px 12px; z-index: 30;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   pointer-events: auto;
-  overflow-y: auto;
+  overflow: auto;
   max-height: calc(100vh - 80px);
 }
 #close-panel {
@@ -199,8 +199,8 @@ body, html {
 /* Segment badge row (close button padding handled by position:absolute) */
 #panel-top-row { display: flex; align-items: center; margin-bottom: 4px; padding-right: 22px; }
 #panel-segment-badge { font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 4px; padding: 3px 8px; white-space: nowrap; }
-/* Links row: standalone block below the type badge */
-#panel-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+/* Links row: left side of the wiki-bottom row */
+#panel-links { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
 .panel-link { font-size: 16px; color: var(--accent); text-decoration: none; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); border-radius: 4px; padding: 4px 10px; }
 #panel-ulm-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 14px; margin-bottom: 4px; }
 .panel-link:hover { background: rgba(59,130,246,0.2); text-decoration: none; }
@@ -213,7 +213,23 @@ body, html {
 #panel-names { margin-bottom: 8px; }
 #panel-latin { font-size: 20px; font-weight: 700; line-height: 1.25; margin-bottom: 3px; }
 #panel-modern { font-size: 20px; font-weight: 600; color: var(--text-muted); line-height: 1.25; }
-#panel-wiki-summary { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-top: 8px; }
+/* Wiki section: summary full-width, then links+image row below */
+#panel-wiki-section { margin-top: 10px; }
+#panel-wiki-summary { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-bottom: 8px; }
+#panel-wiki-bottom { display: flex; gap: 10px; align-items: flex-start; margin-top: 6px; }
+#panel-wiki-img {
+  flex: 0 0 66%; max-width: 66%; max-height: 200px;
+  border-radius: 6px; object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.15);
+  display: block;
+}
+/* Drag bar at top of info panel */
+#panel-drag-bar {
+  position: absolute; top: 0; left: 0; right: 0; height: 22px;
+  cursor: move; z-index: 1; border-radius: 8px 8px 0 0;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.04), transparent);
+}
+#locate-map-header { cursor: move; }
 #panel-country { font-size: 14px; margin: 6px 0 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 #panel-country img { height: 1em; vertical-align: middle; border-radius: 1px; }
 #panel-type { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-weight: 600; font-size: 16px; }
@@ -255,21 +271,21 @@ body, html {
 
 /* Tooltip */
 #tooltip {
-  position: absolute; background: rgba(0, 0, 0, 0.88); color: #fff;
-  padding: 10px 16px; border-radius: 8px; pointer-events: none; z-index: 20;
-  font-size: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.12);
-  max-width: 360px;
+  position: absolute; background: rgba(0, 0, 0, 0.90); color: #fff;
+  padding: 12px 18px; border-radius: 8px; pointer-events: none; z-index: 20;
+  font-size: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.14);
+  max-width: 380px;
 }
-#tooltip.tt-rich { max-width: 360px; padding: 12px 16px; }
-.tt-latin { font-weight: 600; font-size: 18px; margin-bottom: 3px; }
-.tt-modern { color: #ddd; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
-.tt-type { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #bbb; margin-bottom: 4px; margin-top: 6px; }
+#tooltip.tt-rich { max-width: 380px; padding: 14px 18px; }
+.tt-latin { font-weight: 700; font-size: 20px; margin-bottom: 4px; }
+.tt-modern { color: #ddd; margin-bottom: 6px; font-size: 15px; font-weight: 500; }
+.tt-type { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #bbb; margin-bottom: 4px; margin-top: 6px; }
 .tt-type-icon { font-size: 1.5em; line-height: 1; }
 .tt-country { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #fff; margin-bottom: 2px; }
 .tt-country img { height: 1.2em; vertical-align: middle; border-radius: 2px; }
 .tt-country-name { font-weight: 500; }
-.tt-detail { font-size: 13px; color: #999; margin-top: 2px; }
-.tt-detail span { color: #ccc; }
+.tt-detail { font-size: 13px; color: #aaa; margin-top: 3px; }
+.tt-detail span { color: #ddd; }
 
 /* Region-solo button — standalone below type filters, dashed border signals "area" */
 #region-solo-btn { align-self: flex-start; margin-top: 4px; border-style: dashed !important; color: #a78bfa !important; }
@@ -480,7 +496,8 @@ body, html {
 #locate-map-popup {
   position: absolute;
   top: 10px; left: 60px;
-  width: 300px;
+  width: 300px; height: 320px;
+  display: flex; flex-direction: column;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -489,21 +506,46 @@ body, html {
   pointer-events: auto;
   overflow: hidden;
 }
+@media (min-width: 1000px) {
+  #locate-map-popup { width: 600px; height: 580px; }
+}
+/* Mobile portrait: nearly full-width, decent height */
+@media (max-width: 600px) and (orientation: portrait) {
+  #locate-map-popup { left: 8px; width: calc(100vw - 16px); height: 280px; }
+}
+/* Mobile landscape: narrower to leave room on the right */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  #locate-map-popup { width: 260px; height: 200px; }
+}
+/* Custom resize handles */
+.resize-handle { position: absolute; bottom: 0; width: 20px; height: 20px; z-index: 10; }
+.resize-handle.resize-br {
+  right: 0; cursor: se-resize;
+  background: linear-gradient(135deg, transparent 52%, rgba(200,160,80,0.7) 52%);
+  border-bottom-right-radius: 7px;
+}
+.resize-handle.resize-bl {
+  left: 0; cursor: sw-resize;
+  background: linear-gradient(225deg, transparent 52%, rgba(200,160,80,0.7) 52%);
+  border-bottom-left-radius: 7px;
+}
 #locate-map-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 10px 8px 14px;
   border-bottom: 1px solid var(--border-color);
   font-size: 12px; font-weight: 600;
+  flex-shrink: 0;
 }
 #locate-map-close {
   background: transparent; border: none; color: var(--text-muted);
   font-size: 22px; cursor: pointer; line-height: 1; padding: 0 2px;
 }
 #locate-map-close:hover { color: #fff; }
-#locate-leaflet-map { width: 100%; height: 260px; }
+#locate-leaflet-map { width: 100%; flex: 1; min-height: 0; }
 #locate-map-hint {
   font-size: 10px; color: var(--text-muted);
   margin: 4px 12px 6px; text-align: center;
+  flex-shrink: 0;
 }
 /* Compact Leaflet popup for locate marker */
 .locate-popup .leaflet-popup-content-wrapper {

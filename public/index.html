@@ -6,8 +6,8 @@
 
   <!-- Primary SEO -->
   <title>Tabula Peutingeriana — Interactive Ancient Roman Road Map</title>
-  <meta name="description" content="Explore the Tabula Peutingeriana — the world's most detailed surviving Roman road map (4th–5th century AD). Interactive zoomable viewer with 3,500+ annotated ancient places, cities, road stations, rivers and provinces across the known Roman world." />
-  <meta name="keywords" content="Tabula Peutingeriana, Roman road map, ancient Rome, Roman cartography, medieval map, Roman roads, via romana, ancient geography, Roman Empire map, Peutinger map, Peutingersche Tafel, antique map viewer, OmnesViae, Roman places, ancient cities" />
+  <meta name="description" content="Explore the Tabula Peutingeriana — the world's most detailed surviving Roman road map (4th–5th c. AD). Interactive zoomable viewer with 3,500+ annotated places. Locate yourself on the ancient Roman world with GPS — find your nearest Roman road station, city or province." />
+  <meta name="keywords" content="Tabula Peutingeriana, Roman road map, ancient Rome, Roman cartography, medieval map, Roman roads, via romana, ancient geography, Roman Empire map, Peutinger map, Peutingersche Tafel, antique map viewer, OmnesViae, Roman places, ancient cities, GPS location, locate me on map, ancient Roman GPS" />
   <meta name="author" content="three-mills.com" />
   <link rel="canonical" href="https://tabula-peutingeriana.com/" />
   <meta name="robots" content="index, follow" />
@@ -16,7 +16,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://tabula-peutingeriana.com/" />
   <meta property="og:title" content="Tabula Peutingeriana — Interactive Ancient Roman Road Map" />
-  <meta property="og:description" content="Explore the Tabula Peutingeriana — the world's most detailed surviving Roman road map (4th–5th c. AD). Zoomable viewer with 3,500+ annotated ancient places across the Roman world, from Britain to India." />
+  <meta property="og:description" content="Explore the Tabula Peutingeriana — the world's most detailed surviving Roman road map (4th–5th c. AD). Zoomable viewer with 3,500+ annotated ancient places across the Roman world, from Britain to India. Now with GPS: locate yourself on the ancient Roman world!" />
   <meta property="og:image" content="https://tabula-peutingeriana.com/og-image.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -27,7 +27,7 @@
   <!-- Twitter / X Cards -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Tabula Peutingeriana — Interactive Ancient Roman Road Map" />
-  <meta name="twitter:description" content="Zoomable viewer of the 4th-century Roman road map with 3,500+ annotated cities, road stations, rivers and provinces." />
+  <meta name="twitter:description" content="Zoomable viewer of the 4th-century Roman road map with 3,500+ annotated cities, road stations, rivers and provinces. Use GPS to see your ancient Roman equivalent location!" />
   <meta name="twitter:image" content="https://tabula-peutingeriana.com/og-image.jpg" />
 
   <!-- Structured data — WebApplication -->
@@ -143,6 +143,7 @@
 
     <!-- Click info panel -->
     <aside id="info-panel" class="hidden">
+      <div id="panel-drag-bar" title="Drag to move"></div>
       <a id="panel-email-btn" href="#" aria-label="Send email about this place" title="Send email about this place"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M2 7l8 5 8-5"/></svg></a>
       <button id="close-panel" aria-label="Close">&times;</button>
       <div id="panel-top-row">
@@ -151,15 +152,20 @@
       <div id="panel-names">
         <div id="panel-latin"></div>
         <div id="panel-modern"></div>
-        <div id="panel-wiki-summary" class="hidden"></div>
       </div>
       <div id="panel-country" class="hidden"></div>
       <div id="panel-type"><span class="type-icon"></span><span class="type-dot"></span><span class="type-label"></span></div>
-      <div id="panel-links">
-        <a id="panel-wiki-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Wikipedia ↗</a>
-        <a id="panel-tp-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Ulm DB ↗</a>
-      </div>
       <dl id="panel-details"></dl>
+      <div id="panel-wiki-section">
+        <div id="panel-wiki-summary" class="hidden"></div>
+        <div id="panel-wiki-bottom">
+          <div id="panel-links">
+            <a id="panel-wiki-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Wikipedia ↗</a>
+            <a id="panel-tp-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Ulm DB ↗</a>
+          </div>
+          <img id="panel-wiki-img" class="hidden" alt="" loading="lazy" />
+        </div>
+      </div>
       <div id="panel-map" class="hidden"></div>
       <div id="panel-ulm-label" class="hidden" data-i18n="tabula_view_label">Original Tabula Peutingeriana view</div>
       <div id="panel-ulm-section" class="hidden">
@@ -216,6 +222,11 @@
       <section class="about-section">
         <h3 data-i18n="about_hist_h">History of the Document</h3>
         <p data-i18n="about_hist_p">The map was copied around 1200 AD by a monk in Colmar (Alsace), likely from an earlier Carolingian copy of a late antique original. Konrad Celtes discovered it in 1494 and passed it to Konrad Peutinger of Augsburg, who gave it its modern name. After Peutinger's death it passed through various hands before entering the Imperial Library in Vienna in 1738, where it remains today.</p>
+      </section>
+
+      <section class="about-section">
+        <h3>Locate Yourself on the Map</h3>
+        <p>Press the crosshair button (&#9678;) to place yourself on the ancient Roman world. The viewer uses your GPS position — or lets you pick a location manually on the interactive map — and navigates to the nearest Roman road station, city, or province, with a Wikipedia preview. If you are outside the Tabula's coverage area (e.g. in the Americas, Australia, or East Asia), a direction marker appears at the corresponding edge of the map, so you can always see where you stand relative to the Roman world.</p>
       </section>
 
       <section class="about-section about-links-section">
@@ -347,6 +358,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260607l"></script>
+  <script src="main.js?v=20260607s"></script>
 </body>
 </html>

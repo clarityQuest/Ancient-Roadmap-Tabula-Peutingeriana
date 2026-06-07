@@ -12,11 +12,12 @@ The [Tabula Peutingeriana](https://en.wikipedia.org/wiki/Tabula_Peutingeriana) i
 
 - **Dual-map viewer** — switch between the original Miller 1887 facsimile and the Readable Segment IV edition
 - **3 800+ place database** sourced from [tabula-peutingeriana.de](https://www.tabula-peutingeriana.de/) (M. Weber) and the Ulm tp-online database
+- **Locate Me** — press the crosshair button to place yourself on the ancient Roman world using GPS or by clicking the interactive map; the viewer navigates to the nearest Roman road station or city with a Wikipedia preview; users outside the Tabula's coverage area (Americas, Australia, East Asia) see a direction marker at the corresponding map edge
 - **Category filters** — Major City, City, Port, Road Station, River, Lake, Island, Spa/Bath, Mountain, People/Tribes, Region, Roman Province, and more
 - **Place labels** — modern name inside each marker, Latin name below; toggle on/off
 - **Select All / deselect** toggle for all category filters at once
 - **Search** by Latin or modern place name
-- **Info panel** — click any marker for details and a direct link to the Ulm database entry
+- **Info panel** — click any marker for details, Wikipedia summary + thumbnail, and a direct link to the Ulm database entry
 - **Calibration tool** (`calibrate.html`) — mark precise pixel positions of places on the Miller map; auto-saves to the database via the local dev server
 - **Database viewer** (`database_viewer.html`) — browse, filter, and inspect all records
 
