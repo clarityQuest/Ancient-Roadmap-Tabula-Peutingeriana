@@ -1394,7 +1394,43 @@ function panToPlace(place) {
 let _leafletMap = null;
 let _leafletMarker = null;
 
-const LOCATE_MAX_DIST_KM = 1500;
+const LOCATE_SNAP_KM    = 15;    // snap to nearest place within this distance
+const LOCATE_MAX_DIST_KM = 1500;  // no crosshair beyond this (outside coverage)
+
+function locDistKm(lat1, lng1, lat2, lng2) {
+  const dlat = lat1 - lat2;
+  const dlng = (lng1 - lng2) * Math.cos((lat1 + lat2) / 2 * Math.PI / 180);
+  return Math.sqrt(dlat * dlat + dlng * dlng) * 111.32;
+}
+
+function interpolateTabulaVp(lat, lng) {
+  const pool = S.mapMode === "old" ? S.millerCalib : S.places;
+  const candidates = [];
+  for (const p of pool) {
+    const plat = Number(p.lat), plng = Number(p.lng);
+    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+    let vx, vy;
+    if (S.mapMode === "old") {
+      if (!Number.isFinite(Number(p.rect_x1))) continue;
+      vx = (Number(p.rect_x1) + Number(p.rect_x2)) / 2 / MILLER_W;
+      vy = (Number(p.rect_y1) + Number(p.rect_y2)) / 2 / MILLER_W;
+    } else {
+      vx = Number(p.vx); vy = Number(p.vy);
+      if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
+    }
+    const d = locDistKm(lat, lng, plat, plng);
+    candidates.push({ d, vx, vy });
+  }
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => a.d - b.d);
+  const top = candidates.slice(0, 8);
+  let sumW = 0, sumVx = 0, sumVy = 0;
+  for (const c of top) {
+    const w = 1 / Math.max(c.d, 0.1) ** 2;
+    sumW += w; sumVx += w * c.vx; sumVy += w * c.vy;
+  }
+  return { vx: sumVx / sumW, vy: sumVy / sumW };
+}
 
 function setUserLocation(lat, lng, isDefault = false) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
@@ -1411,27 +1447,39 @@ function setUserLocation(lat, lng, isDefault = false) {
 
   const statusEl = document.getElementById("status");
   const hint = document.getElementById("locate-map-hint");
+  const prefix = isDefault ? "Default location — " : "";
 
   if (best) {
     const name = best.latin_std || best.latin || "";
-    const distKm = Math.round(Math.sqrt((lat - Number(best.lat)) ** 2 + (lng - Number(best.lng)) ** 2) * 111);
+    const distKm = locDistKm(lat, lng, Number(best.lat), Number(best.lng));
+    const distRound = Math.round(distKm);
 
-    if (distKm <= LOCATE_MAX_DIST_KM) {
-      // Within coverage: navigate, show crosshair, open info panel
+    if (distKm <= LOCATE_SNAP_KM) {
+      // Close enough: snap to the place
       panToPlace(best);
       S.userLocVp = S.highlightVp ? { ...S.highlightVp } : null;
       startHighlight(best);
       showInfoPanel(best);
       if (statusEl) {
-        statusEl.textContent = (isDefault ? "Default location — " : "") + `Nearest on Tabula: ${name} (~${distKm} km)`;
+        statusEl.textContent = prefix + `At ${name} (~${distRound} km)`;
         setTimeout(() => { statusEl.textContent = ""; }, 6000);
       }
       if (hint) hint.textContent = "Click map or drag marker to set location";
+
+    } else if (distKm <= LOCATE_MAX_DIST_KM) {
+      // Within Tabula world but not near a named place: interpolate
+      S.userLocVp = interpolateTabulaVp(lat, lng);
+      if (statusEl) {
+        statusEl.textContent = prefix + `Interpolated position (nearest: ${name} ~${distRound} km)`;
+        setTimeout(() => { statusEl.textContent = ""; }, 6000);
+      }
+      if (hint) hint.textContent = "Click map or drag marker to set location";
+
     } else {
-      // Outside coverage: clear crosshair, warn user
+      // Outside Tabula coverage
       S.userLocVp = null;
       if (statusEl) {
-        statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distKm} km)`;
+        statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`;
         setTimeout(() => { statusEl.textContent = ""; }, 8000);
       }
       if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
