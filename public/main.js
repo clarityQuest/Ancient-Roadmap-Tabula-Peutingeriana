@@ -94,7 +94,7 @@ const I18N = {
     water: "Water", spa: "Spa", temple: "Temple", mountain: "Mountain",
     people: "People",
     province: "Province",
-    wiki_link: "Wikipedia ↗", ulm_link: "Ulm DB ↗",
+    wiki_link: "Wikipedia ↗", ulm_link: "Scientific Info/Ulm DB ↗",
     unknown_modern: "(unknown modern name)",
     wiki_lang: "en",
     tabula_view_label: "Original Tabula Peutingeriana view",
@@ -124,7 +124,7 @@ const I18N = {
     water: "Gewässer", spa: "Heilbad", temple: "Tempel", mountain: "Berg",
     people: "Volk",
     province: "Provinz",
-    wiki_link: "Wikipedia ↗", ulm_link: "Ulm DB ↗",
+    wiki_link: "Wikipedia ↗", ulm_link: "Wiss. Info/Ulm DB ↗",
     unknown_modern: "(moderner Name unbekannt)",
     wiki_lang: "de",
     tabula_view_label: "Originalansicht der Tabula Peutingeriana",
@@ -1523,26 +1523,48 @@ function locDistKm(lat1, lng1, lat2, lng2) {
 // maxDistKm: when set, only use places within that radius for IDW (B: keeps edge crosshair
 // on the map's visual perimeter by excluding distant interior places from the weight pool).
 function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
-  const pool = S.mapMode === "old" ? S.millerCalib : S.places;
+  const millerAspect = MILLER_H / MILLER_W;
   const candidates = [];
-  for (const p of pool) {
-    const plat = Number(p.lat), plng = Number(p.lng);
-    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-    let vx, vy;
-    if (S.mapMode === "old") {
+
+  if (S.mapMode === "old") {
+    // Primary: calibrated places (precise positions, full weight)
+    for (const p of S.millerCalib) {
+      const plat = Number(p.lat), plng = Number(p.lng);
+      if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
       if (!Number.isFinite(Number(p.rect_x1))) continue;
-      vx = (Number(p.rect_x1) + Number(p.rect_x2)) / 2 / MILLER_W;
-      vy = (Number(p.rect_y1) + Number(p.rect_y2)) / 2 / MILLER_W;
-    } else {
-      vx = Number(p.vx); vy = Number(p.vy);
-      if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
+      const vx = (Number(p.rect_x1) + Number(p.rect_x2)) / 2 / MILLER_W;
+      const vy = (Number(p.rect_y1) + Number(p.rect_y2)) / 2 / MILLER_W;
+      const d = locDistKm(lat, lng, plat, plng);
+      candidates.push({ d, vx, vy, w: 1.0 });
     }
-    const d = locDistKm(lat, lng, plat, plng);
-    candidates.push({ d, vx, vy });
+    // Secondary: segment/row estimates from all records (coarse but covers all segments)
+    // Weight 0.15 — dominant only when no calibrated places are nearby.
+    if (S.allRecords.length) {
+      const rowMap = { a: 1 / 6, b: 1 / 2, c: 5 / 6 };
+      for (const p of S.allRecords) {
+        const plat = Number(p.lat), plng = Number(p.lng);
+        if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+        const seg = Number(p.tabula_segment);
+        if (!Number.isFinite(seg) || seg < 2 || seg > 12) continue;
+        const vx = ((seg - 2) + 0.5) / 11;
+        const vy = (rowMap[p.tabula_row] ?? 0.5) * millerAspect;
+        const d = locDistKm(lat, lng, plat, plng);
+        candidates.push({ d, vx, vy, w: 0.15 });
+      }
+    }
+  } else {
+    for (const p of S.places) {
+      const plat = Number(p.lat), plng = Number(p.lng);
+      if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+      const vx = Number(p.vx), vy = Number(p.vy);
+      if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
+      const d = locDistKm(lat, lng, plat, plng);
+      candidates.push({ d, vx, vy, w: 1.0 });
+    }
   }
+
   if (!candidates.length) return null;
   candidates.sort((a, b) => a.d - b.d);
-  // B: restrict to nearby places; fall back to closest 3 if too few pass the filter.
   let top;
   if (maxDistKm < Infinity) {
     const nearby = candidates.filter(c => c.d <= maxDistKm);
@@ -1552,27 +1574,37 @@ function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
   }
   let sumW = 0, sumVx = 0, sumVy = 0;
   for (const c of top) {
-    const w = 1 / Math.max(c.d, 0.1) ** 2;
+    const w = c.w / Math.max(c.d, 0.1) ** 2;
     sumW += w; sumVx += w * c.vx; sumVy += w * c.vy;
   }
-  return { vx: sumVx / sumW, vy: sumVy / sumW };
+  return sumW > 0 ? { vx: sumVx / sumW, vy: sumVy / sumW } : null;
 }
 
 // Projects a real-world location onto the edge of the Tabula's geographic bbox.
 // Returns { vp, centVp, cLat, cLng, edgeLat, edgeLng } — edge viewport position,
 // centroid VP, and centroid lat/lng for compass/arrow direction.
 function projectToTabulaEdge(userLat, userLng) {
-  const pool = S.mapMode === "old" ? S.millerCalib : S.places;
+  const vpPool = S.mapMode === "old" ? S.millerCalib : S.places;
+  // Use all known Roman places for the geographic bbox — gives full Tabula coverage
+  // (including uncalibrated segments like Iberia) for correct edge projection.
+  const geoPool = S.allRecords.length ? S.allRecords : vpPool;
+  const millerAspect = MILLER_H / MILLER_W;
+
+  // Geographic bbox from all records
   let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-  let minVx = Infinity, maxVx = -Infinity, minVy = Infinity, maxVy = -Infinity;
   let sumLat = 0, sumLng = 0, count = 0;
-  for (const p of pool) {
+  for (const p of geoPool) {
     const lat = Number(p.lat), lng = Number(p.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
     minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
     minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
     sumLat += lat; sumLng += lng; count++;
-    // Track viewport extremes for edge clamping (C)
+  }
+  if (!count) return { vp: null, centVp: null, cLat: 0, cLng: 0, edgeLat: 0, edgeLng: 0 };
+
+  // Viewport bbox: calibrated/placed positions (C — edge clamping)
+  let minVx = Infinity, maxVx = -Infinity, minVy = Infinity, maxVy = -Infinity;
+  for (const p of vpPool) {
     let vx, vy;
     if (S.mapMode === "old") {
       if (!Number.isFinite(Number(p.rect_x1))) continue;
@@ -1585,7 +1617,20 @@ function projectToTabulaEdge(userLat, userLng) {
     minVx = Math.min(minVx, vx); maxVx = Math.max(maxVx, vx);
     minVy = Math.min(minVy, vy); maxVy = Math.max(maxVy, vy);
   }
-  if (!count) return { vp: null, centVp: null, cLat: 0, cLng: 0, edgeLat: 0, edgeLng: 0 };
+  // Extend viewport bbox with segment/row estimates (Miller mode) so edge clamping
+  // reaches uncalibrated segments like Iberia or the far east.
+  if (S.mapMode === "old" && S.allRecords.length) {
+    const rowMap = { a: 1 / 6, b: 1 / 2, c: 5 / 6 };
+    for (const p of S.allRecords) {
+      const seg = Number(p.tabula_segment);
+      if (!Number.isFinite(seg) || seg < 2 || seg > 12) continue;
+      const vx = ((seg - 2) + 0.5) / 11;
+      const vy = (rowMap[p.tabula_row] ?? 0.5) * millerAspect;
+      minVx = Math.min(minVx, vx); maxVx = Math.max(maxVx, vx);
+      minVy = Math.min(minVy, vy); maxVy = Math.max(maxVy, vy);
+    }
+  }
+
   const cLat = sumLat / count, cLng = sumLng / count;
   const centVp = interpolateTabulaVp(cLat, cLng);
   const dLat = userLat - cLat, dLng = userLng - cLng;
@@ -1597,7 +1642,6 @@ function projectToTabulaEdge(userLat, userLng) {
   if (!Number.isFinite(t)) return { vp: centVp, centVp, cLat, cLng, edgeLat: cLat, edgeLng: cLng };
   const edgeLat = Math.max(minLat, Math.min(maxLat, cLat + t * dLat));
   const edgeLng = Math.max(minLng, Math.min(maxLng, cLng + t * dLng));
-  // B: restrict IDW to places within 500 km of the edge point
   let vp = interpolateTabulaVp(edgeLat, edgeLng, 500);
   // C: clamp to actual viewport boundary so crosshair lands on the visual map edge
   if (vp && Number.isFinite(minVx)) {
@@ -1620,7 +1664,7 @@ function compassBearing(fromLat, fromLng, toLat, toLng) {
 function panToLocVp(vx, vy) {
   if (!S.viewer?.viewport) return;
   S.highlightVp = { vx, vy };
-  const hw = S.isMobile ? 0.10 : 0.036;
+  const hw = S.isMobile ? 0.011 : 0.033;
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
     S.viewer.viewport.fitBounds(
@@ -1635,18 +1679,31 @@ function panToLocVp(vx, vy) {
 }
 
 function setUserLocation(lat, lng, isDefault = false) {
-  const pool = S.mapMode === "old" ? S.millerCalib : S.places;
-  // Area-type places (regions, peoples) span large geographic areas — exclude them
-  // from the coverage-distance check so distant users aren't misclassified as "inside".
+  const vpPool = S.mapMode === "old" ? S.millerCalib : S.places;
+  // Use all known Roman places for geographic proximity check — this covers all Tabula
+  // segments (including uncalibrated Iberia, etc.) so the inside/outside decision is
+  // based on real coverage, not just which places happen to be calibrated.
+  const geoPool = S.allRecords.length ? S.allRecords : vpPool;
   const AREA_TYPES_LOC = new Set(["region", "roman_province", "modern_state", "people"]);
+
+  // best/bestPoint from vpPool — used for navigation (needs valid vx/vy for highlight)
   let best = null, bestDist = Infinity;
   let bestPoint = null, bestPointDist = Infinity;
-  for (const p of pool) {
+  for (const p of vpPool) {
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
     const d = (lat - plat) ** 2 + (lng - plng) ** 2;
     if (d < bestDist) { bestDist = d; best = p; }
     if (!AREA_TYPES_LOC.has(p.type) && d < bestPointDist) { bestPointDist = d; bestPoint = p; }
+  }
+  // geoPoint from allRecords — nearest non-area place by real geography (for coverage decision + info panel)
+  let geoPoint = null, geoPointDist = Infinity;
+  for (const p of geoPool) {
+    const plat = Number(p.lat), plng = Number(p.lng);
+    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+    if (AREA_TYPES_LOC.has(p.type)) continue;
+    const d = locDistKm(lat, lng, plat, plng);
+    if (d < geoPointDist) { geoPointDist = d; geoPoint = p; }
   }
 
   S.userLocLat = lat;
@@ -1656,14 +1713,13 @@ function setUserLocation(lat, lng, isDefault = false) {
   const hint = document.getElementById("locate-map-hint");
   const prefix = isDefault ? "Default location — " : "";
 
-  if (best) {
-    const name = best.latin_std || best.latin || "";
-    const distKm = locDistKm(lat, lng, Number(best.lat), Number(best.lng));
+  if (best || geoPoint) {
+    const refPlace = best || geoPoint;
+    const name = (geoPoint || best).latin_std || (geoPoint || best).latin || "";
+    const distKm = locDistKm(lat, lng, Number(refPlace.lat), Number(refPlace.lng));
     const distRound = Math.round(distKm);
-    // Use point-type distance for inside/outside decision
-    const coverDist = bestPoint
-      ? locDistKm(lat, lng, Number(bestPoint.lat), Number(bestPoint.lng))
-      : distKm;
+    // Coverage decision uses geographic distance to nearest known place (any segment)
+    const coverDist = geoPointDist < Infinity ? geoPointDist : distKm;
 
     if (distKm <= LOCATE_SNAP_KM) {
       S.userLocVp = placeVp(best);
@@ -1681,7 +1737,7 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocLabel = `~${name}`;
       S.userLocOutside = false; S.userLocCentVp = null;
       if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
-      if (!S.isMobile) showInfoPanel(best);
+      if (!S.isMobile) showInfoPanel(geoPoint || best);
       if (statusEl) { statusEl.textContent = prefix + `Interpolated — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(`~${name} (~${distRound} km)`);
@@ -1693,16 +1749,16 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocOutside = true;
       S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
       if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
-      // A: find nearest point-type place to the edge position so info panel and crosshair agree.
+      // A: find nearest point-type place to the edge position (use geoPool for full coverage)
       let edgeBest = null, edgeBestDist = Infinity;
-      for (const p of pool) {
+      for (const p of geoPool) {
         const plat = Number(p.lat), plng = Number(p.lng);
         if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
         if (AREA_TYPES_LOC.has(p.type)) continue;
         const d = locDistKm(edgeResult.edgeLat, edgeResult.edgeLng, plat, plng);
         if (d < edgeBestDist) { edgeBestDist = d; edgeBest = p; }
       }
-      if (!S.isMobile) showInfoPanel(edgeBest || best);
+      showInfoPanel(edgeBest || geoPoint || best);
       if (statusEl) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
       if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
       showLocateMarkerPopup(`Outside (~${distRound} km)`);
@@ -1747,7 +1803,7 @@ async function openLocatePopup() {
   const lat = S.userLocLat ?? S.defaultLat;
   const lng = S.userLocLng ?? S.defaultLng;
 
-  const locateZoom = window.innerWidth >= 1000 ? 12 : 5;
+  const locateZoom = window.innerWidth >= 1000 ? 10 : 9;
   if (!_leafletMap) {
     _leafletMap = L.map("locate-leaflet-map").setView([lat, lng], locateZoom);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
