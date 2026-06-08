@@ -1614,7 +1614,7 @@ function projectToTabulaEdge(userLat, userLng) {
     minVx = Math.min(minVx, vx); maxVx = Math.max(maxVx, vx);
     minVy = Math.min(minVy, vy); maxVy = Math.max(maxVy, vy);
   }
-  if (!count) return { vp: null, centVp: null, cLat: 0, cLng: 0, edgeLat: 0, edgeLng: 0 };
+  if (!count) return { vp: null, centVp: null, cLat: 0, cLng: 0, edgeLat: 0, edgeLng: 0, isInside: false };
   const cLat = sumLat / count, cLng = sumLng / count;
   const centVp = interpolateTabulaVp(cLat, cLng);
   const dLat = userLat - cLat, dLng = userLng - cLng;
@@ -1623,7 +1623,7 @@ function projectToTabulaEdge(userLat, userLng) {
   else if (dLat < 0) { const tv = (minLat - cLat) / dLat; if (tv < t) { t = tv; hitBoundary = "S"; } }
   if (dLng > 0) { const tv = (maxLng - cLng) / dLng; if (tv < t) { t = tv; hitBoundary = "E"; } }
   else if (dLng < 0) { const tv = (minLng - cLng) / dLng; if (tv < t) { t = tv; hitBoundary = "W"; } }
-  if (!Number.isFinite(t)) return { vp: centVp, centVp, cLat, cLng, edgeLat: cLat, edgeLng: cLng };
+  if (!Number.isFinite(t)) return { vp: centVp, centVp, cLat, cLng, edgeLat: cLat, edgeLng: cLng, isInside: true };
   const edgeLat = Math.max(minLat, Math.min(maxLat, cLat + t * dLat));
   const edgeLng = Math.max(minLng, Math.min(maxLng, cLng + t * dLng));
   let vp = interpolateTabulaVp(edgeLat, edgeLng, 500);
@@ -1636,7 +1636,7 @@ function projectToTabulaEdge(userLat, userLng) {
     else if (hitBoundary === "E") vp.vx = Math.min(0.99, maxVx + (1 - maxVx) * 0.6);
     else if (hitBoundary === "W") vp.vx = Math.max(0.005, minVx * 0.25);
   }
-  return { vp, centVp, cLat, cLng, edgeLat, edgeLng };
+  return { vp, centVp, cLat, cLng, edgeLat, edgeLng, isInside: t > 1 };
 }
 
 function compassBearing(fromLat, fromLng, toLat, toLng) {
@@ -1668,18 +1668,12 @@ function panToLocVp(vx, vy, isOutside = false) {
 
 function setUserLocation(lat, lng, isDefault = false) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
-  // Only calibrated places drive the coverage decision — uncalibrated places (Segment I,
-  // non-surviving map areas like Iberia or Ireland) play no role. If the nearest
-  // calibrated place is > LOCATE_MAX_DIST_KM away the user is outside coverage.
-  const AREA_TYPES_LOC = new Set(["region", "roman_province", "modern_state", "people"]);
   let best = null, bestDist = Infinity;
-  let bestPoint = null, bestPointDist = Infinity;
   for (const p of pool) {
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
     const d = (lat - plat) ** 2 + (lng - plng) ** 2;
     if (d < bestDist) { bestDist = d; best = p; }
-    if (!AREA_TYPES_LOC.has(p.type) && d < bestPointDist) { bestPointDist = d; bestPoint = p; }
   }
 
   S.userLocLat = lat;
@@ -1693,9 +1687,6 @@ function setUserLocation(lat, lng, isDefault = false) {
     const name = best.latin_std || best.latin || "";
     const distKm = locDistKm(lat, lng, Number(best.lat), Number(best.lng));
     const distRound = Math.round(distKm);
-    const coverDist = bestPoint
-      ? locDistKm(lat, lng, Number(bestPoint.lat), Number(bestPoint.lng))
-      : distKm;
 
     if (distKm <= LOCATE_SNAP_KM) {
       S.userLocVp = placeVp(best);
@@ -1708,29 +1699,38 @@ function setUserLocation(lat, lng, isDefault = false) {
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(`${name} (~${distRound} km)`);
 
-    } else if (coverDist <= LOCATE_MAX_DIST_KM) {
-      const edgeResult = projectToTabulaEdge(lat, lng);
-      S.userLocVp = edgeResult.vp;
-      S.userLocCentVp = edgeResult.centVp;
-      S.userLocOutside = true;
-      S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
-      startHighlight(best, true);
-      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
-      if (!S.isMobile) showInfoPanel(best);
-      if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
-      if (hint) hint.textContent = "Click map or drag marker to set location";
-      showLocateMarkerPopup(`~${name} (~${distRound} km)`);
-
     } else {
       const edgeResult = projectToTabulaEdge(lat, lng);
-      S.userLocVp = edgeResult.vp;
-      S.userLocCentVp = edgeResult.centVp;
-      S.userLocOutside = true;
-      S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
-      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
-      if (statusEl) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
-      if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
-      showLocateMarkerPopup(`Outside (~${distRound} km)`);
+
+      if (edgeResult.isInside) {
+        // Inside Tabula geographic extent — IDW crosshair
+        const idwVp = interpolateTabulaVp(lat, lng);
+        S.userLocVp = idwVp;
+        S.userLocCentVp = null;
+        S.userLocOutside = false;
+        S.userLocLabel = `~${name}`;
+        startHighlight(best, true);
+        if (idwVp) panToLocVp(idwVp.vx, idwVp.vy);
+        if (!S.isMobile) showInfoPanel(best);
+        if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+        if (hint) hint.textContent = "Click map or drag marker to set location";
+        showLocateMarkerPopup(`~${name} (~${distRound} km)`);
+
+      } else {
+        // Outside Tabula geographic extent — edge crosshair with direction arrow
+        S.userLocVp = edgeResult.vp;
+        S.userLocCentVp = edgeResult.centVp;
+        S.userLocOutside = true;
+        S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
+        startHighlight(best, true);
+        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
+        if (!S.isMobile) showInfoPanel(best);
+        if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+        if (hint) hint.textContent = distRound > 500
+          ? "Outside Tabula area — click inside the orange box"
+          : "Click map or drag marker to set location";
+        showLocateMarkerPopup(`~${name} (~${distRound} km)`);
+      }
     }
   }
 
