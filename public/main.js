@@ -1715,9 +1715,7 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocOutside = true;
       S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
       startHighlight(best, true);
-      const bestVp = placeVp(best);
-      if (bestVp) panToLocVp(bestVp.vx, bestVp.vy);
-      else if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
+      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
       if (!S.isMobile) showInfoPanel(best);
       if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
