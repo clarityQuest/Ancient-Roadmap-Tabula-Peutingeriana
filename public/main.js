@@ -1476,6 +1476,23 @@ function placeVp(place) {
     const rowMap = { a: 1 / 6, b: 1 / 2, c: 5 / 6 };
     return { vx: (segIdx + 0.5) / 11, vy: (rowMap[place.tabula_row] ?? 0.5) * millerAspect };
   }
+  // Stitched mode: px/py are calibrated for the segment-IV readable image (IMG_W × IMG_H).
+  // Convert through per-segment stitched bounds so the crosshair lands in the correct segment.
+  if (S.newSourceKind === "stitched") {
+    const seg = String(place.tabula_segment ?? place.grid_segment ?? "");
+    const sb = S.boundsBySource.stitched?.[seg];
+    const px = Number(place.px), py = Number(place.py);
+    if (sb && Number.isFinite(px) && Number.isFinite(py)) {
+      const sz = S.stitchedTile?.Image?.Size;
+      const sW = sz ? Number(sz.Width)  : 32878;
+      const sH = sz ? Number(sz.Height) : 2125;
+      const localX = px / IMG_W;
+      const localY = py / IMG_H;
+      const vx = sb.x0 + localX * (sb.x1 - sb.x0);
+      const vy = (sb.y0 + localY * (sb.y1 - sb.y0)) * sH / sW;
+      return { vx, vy };
+    }
+  }
   const vx = Number(place.vx), vy = Number(place.vy);
   return { vx: Number.isFinite(vx) ? vx : 0.5, vy: Number.isFinite(vy) ? vy : 0.5 };
 }
@@ -1651,7 +1668,8 @@ function panToLocVp(vx, vy, isOutside = false) {
       new OpenSeadragon.Rect(vx - hw, vy - hw * millerAspect, hw * 2, hw * 2 * millerAspect)
     );
   } else {
-    const aspect = IMG_H / IMG_W;
+    const sz = S.newSourceKind === "stitched" ? S.stitchedTile?.Image?.Size : null;
+    const aspect = sz ? Number(sz.Height) / Number(sz.Width) : IMG_H / IMG_W;
     S.viewer.viewport.fitBounds(
       new OpenSeadragon.Rect(vx - hw, vy - hw * aspect, hw * 2, hw * 2 * aspect)
     );
