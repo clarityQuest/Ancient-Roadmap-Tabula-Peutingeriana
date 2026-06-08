@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Review Database Viewer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root {
       --bg: #f4f1e8;
@@ -615,6 +616,41 @@
     .edit-modal-btn.delete { background: var(--alert); color: #fff; border-color: var(--alert); }
     .edit-modal-btn.delete:hover { background: #6d172a; }
 
+    /* ── Map picker modal ── */
+    .map-picker-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 110;
+      display: none; align-items: center; justify-content: center;
+    }
+    .map-picker-backdrop.open { display: flex; }
+    .map-picker-dialog {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.3);
+      width: min(720px, calc(100vw - 32px));
+      height: min(480px, calc(100vh - 64px));
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .map-picker-head {
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f7f0e0;
+      font-size: 0.88rem; font-weight: 600;
+    }
+    #map-picker-map { flex: 1; min-height: 0; }
+    .map-picker-foot {
+      flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--line);
+      background: #f7f0e0;
+    }
+    .map-picker-coords { flex: 1; font-size: 0.82rem; color: var(--muted); }
+
     /* ── Wiki progress widget ── */
     #wiki-progress-widget {
       position: fixed; bottom: 16px; right: 16px; z-index: 200;
@@ -765,6 +801,22 @@
   </div>
 </div>
 
+<!-- Map picker modal -->
+<div class="map-picker-backdrop" id="map-picker-backdrop">
+  <div class="map-picker-dialog">
+    <div class="map-picker-head">
+      <span>Pick Location on Map</span>
+      <button class="edit-modal-close" id="map-picker-close" aria-label="Close">×</button>
+    </div>
+    <div id="map-picker-map"></div>
+    <div class="map-picker-foot">
+      <span class="map-picker-coords" id="map-picker-coords">Click the map to set coordinates</span>
+      <button class="edit-modal-btn" id="map-picker-cancel">Cancel</button>
+      <button class="edit-modal-btn save" id="map-picker-apply">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- Edit modal -->
 <div class="edit-modal-backdrop" id="edit-modal-backdrop">
   <div class="edit-modal" id="edit-modal-dialog" role="dialog" aria-modal="true" aria-label="Edit DB entry">
@@ -782,6 +834,7 @@
   </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   let allRecords = [];
   let allColumns = [];
@@ -1690,12 +1743,20 @@
         </div>`;
       }
       const raw = v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+      if (k === 'lat') {
+        return `<div class="edit-field-row" style="grid-template-columns:160px 1fr auto">
+          <label class="edit-field-label" for="ef-lat">lat</label>
+          <input class="edit-field-input" id="ef-lat" data-field="lat" type="text" value="${escapeHtml(raw)}" />
+          <button type="button" id="edit-pick-map-btn" class="edit-modal-btn" style="padding:3px 10px;font-size:0.78rem;white-space:nowrap">&#127760; Map</button>
+        </div>`;
+      }
       return `<div class="edit-field-row">
         <label class="edit-field-label" for="ef-${escapeHtml(k)}">${escapeHtml(k)}</label>
         <input class="edit-field-input" id="ef-${escapeHtml(k)}" data-field="${escapeHtml(k)}" type="text" value="${escapeHtml(raw)}" />
       </div>`;
     }).join('');
 
+    document.getElementById('edit-pick-map-btn')?.addEventListener('click', openMapPicker);
     document.getElementById('edit-modal-backdrop').classList.add('open');
   }
 
@@ -1792,6 +1853,90 @@
     if (!btn) return;
     const id = btn.dataset.editId;
     if (id != null && id !== '') openEditModal(Number(id));
+  });
+
+  /* ── Map picker ── */
+  let _mpMap = null, _mpMarker = null, _mpLat = null, _mpLng = null;
+
+  function _mpUpdateCoords() {
+    const el = document.getElementById('map-picker-coords');
+    if (el) el.textContent = _mpLat != null
+      ? `${_mpLat.toFixed(6)}, ${_mpLng.toFixed(6)} — drag marker or click to adjust`
+      : 'Click the map to set coordinates';
+  }
+
+  function _mpPlaceMarker(lat, lng) {
+    _mpLat = Math.round(lat * 1e6) / 1e6;
+    _mpLng = Math.round(lng * 1e6) / 1e6;
+    if (_mpMarker) {
+      _mpMarker.setLatLng([_mpLat, _mpLng]);
+    } else {
+      _mpMarker = L.marker([_mpLat, _mpLng], { draggable: true }).addTo(_mpMap);
+      _mpMarker.on('dragend', () => {
+        const ll = _mpMarker.getLatLng();
+        _mpLat = Math.round(ll.lat * 1e6) / 1e6;
+        _mpLng = Math.round(ll.lng * 1e6) / 1e6;
+        _mpUpdateCoords();
+      });
+    }
+    _mpUpdateCoords();
+  }
+
+  function openMapPicker() {
+    const latEl = document.getElementById('ef-lat');
+    const lngEl = document.getElementById('ef-lng');
+    const curLat = latEl ? parseFloat(latEl.value) : NaN;
+    const curLng = lngEl ? parseFloat(lngEl.value) : NaN;
+    const hasCoords = Number.isFinite(curLat) && Number.isFinite(curLng);
+    const viewLat = hasCoords ? curLat : 41.9;
+    const viewLng = hasCoords ? curLng : 12.5;
+    const viewZoom = hasCoords ? 8 : 4;
+
+    document.getElementById('map-picker-backdrop').classList.add('open');
+
+    if (!_mpMap) {
+      _mpMap = L.map('map-picker-map').setView([viewLat, viewLng], viewZoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(_mpMap);
+      _mpMap.on('click', e => _mpPlaceMarker(e.latlng.lat, e.latlng.lng));
+    } else {
+      _mpMap.setView([viewLat, viewLng], viewZoom);
+    }
+
+    if (hasCoords) {
+      _mpLat = curLat; _mpLng = curLng;
+      _mpPlaceMarker(curLat, curLng);
+    } else {
+      _mpLat = null; _mpLng = null;
+      if (_mpMarker) { _mpMarker.remove(); _mpMarker = null; }
+    }
+    _mpUpdateCoords();
+    setTimeout(() => _mpMap.invalidateSize(), 80);
+  }
+
+  function closeMapPicker() {
+    document.getElementById('map-picker-backdrop').classList.remove('open');
+  }
+
+  function applyMapPicker() {
+    if (_mpLat == null) { closeMapPicker(); return; }
+    const latEl = document.getElementById('ef-lat');
+    const lngEl = document.getElementById('ef-lng');
+    if (latEl) latEl.value = String(_mpLat);
+    if (lngEl) lngEl.value = String(_mpLng);
+    closeMapPicker();
+  }
+
+  document.getElementById('map-picker-close').addEventListener('click', closeMapPicker);
+  document.getElementById('map-picker-cancel').addEventListener('click', closeMapPicker);
+  document.getElementById('map-picker-apply').addEventListener('click', applyMapPicker);
+  document.getElementById('map-picker-backdrop').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeMapPicker();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('map-picker-backdrop').classList.contains('open')) closeMapPicker();
   });
 
   loadData();

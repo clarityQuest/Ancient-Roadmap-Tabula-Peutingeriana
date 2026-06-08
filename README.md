@@ -10,7 +10,6 @@ The [Tabula Peutingeriana](https://en.wikipedia.org/wiki/Tabula_Peutingeriana) i
 
 ## Features
 
-- **Dual-map viewer** — switch between the original Miller 1887 facsimile and the Readable Segment IV edition
 - **3 800+ place database** sourced from [tabula-peutingeriana.de](https://www.tabula-peutingeriana.de/) (M. Weber) and the Ulm tp-online database
 - **Locate Me** — press the crosshair button to place yourself on the ancient Roman world using GPS or by clicking the interactive map; the viewer navigates to the nearest Roman road station or city with a Wikipedia preview; users outside the Tabula's coverage area (Americas, Australia, East Asia) see a direction marker at the corresponding map edge
 - **Category filters** — Major City, City, Port, Road Station, River, Lake, Island, Spa/Bath, Mountain, People/Tribes, Region, Roman Province, and more

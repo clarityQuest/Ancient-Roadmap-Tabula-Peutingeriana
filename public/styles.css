@@ -137,6 +137,16 @@ body, html {
 }
 .ctrl-btn:hover { background: rgba(50, 50, 60, 0.95); }
 .toggle-btn { padding: 8px 12px; font-weight: 600; font-size: 13px; }
+#control-locate {
+  border-color: rgba(200, 160, 80, 0.55);
+  color: #c8a050;
+  padding: 9px;
+}
+#control-locate:hover {
+  background: rgba(55, 42, 10, 0.95);
+  border-color: #c8a050;
+  color: #ffd080;
+}
 .toggle-btn-sm { padding: 6px 8px; font-size: 11px; }
 .toggle-btn.active { border-color: var(--accent); color: var(--accent); }
 
@@ -202,7 +212,12 @@ body, html {
 /* Links row: left side of the wiki-bottom row */
 #panel-links { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
 .panel-link { font-size: 16px; color: var(--accent); text-decoration: none; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); border-radius: 4px; padding: 4px 10px; }
+/* Tabula view label + image: hidden until user hovers the info panel */
 #panel-ulm-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 14px; margin-bottom: 4px; }
+#panel-ulm-label:not(.hidden),
+#panel-ulm-section:not(.hidden) { display: none; }
+#info-panel:hover #panel-ulm-label:not(.hidden),
+#info-panel:hover #panel-ulm-section:not(.hidden) { display: block; }
 .panel-link:hover { background: rgba(59,130,246,0.2); text-decoration: none; }
 /* Language buttons (used in About panel) */
 .lang-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; line-height: 1.5; transition: color 0.15s, border-color 0.15s; }
@@ -241,7 +256,7 @@ body, html {
 #panel-map iframe { display: block; width: 100%; height: 280px; border: 0; border-radius: 6px; pointer-events: auto; }
 #panel-ulm-section { margin-top: 8px; }
 #panel-ulm-section a { display: block; }
-#panel-ulm-section img { display: block; width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); cursor: pointer; }
+#panel-ulm-section img { display: block; width: 100%; max-height: 500px; object-fit: contain; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); cursor: pointer; }
 @media (max-width: 768px) { #panel-ulm-section { display: none; } }
 #panel-sources { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-color); font-size: 10px; color: var(--text-muted); line-height: 1.5; }
 #panel-sources a { color: var(--accent); text-decoration: none; }
@@ -558,10 +573,11 @@ body, html {
   box-shadow: 0 2px 6px rgba(0,0,0,0.55) !important;
 }
 .locate-popup .leaflet-popup-content {
-  margin: 4px 8px !important;
-  font-size: 11px !important;
+  margin: 6px 11px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
   line-height: 1.3 !important;
-  color: #d4c5a0 !important;
+  color: #e8d8a8 !important;
   white-space: nowrap !important;
   min-width: 0 !important;
 }

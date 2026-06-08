@@ -231,6 +231,7 @@ const S = {
   highlightDataId: null,
   highlightUntil:  0,
   highlightVp:     null,  // {vx,vy} viewport centre stored by panToPlace for fallback ring
+  highlightLocate: false, // true when highlight was triggered by user locate snap
   userLocVp:      null,   // {vx,vy} viewport coords where crosshair is drawn
   userLocLat:     null,
   userLocLng:     null,
@@ -582,13 +583,14 @@ function loadMillerCalib(allRecords) {
   }
 }
 
-function startHighlight(place) {
+function startHighlight(place, isLocate = false) {
   S.highlightDataId = Number(place.data_id);
   S.highlightUntil  = Date.now() + 20000;
+  S.highlightLocate = isLocate;
   function tick() {
     renderMarkers();
     if (Date.now() < S.highlightUntil) requestAnimationFrame(tick);
-    else { S.highlightDataId = null; renderMarkers(); }
+    else { S.highlightDataId = null; S.highlightLocate = false; renderMarkers(); }
   }
   requestAnimationFrame(tick);
 }
@@ -598,13 +600,13 @@ function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle = null) {
   else drawUserCrosshair(ctx, cx, cy);
   if (!S.userLocLabel) return;
   ctx.save();
-  ctx.font = "bold 11px 'Segoe UI', Arial, sans-serif";
+  ctx.font = "bold 16px 'Segoe UI', Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   const tw = ctx.measureText(S.userLocLabel).width;
-  const px = cx, py = cy + 72; // push label below the doubled crosshair arms
-  ctx.fillStyle = outsideAngle !== null ? "rgba(80,40,0,0.85)" : "rgba(0,0,0,0.72)";
-  ctx.fillRect(px - tw / 2 - 5, py - 2, tw + 10, 16);
+  const px = cx, py = cy + 76;
+  ctx.fillStyle = outsideAngle !== null ? "rgba(70,35,0,0.9)" : "rgba(0,0,0,0.78)";
+  ctx.fillRect(px - tw / 2 - 7, py - 3, tw + 14, 24);
   ctx.shadowColor = "rgba(0,0,0,0.0)";
   ctx.fillStyle = outsideAngle !== null ? "#FFB040" : "#ffffff";
   ctx.fillText(S.userLocLabel, px, py);
@@ -885,6 +887,17 @@ function renderMarkers() {
         const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
         outsideAngle = Math.atan2(cy - ccy, cx - ccx);
       }
+      // Gold pulse ring + glow for snap match (not outside)
+      if (!S.userLocOutside && S.highlightLocate && S.highlightDataId && Date.now() < S.highlightUntil) {
+        const t = (Date.now() % 1000) / 1000;
+        ctx.save();
+        ctx.globalAlpha = (1 - t) * 0.22;
+        ctx.beginPath(); ctx.arc(cx, cy, 44 + t * 80, 0, Math.PI * 2);
+        ctx.fillStyle = "#FFD700"; ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        drawHighlightRing(ctx, cx, cy, 40);
+      }
       drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
     }
     return;
@@ -956,7 +969,19 @@ function renderMarkers() {
       drawSelectionFrame(ctx, x, y, w, h);
     }
     if (p.data_id === S.highlightDataId && Date.now() < S.highlightUntil) {
-      drawHighlightRing(ctx, cx, cy, Math.max(w, h) / 2 + 4);
+      if (S.highlightLocate) {
+        // Locate snap: large pulsing glow + filled halo
+        const t = (Date.now() % 1000) / 1000;
+        ctx.save();
+        ctx.globalAlpha = (1 - t) * 0.22;
+        ctx.beginPath(); ctx.arc(cx, cy, 44 + t * 80, 0, Math.PI * 2);
+        ctx.fillStyle = "#FFD700"; ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        drawHighlightRing(ctx, cx, cy, 40);
+      } else {
+        drawHighlightRing(ctx, cx, cy, Math.max(w, h) / 2 + 4);
+      }
       highlightDrawn = true;
     }
 
@@ -1602,13 +1627,14 @@ function projectToTabulaEdge(userLat, userLng) {
   const edgeLat = Math.max(minLat, Math.min(maxLat, cLat + t * dLat));
   const edgeLng = Math.max(minLng, Math.min(maxLng, cLng + t * dLng));
   let vp = interpolateTabulaVp(edgeLat, edgeLng, 500);
-  // C: clamp to actual viewport boundary so crosshair lands on the visual map edge
+  // Push crosshair well beyond the calibrated extremes toward the true image edge
   if (vp && Number.isFinite(minVx)) {
     vp = { ...vp };
-    if (hitBoundary === "N") vp.vy = minVy;
-    else if (hitBoundary === "S") vp.vy = maxVy;
-    else if (hitBoundary === "E") vp.vx = maxVx;
-    else if (hitBoundary === "W") vp.vx = minVx;
+    const imgAspect = S.mapMode === "old" ? MILLER_H / MILLER_W : IMG_H / IMG_W;
+    if (hitBoundary === "N") vp.vy = Math.max(0, minVy * 0.25);
+    else if (hitBoundary === "S") vp.vy = Math.min(imgAspect - 0.005, maxVy + (imgAspect - maxVy) * 0.6);
+    else if (hitBoundary === "E") vp.vx = Math.min(0.99, maxVx + (1 - maxVx) * 0.6);
+    else if (hitBoundary === "W") vp.vx = Math.max(0.005, minVx * 0.25);
   }
   return { vp, centVp, cLat, cLng, edgeLat, edgeLng };
 }
@@ -1620,10 +1646,13 @@ function compassBearing(fromLat, fromLng, toLat, toLng) {
 }
 
 // Pan + zoom to a viewport position with location-appropriate zoom level.
-function panToLocVp(vx, vy) {
+// isOutside=true uses a wider view so the edge crosshair is clearly at the map boundary.
+function panToLocVp(vx, vy, isOutside = false) {
   if (!S.viewer?.viewport) return;
   S.highlightVp = { vx, vy };
-  const hw = S.isMobile ? 0.011 : 0.033;
+  const hw = isOutside
+    ? (S.isMobile ? 0.06 : 0.12)
+    : (S.isMobile ? 0.014 : 0.05);
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
     S.viewer.viewport.fitBounds(
@@ -1672,7 +1701,7 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocVp = placeVp(best);
       S.userLocLabel = name;
       S.userLocOutside = false; S.userLocCentVp = null;
-      startHighlight(best);
+      startHighlight(best, true);
       panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
       if (!S.isMobile) showInfoPanel(best);
       if (statusEl) { statusEl.textContent = prefix + `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
@@ -1680,12 +1709,17 @@ function setUserLocation(lat, lng, isDefault = false) {
       showLocateMarkerPopup(`${name} (~${distRound} km)`);
 
     } else if (coverDist <= LOCATE_MAX_DIST_KM) {
-      S.userLocVp = interpolateTabulaVp(lat, lng);
-      S.userLocLabel = `~${name}`;
-      S.userLocOutside = false; S.userLocCentVp = null;
-      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
+      const edgeResult = projectToTabulaEdge(lat, lng);
+      S.userLocVp = edgeResult.vp;
+      S.userLocCentVp = edgeResult.centVp;
+      S.userLocOutside = true;
+      S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
+      startHighlight(best, true);
+      const bestVp = placeVp(best);
+      if (bestVp) panToLocVp(bestVp.vx, bestVp.vy);
+      else if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
       if (!S.isMobile) showInfoPanel(best);
-      if (statusEl) { statusEl.textContent = prefix + `Interpolated — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+      if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(`~${name} (~${distRound} km)`);
 
@@ -1695,17 +1729,7 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocCentVp = edgeResult.centVp;
       S.userLocOutside = true;
       S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
-      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
-      // A: find nearest calibrated point-type place to the edge position for info panel
-      let edgeBest = null, edgeBestDist = Infinity;
-      for (const p of pool) {
-        const plat = Number(p.lat), plng = Number(p.lng);
-        if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-        if (AREA_TYPES_LOC.has(p.type)) continue;
-        const d = locDistKm(edgeResult.edgeLat, edgeResult.edgeLng, plat, plng);
-        if (d < edgeBestDist) { edgeBestDist = d; edgeBest = p; }
-      }
-      showInfoPanel(edgeBest || best);
+      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
       if (statusEl) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
       if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
       showLocateMarkerPopup(`Outside (~${distRound} km)`);
@@ -3137,12 +3161,23 @@ async function reloadDb() {
   S.millerCalibHit = [...S.millerCalib].sort(
     (a, b) => (TYPE_DRAW_ORDER[b.type] ?? 4) - (TYPE_DRAW_ORDER[a.type] ?? 4)
   );
-  S.places = placeData.map(p => ({
-    ...p,
-    ...(Number.isFinite(Number(p.data_id)) ? (draftMap.get(Number(p.data_id)) || {}) : {}),
-    vx: p.px / IMG_W,
-    vy: p.py / IMG_W,
-  }));
+  S.places = placeData.map(p => {
+    const base = {
+      ...p,
+      ...(Number.isFinite(Number(p.data_id)) ? (draftMap.get(Number(p.data_id)) || {}) : {}),
+      vx: p.px / IMG_W,
+      vy: p.py / IMG_W,
+    };
+    // Segment I is lost — pin its places to the far-left edge so they don't
+    // appear inside later segments based on unreliable px/py estimates.
+    if (Number(p.tabula_segment) === 1) {
+      const row = String(p.tabula_row || p.grid_row || 'b').toLowerCase();
+      const col = Math.max(1, Number(p.tabula_col || p.grid_col || 1));
+      base.vx = 0.004 + (col - 1) * 0.003;
+      base.vy = row === 'a' ? 0.055 : row === 'c' ? 0.375 : 0.21;
+    }
+    return base;
+  });
 }
 
 // ── Landscape/fullscreen tip for mobile portrait ────────────────────────────
