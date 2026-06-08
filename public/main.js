@@ -1703,14 +1703,14 @@ function setUserLocation(lat, lng, isDefault = false) {
       const edgeResult = projectToTabulaEdge(lat, lng);
 
       if (edgeResult.isInside && distKm <= LOCATE_MAX_DIST_KM) {
-        // Inside Tabula geographic extent and close enough to calibrated places — IDW crosshair
-        const idwVp = interpolateTabulaVp(lat, lng);
-        S.userLocVp = idwVp;
+        // Inside Tabula geographic extent — crosshair at nearest place (ring and crosshair aligned)
+        const nearestVp = placeVp(best);
+        S.userLocVp = nearestVp;
         S.userLocCentVp = null;
         S.userLocOutside = false;
         S.userLocLabel = `~${name}`;
         startHighlight(best, true);
-        if (idwVp) panToLocVp(idwVp.vx, idwVp.vy);
+        if (nearestVp) panToLocVp(nearestVp.vx, nearestVp.vy);
         if (!S.isMobile) showInfoPanel(best);
         if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
         if (hint) hint.textContent = "Click map or drag marker to set location";
