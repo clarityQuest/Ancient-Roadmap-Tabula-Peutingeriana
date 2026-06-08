@@ -212,12 +212,14 @@ body, html {
 /* Links row: left side of the wiki-bottom row */
 #panel-links { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
 .panel-link { font-size: 16px; color: var(--accent); text-decoration: none; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); border-radius: 4px; padding: 4px 10px; }
-/* Tabula view label + image: hidden until user hovers the info panel */
-#panel-ulm-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 14px; margin-bottom: 4px; }
-#panel-ulm-label:not(.hidden),
+/* Province shown inline to the right of the type label */
+#panel-province:not(:empty) { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; text-align: right; }
+/* Tabula view label: always visible, click to open Ulm, hover to reveal preview image */
+#panel-ulm-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 14px; margin-bottom: 4px; cursor: pointer; }
+#panel-ulm-label:not(.hidden) { display: block; }
 #panel-ulm-section:not(.hidden) { display: none; }
-#info-panel:hover #panel-ulm-label:not(.hidden),
-#info-panel:hover #panel-ulm-section:not(.hidden) { display: block; }
+#panel-ulm-label:not(.hidden):hover ~ #panel-ulm-section:not(.hidden),
+#panel-ulm-section:not(.hidden):hover { display: block; }
 .panel-link:hover { background: rgba(59,130,246,0.2); text-decoration: none; }
 /* Language buttons (used in About panel) */
 .lang-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; line-height: 1.5; transition: color 0.15s, border-color 0.15s; }

@@ -94,7 +94,7 @@ const I18N = {
     water: "Water", spa: "Spa", temple: "Temple", mountain: "Mountain",
     people: "People",
     province: "Province",
-    wiki_link: "Wikipedia ↗", ulm_link: "Scientific Info/Ulm DB ↗",
+    wiki_link: "Wikipedia ↗", ulm_link: "Scientific Info ↗",
     unknown_modern: "(unknown modern name)",
     wiki_lang: "en",
     tabula_view_label: "Original Tabula Peutingeriana view",
@@ -124,7 +124,7 @@ const I18N = {
     water: "Gewässer", spa: "Heilbad", temple: "Tempel", mountain: "Berg",
     people: "Volk",
     province: "Provinz",
-    wiki_link: "Wikipedia ↗", ulm_link: "Wiss. Info/Ulm DB ↗",
+    wiki_link: "Wikipedia ↗", ulm_link: "Wiss. Info ↗",
     unknown_modern: "(moderner Name unbekannt)",
     wiki_lang: "de",
     tabula_view_label: "Originalansicht der Tabula Peutingeriana",
@@ -924,9 +924,10 @@ function renderMarkers() {
   const labelCandidates = [];
 
   for (const p of renderPlaces) {
-    if (!S.activeTypes.has(p.type)) continue;
+    const isHighlighted = S.highlightDataId && Number(p.data_id) === S.highlightDataId && Date.now() < S.highlightUntil;
+    if (!isHighlighted && !S.activeTypes.has(p.type)) continue;
     if (p.vx < bx0 || p.vx > bx1 || p.vy < by0 || p.vy > by1) continue;
-    if (!isVisibleAtZoom(p.type, zoom)) continue;
+    if (!isHighlighted && !isVisibleAtZoom(p.type, zoom)) continue;
 
     const rr = placeRectCorners(p);
     const p1 = imageToCanvas(rr.x1, rr.y1);
@@ -1297,19 +1298,8 @@ function showInfoPanel(place) {
     }
   }
 
-  const items = [
-    [getText("province"), place.province],
-  ];
-
-  for (const [label, value] of items) {
-    if (!value) continue;
-    const dt = document.createElement("dt");
-    dt.textContent = label;
-    const dd = document.createElement("dd");
-    dd.textContent = value;
-    dl.appendChild(dt);
-    dl.appendChild(dd);
-  }
+  const provinceEl = document.getElementById("panel-province");
+  if (provinceEl) provinceEl.textContent = place.province || "";
 
   // OSM map (interactive — placed in panel so user can zoom/pan it)
   const panelMap = document.getElementById("panel-map");
@@ -1340,6 +1330,7 @@ function showInfoPanel(place) {
     if (place.ulm_img_url) {
       if (ulmImg) ulmImg.src = place.ulm_img_url;
       if (ulmLinkEl) ulmLinkEl.href = ulmHref || "#";
+      if (ulmLabel) ulmLabel.onclick = ulmHref ? () => window.open(ulmHref, "_blank", "noopener") : null;
       ulmSection.classList.remove("hidden");
       if (ulmLabel) ulmLabel.classList.remove("hidden");
     } else {
