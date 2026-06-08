@@ -1522,10 +1522,15 @@ function locDistKm(lat1, lng1, lat2, lng2) {
 
 // maxDistKm: when set, only use places within that radius for IDW (B: keeps edge crosshair
 // on the map's visual perimeter by excluding distant interior places from the weight pool).
+// Rivers and mountains have extreme vx/vy positions that distort IDW averages —
+// exclude them so tribal/city/road-station positions dominate the interpolation.
+const IDW_EXCLUDE_TYPES = new Set(["river", "mountain", "water", "lake"]);
+
 function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
   const candidates = [];
   for (const p of pool) {
+    if (IDW_EXCLUDE_TYPES.has(p.type)) continue;
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
     let vx, vy;
@@ -1542,12 +1547,13 @@ function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
   }
   if (!candidates.length) return null;
   candidates.sort((a, b) => a.d - b.d);
+  // Top-3 only: using more distant places pulls the result toward unrelated map areas.
   let top;
   if (maxDistKm < Infinity) {
     const nearby = candidates.filter(c => c.d <= maxDistKm);
-    top = nearby.length >= 3 ? nearby.slice(0, 8) : candidates.slice(0, Math.min(3, candidates.length));
+    top = nearby.length >= 3 ? nearby.slice(0, 3) : candidates.slice(0, Math.min(3, candidates.length));
   } else {
-    top = candidates.slice(0, 8);
+    top = candidates.slice(0, 3);
   }
   let sumW = 0, sumVx = 0, sumVy = 0;
   for (const c of top) {
