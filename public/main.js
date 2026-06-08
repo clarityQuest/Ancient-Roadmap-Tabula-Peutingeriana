@@ -1536,8 +1536,9 @@ function panToPlace(place, hw = null) {
 let _leafletMap = null;
 let _leafletMarker = null;
 
-const LOCATE_SNAP_KM    = 15;   // snap to nearest place within this distance
-const LOCATE_MAX_DIST_KM = 700;  // inside-bbox users beyond this get edge crosshair (Tabula coverage too sparse)
+const LOCATE_SNAP_KM     = 15;   // snap to nearest place within this distance
+const LOCATE_INSIDE_KM   = 150;  // max distance for "on the map" treatment (no direction arrow)
+const LOCATE_MAX_DIST_KM = 500;  // ring + info panel shown up to this distance
 
 function locDistKm(lat1, lng1, lat2, lng2) {
   const dlat = lat1 - lat2;
@@ -1702,8 +1703,8 @@ function setUserLocation(lat, lng, isDefault = false) {
     } else {
       const edgeResult = projectToTabulaEdge(lat, lng);
 
-      if (edgeResult.isInside && distKm <= LOCATE_MAX_DIST_KM) {
-        // Inside Tabula geographic extent — crosshair at nearest place (ring and crosshair aligned)
+      if (edgeResult.isInside && distKm <= LOCATE_INSIDE_KM) {
+        // Inside: on-place crosshair, no arrow — close enough to be "on" the Tabula
         const nearestVp = placeVp(best);
         S.userLocVp = nearestVp;
         S.userLocCentVp = null;
@@ -1717,19 +1718,26 @@ function setUserLocation(lat, lng, isDefault = false) {
         showLocateMarkerPopup(`~${name} (~${distRound} km)`);
 
       } else {
-        // Outside Tabula geographic extent — edge crosshair with direction arrow
+        // Outside: edge crosshair with direction arrow
         S.userLocVp = edgeResult.vp;
         S.userLocCentVp = edgeResult.centVp;
         S.userLocOutside = true;
         S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
-        startHighlight(best, true);
         if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
-        if (!S.isMobile) showInfoPanel(best);
-        if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
-        if (hint) hint.textContent = distRound > 500
-          ? "Outside Tabula area — click inside the orange box"
-          : "Click map or drag marker to set location";
-        showLocateMarkerPopup(`~${name} (~${distRound} km)`);
+
+        if (distKm <= LOCATE_MAX_DIST_KM) {
+          // Outside-near: ring + info panel for the nearest reference
+          startHighlight(best, true);
+          if (!S.isMobile) showInfoPanel(best);
+          if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+          if (hint) hint.textContent = "Click map or drag marker to set location";
+          showLocateMarkerPopup(`~${name} (~${distRound} km)`);
+        } else {
+          // Outside-far: no ring, no info panel
+          if (statusEl) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
+          if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
+          showLocateMarkerPopup(`Outside (~${distRound} km)`);
+        }
       }
     }
   }
