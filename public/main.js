@@ -1537,7 +1537,7 @@ let _leafletMap = null;
 let _leafletMarker = null;
 
 const LOCATE_SNAP_KM    = 15;   // snap to nearest place within this distance
-const LOCATE_MAX_DIST_KM = 500;  // beyond this: show crosshair at edge of coverage
+const LOCATE_MAX_DIST_KM = 700;  // inside-bbox users beyond this get edge crosshair (Tabula coverage too sparse)
 
 function locDistKm(lat1, lng1, lat2, lng2) {
   const dlat = lat1 - lat2;
@@ -1702,8 +1702,8 @@ function setUserLocation(lat, lng, isDefault = false) {
     } else {
       const edgeResult = projectToTabulaEdge(lat, lng);
 
-      if (edgeResult.isInside) {
-        // Inside Tabula geographic extent — IDW crosshair
+      if (edgeResult.isInside && distKm <= LOCATE_MAX_DIST_KM) {
+        // Inside Tabula geographic extent and close enough to calibrated places — IDW crosshair
         const idwVp = interpolateTabulaVp(lat, lng);
         S.userLocVp = idwVp;
         S.userLocCentVp = null;
