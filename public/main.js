@@ -602,7 +602,7 @@ function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle = null) {
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   const tw = ctx.measureText(S.userLocLabel).width;
-  const px = cx, py = cy + 42; // push label below arrow when outside
+  const px = cx, py = cy + 72; // push label below the doubled crosshair arms
   ctx.fillStyle = outsideAngle !== null ? "rgba(80,40,0,0.85)" : "rgba(0,0,0,0.72)";
   ctx.fillRect(px - tw / 2 - 5, py - 2, tw + 10, 16);
   ctx.shadowColor = "rgba(0,0,0,0.0)";
@@ -612,11 +612,11 @@ function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle = null) {
 }
 
 function drawOutsideCrosshair(ctx, cx, cy, arrowAngle) {
-  const R = 14, arm = 24;
+  const R = 28, arm = 48;
   ctx.save();
   ctx.globalAlpha = 0.92;
   // White halo
-  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 5;
+  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 7;
   ctx.shadowColor = "rgba(0,0,0,0.0)"; ctx.shadowBlur = 0;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath();
@@ -626,8 +626,8 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle) {
   ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
   ctx.stroke();
   // Orange ring + arms
-  ctx.strokeStyle = "#FF8800"; ctx.lineWidth = 2.5;
-  ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 6;
+  ctx.strokeStyle = "#FF8800"; ctx.lineWidth = 3.5;
+  ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 8;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(cx - arm, cy); ctx.lineTo(cx - R - 2, cy);
@@ -637,13 +637,13 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle) {
   ctx.stroke();
   // Outward direction arrow
   const ax = Math.cos(arrowAngle), ay = Math.sin(arrowAngle);
-  const aLen = 28, aHead = 10, aSpread = 0.42;
-  const sx = cx + ax * (R + 4), sy = cy + ay * (R + 4);
+  const aLen = 56, aHead = 20, aSpread = 0.42;
+  const sx = cx + ax * (R + 6), sy = cy + ay * (R + 6);
   const ex = cx + ax * (R + aLen), ey = cy + ay * (R + aLen);
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 5;
+  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 7;
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-  ctx.strokeStyle = "#FF8800"; ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "#FF8800"; ctx.lineWidth = 3.5;
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
   ctx.fillStyle = "#FF8800";
   ctx.beginPath();
@@ -652,19 +652,19 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle) {
   ctx.lineTo(ex - aHead * Math.cos(arrowAngle + aSpread), ey - aHead * Math.sin(arrowAngle + aSpread));
   ctx.closePath(); ctx.fill();
   // Center dot
-  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#FF8800"; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#FF8800"; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
 function drawUserCrosshair(ctx, cx, cy) {
-  const R = 14, arm = 24;
+  const R = 28, arm = 48;
   ctx.save();
   ctx.globalAlpha = 0.92;
 
   // White halo for contrast against any background
   ctx.strokeStyle = "rgba(255,255,255,0.75)";
-  ctx.lineWidth = 5;
+  ctx.lineWidth = 7;
   ctx.shadowColor = "rgba(0,0,0,0.0)";
   ctx.shadowBlur = 0;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
@@ -677,9 +677,9 @@ function drawUserCrosshair(ctx, cx, cy) {
 
   // Red crosshair on top
   ctx.strokeStyle = "#FF2222";
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 3.5;
   ctx.shadowColor = "rgba(0,0,0,0.8)";
-  ctx.shadowBlur = 6;
+  ctx.shadowBlur = 8;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(cx - arm, cy); ctx.lineTo(cx - R - 2, cy);
@@ -691,9 +691,9 @@ function drawUserCrosshair(ctx, cx, cy) {
   // Center dot
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#fff";
-  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = "#FF2222";
-  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
 
   ctx.restore();
 }
@@ -1523,46 +1523,23 @@ function locDistKm(lat1, lng1, lat2, lng2) {
 // maxDistKm: when set, only use places within that radius for IDW (B: keeps edge crosshair
 // on the map's visual perimeter by excluding distant interior places from the weight pool).
 function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
-  const millerAspect = MILLER_H / MILLER_W;
+  const pool = S.mapMode === "old" ? S.millerCalib : S.places;
   const candidates = [];
-
-  if (S.mapMode === "old") {
-    // Primary: calibrated places (precise positions, full weight)
-    for (const p of S.millerCalib) {
-      const plat = Number(p.lat), plng = Number(p.lng);
-      if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+  for (const p of pool) {
+    const plat = Number(p.lat), plng = Number(p.lng);
+    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+    let vx, vy;
+    if (S.mapMode === "old") {
       if (!Number.isFinite(Number(p.rect_x1))) continue;
-      const vx = (Number(p.rect_x1) + Number(p.rect_x2)) / 2 / MILLER_W;
-      const vy = (Number(p.rect_y1) + Number(p.rect_y2)) / 2 / MILLER_W;
-      const d = locDistKm(lat, lng, plat, plng);
-      candidates.push({ d, vx, vy, w: 1.0 });
-    }
-    // Secondary: segment/row estimates from all records (coarse but covers all segments)
-    // Weight 0.15 — dominant only when no calibrated places are nearby.
-    if (S.allRecords.length) {
-      const rowMap = { a: 1 / 6, b: 1 / 2, c: 5 / 6 };
-      for (const p of S.allRecords) {
-        const plat = Number(p.lat), plng = Number(p.lng);
-        if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-        const seg = Number(p.tabula_segment);
-        if (!Number.isFinite(seg) || seg < 2 || seg > 12) continue;
-        const vx = ((seg - 2) + 0.5) / 11;
-        const vy = (rowMap[p.tabula_row] ?? 0.5) * millerAspect;
-        const d = locDistKm(lat, lng, plat, plng);
-        candidates.push({ d, vx, vy, w: 0.15 });
-      }
-    }
-  } else {
-    for (const p of S.places) {
-      const plat = Number(p.lat), plng = Number(p.lng);
-      if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-      const vx = Number(p.vx), vy = Number(p.vy);
+      vx = (Number(p.rect_x1) + Number(p.rect_x2)) / 2 / MILLER_W;
+      vy = (Number(p.rect_y1) + Number(p.rect_y2)) / 2 / MILLER_W;
+    } else {
+      vx = Number(p.vx); vy = Number(p.vy);
       if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
-      const d = locDistKm(lat, lng, plat, plng);
-      candidates.push({ d, vx, vy, w: 1.0 });
     }
+    const d = locDistKm(lat, lng, plat, plng);
+    candidates.push({ d, vx, vy });
   }
-
   if (!candidates.length) return null;
   candidates.sort((a, b) => a.d - b.d);
   let top;
@@ -1574,37 +1551,26 @@ function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
   }
   let sumW = 0, sumVx = 0, sumVy = 0;
   for (const c of top) {
-    const w = c.w / Math.max(c.d, 0.1) ** 2;
+    const w = 1 / Math.max(c.d, 0.1) ** 2;
     sumW += w; sumVx += w * c.vx; sumVy += w * c.vy;
   }
-  return sumW > 0 ? { vx: sumVx / sumW, vy: sumVy / sumW } : null;
+  return { vx: sumVx / sumW, vy: sumVy / sumW };
 }
 
 // Projects a real-world location onto the edge of the Tabula's geographic bbox.
 // Returns { vp, centVp, cLat, cLng, edgeLat, edgeLng } — edge viewport position,
 // centroid VP, and centroid lat/lng for compass/arrow direction.
 function projectToTabulaEdge(userLat, userLng) {
-  const vpPool = S.mapMode === "old" ? S.millerCalib : S.places;
-  // Use all known Roman places for the geographic bbox — gives full Tabula coverage
-  // (including uncalibrated segments like Iberia) for correct edge projection.
-  const geoPool = S.allRecords.length ? S.allRecords : vpPool;
-  const millerAspect = MILLER_H / MILLER_W;
-
-  // Geographic bbox from all records
+  const pool = S.mapMode === "old" ? S.millerCalib : S.places;
   let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  let minVx = Infinity, maxVx = -Infinity, minVy = Infinity, maxVy = -Infinity;
   let sumLat = 0, sumLng = 0, count = 0;
-  for (const p of geoPool) {
+  for (const p of pool) {
     const lat = Number(p.lat), lng = Number(p.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
     minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
     minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
     sumLat += lat; sumLng += lng; count++;
-  }
-  if (!count) return { vp: null, centVp: null, cLat: 0, cLng: 0, edgeLat: 0, edgeLng: 0 };
-
-  // Viewport bbox: calibrated/placed positions (C — edge clamping)
-  let minVx = Infinity, maxVx = -Infinity, minVy = Infinity, maxVy = -Infinity;
-  for (const p of vpPool) {
     let vx, vy;
     if (S.mapMode === "old") {
       if (!Number.isFinite(Number(p.rect_x1))) continue;
@@ -1617,20 +1583,7 @@ function projectToTabulaEdge(userLat, userLng) {
     minVx = Math.min(minVx, vx); maxVx = Math.max(maxVx, vx);
     minVy = Math.min(minVy, vy); maxVy = Math.max(maxVy, vy);
   }
-  // Extend viewport bbox with segment/row estimates (Miller mode) so edge clamping
-  // reaches uncalibrated segments like Iberia or the far east.
-  if (S.mapMode === "old" && S.allRecords.length) {
-    const rowMap = { a: 1 / 6, b: 1 / 2, c: 5 / 6 };
-    for (const p of S.allRecords) {
-      const seg = Number(p.tabula_segment);
-      if (!Number.isFinite(seg) || seg < 2 || seg > 12) continue;
-      const vx = ((seg - 2) + 0.5) / 11;
-      const vy = (rowMap[p.tabula_row] ?? 0.5) * millerAspect;
-      minVx = Math.min(minVx, vx); maxVx = Math.max(maxVx, vx);
-      minVy = Math.min(minVy, vy); maxVy = Math.max(maxVy, vy);
-    }
-  }
-
+  if (!count) return { vp: null, centVp: null, cLat: 0, cLng: 0, edgeLat: 0, edgeLng: 0 };
   const cLat = sumLat / count, cLng = sumLng / count;
   const centVp = interpolateTabulaVp(cLat, cLng);
   const dLat = userLat - cLat, dLng = userLng - cLng;
@@ -1679,31 +1632,19 @@ function panToLocVp(vx, vy) {
 }
 
 function setUserLocation(lat, lng, isDefault = false) {
-  const vpPool = S.mapMode === "old" ? S.millerCalib : S.places;
-  // Use all known Roman places for geographic proximity check — this covers all Tabula
-  // segments (including uncalibrated Iberia, etc.) so the inside/outside decision is
-  // based on real coverage, not just which places happen to be calibrated.
-  const geoPool = S.allRecords.length ? S.allRecords : vpPool;
+  const pool = S.mapMode === "old" ? S.millerCalib : S.places;
+  // Only calibrated places drive the coverage decision — uncalibrated places (Segment I,
+  // non-surviving map areas like Iberia or Ireland) play no role. If the nearest
+  // calibrated place is > LOCATE_MAX_DIST_KM away the user is outside coverage.
   const AREA_TYPES_LOC = new Set(["region", "roman_province", "modern_state", "people"]);
-
-  // best/bestPoint from vpPool — used for navigation (needs valid vx/vy for highlight)
   let best = null, bestDist = Infinity;
   let bestPoint = null, bestPointDist = Infinity;
-  for (const p of vpPool) {
+  for (const p of pool) {
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
     const d = (lat - plat) ** 2 + (lng - plng) ** 2;
     if (d < bestDist) { bestDist = d; best = p; }
     if (!AREA_TYPES_LOC.has(p.type) && d < bestPointDist) { bestPointDist = d; bestPoint = p; }
-  }
-  // geoPoint from allRecords — nearest non-area place by real geography (for coverage decision + info panel)
-  let geoPoint = null, geoPointDist = Infinity;
-  for (const p of geoPool) {
-    const plat = Number(p.lat), plng = Number(p.lng);
-    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-    if (AREA_TYPES_LOC.has(p.type)) continue;
-    const d = locDistKm(lat, lng, plat, plng);
-    if (d < geoPointDist) { geoPointDist = d; geoPoint = p; }
   }
 
   S.userLocLat = lat;
@@ -1713,13 +1654,13 @@ function setUserLocation(lat, lng, isDefault = false) {
   const hint = document.getElementById("locate-map-hint");
   const prefix = isDefault ? "Default location — " : "";
 
-  if (best || geoPoint) {
-    const refPlace = best || geoPoint;
-    const name = (geoPoint || best).latin_std || (geoPoint || best).latin || "";
-    const distKm = locDistKm(lat, lng, Number(refPlace.lat), Number(refPlace.lng));
+  if (best) {
+    const name = best.latin_std || best.latin || "";
+    const distKm = locDistKm(lat, lng, Number(best.lat), Number(best.lng));
     const distRound = Math.round(distKm);
-    // Coverage decision uses geographic distance to nearest known place (any segment)
-    const coverDist = geoPointDist < Infinity ? geoPointDist : distKm;
+    const coverDist = bestPoint
+      ? locDistKm(lat, lng, Number(bestPoint.lat), Number(bestPoint.lng))
+      : distKm;
 
     if (distKm <= LOCATE_SNAP_KM) {
       S.userLocVp = placeVp(best);
@@ -1737,7 +1678,7 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocLabel = `~${name}`;
       S.userLocOutside = false; S.userLocCentVp = null;
       if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
-      if (!S.isMobile) showInfoPanel(geoPoint || best);
+      if (!S.isMobile) showInfoPanel(best);
       if (statusEl) { statusEl.textContent = prefix + `Interpolated — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(`~${name} (~${distRound} km)`);
@@ -1749,16 +1690,16 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocOutside = true;
       S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
       if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
-      // A: find nearest point-type place to the edge position (use geoPool for full coverage)
+      // A: find nearest calibrated point-type place to the edge position for info panel
       let edgeBest = null, edgeBestDist = Infinity;
-      for (const p of geoPool) {
+      for (const p of pool) {
         const plat = Number(p.lat), plng = Number(p.lng);
         if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
         if (AREA_TYPES_LOC.has(p.type)) continue;
         const d = locDistKm(edgeResult.edgeLat, edgeResult.edgeLng, plat, plng);
         if (d < edgeBestDist) { edgeBestDist = d; edgeBest = p; }
       }
-      showInfoPanel(edgeBest || geoPoint || best);
+      showInfoPanel(edgeBest || best);
       if (statusEl) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
       if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
       showLocateMarkerPopup(`Outside (~${distRound} km)`);
