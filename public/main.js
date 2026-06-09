@@ -232,6 +232,7 @@ const S = {
   highlightUntil:  0,
   highlightVp:     null,  // {vx,vy} viewport centre stored by panToPlace for fallback ring
   highlightLocate: false, // true when highlight was triggered by user locate snap
+  highlightPlace:  null,  // the place record that is currently highlighted
   userLocVp:      null,   // {vx,vy} viewport coords where crosshair is drawn
   userLocLat:     null,
   userLocLng:     null,
@@ -587,6 +588,7 @@ function startHighlight(place, isLocate = false) {
   S.highlightDataId = Number(place.data_id);
   S.highlightUntil  = Date.now() + 20000;
   S.highlightLocate = isLocate;
+  S.highlightPlace  = place;
   function tick() {
     renderMarkers();
     if (Date.now() < S.highlightUntil) requestAnimationFrame(tick);
@@ -899,6 +901,38 @@ function renderMarkers() {
         drawHighlightRing(ctx, cx, cy, 40);
       }
       drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
+    }
+
+    // Highlighted locate match — draw marker+label even when type filters would hide it
+    if (S.highlightLocate && S.highlightPlace && S.highlightDataId && Date.now() < S.highlightUntil) {
+      const hlVp = placeVp(S.highlightPlace);
+      if (hlVp) {
+        const { cx: hcx, cy: hcy } = viewportToCanvas(hlVp.vx, hlVp.vy);
+        const hlColor = TYPE_COLORS[S.highlightPlace.type] || "#92400E";
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(hcx, hcy, 7, 0, Math.PI * 2);
+        ctx.fillStyle = hlColor;
+        ctx.fill();
+        ctx.strokeStyle = "#FFD700";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+        const hlLabel = S.highlightPlace.latin_std || S.highlightPlace.latin || "";
+        if (hlLabel) {
+          ctx.save();
+          ctx.font = "bold 13px 'Segoe UI', Arial, sans-serif";
+          ctx.textBaseline = "bottom";
+          ctx.textAlign = "center";
+          ctx.strokeStyle = "rgba(0,0,0,0.75)";
+          ctx.lineWidth = 3;
+          ctx.lineJoin = "round";
+          ctx.strokeText(hlLabel, hcx, hcy - 10);
+          ctx.fillStyle = "#FFD700";
+          ctx.fillText(hlLabel, hcx, hcy - 10);
+          ctx.restore();
+        }
+      }
     }
     return;
   }
@@ -1543,6 +1577,9 @@ function panToPlace(place, hw = null) {
    ============================================================ */
 let _leafletMap = null;
 let _leafletMarker = null;
+let _leafletL = null;
+let _leafletPlacesLayer = null;
+let _leafletPlacesOn = false;
 
 const LOCATE_SNAP_KM     = 15;   // snap to nearest place within this distance
 const LOCATE_INSIDE_KM   = 150;  // max distance for "on the map" treatment (no direction arrow)
@@ -1559,6 +1596,10 @@ function locDistKm(lat1, lng1, lat2, lng2) {
 // Rivers and mountains have extreme vx/vy positions that distort IDW averages —
 // exclude them so tribal/city/road-station positions dominate the interpolation.
 const IDW_EXCLUDE_TYPES = new Set(["river", "mountain", "water", "lake"]);
+// Area-type places (people, regions, provinces) are poor locate targets when a specific
+// place (city, road station, temple, etc.) is within range — use only as last resort.
+const LOCATE_AREA_TYPES = new Set(["people", "region", "roman_province", "modern_state"]);
+const LOCATE_AREA_FALLBACK_KM = 250;
 
 function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
@@ -1678,12 +1719,29 @@ function panToLocVp(vx, vy, isOutside = false) {
 
 function setUserLocation(lat, lng, isDefault = false) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
-  let best = null, bestDist = Infinity;
+  let bestNonArea = null, bestNonAreaSq = Infinity;
+  let bestArea = null, bestAreaSq = Infinity;
   for (const p of pool) {
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-    const d = (lat - plat) ** 2 + (lng - plng) ** 2;
-    if (d < bestDist) { bestDist = d; best = p; }
+    const dsq = (lat - plat) ** 2 + (lng - plng) ** 2;
+    if (LOCATE_AREA_TYPES.has(p.type)) {
+      if (dsq < bestAreaSq) { bestAreaSq = dsq; bestArea = p; }
+    } else {
+      if (dsq < bestNonAreaSq) { bestNonAreaSq = dsq; bestNonArea = p; }
+    }
+  }
+  const nonAreaDistKm = bestNonArea
+    ? locDistKm(lat, lng, Number(bestNonArea.lat), Number(bestNonArea.lng))
+    : Infinity;
+  let best;
+  if (!bestArea || nonAreaDistKm <= LOCATE_AREA_FALLBACK_KM) {
+    best = bestNonArea;
+  } else if (!bestNonArea) {
+    best = bestArea;
+  } else {
+    const areaDistKm = locDistKm(lat, lng, Number(bestArea.lat), Number(bestArea.lng));
+    best = areaDistKm < nonAreaDistKm ? bestArea : bestNonArea;
   }
 
   S.userLocLat = lat;
@@ -1786,6 +1844,7 @@ async function openLocatePopup() {
   popup.classList.remove("hidden");
 
   const L = await loadLeaflet();
+  _leafletL = L;
   const lat = S.userLocLat ?? S.defaultLat;
   const lng = S.userLocLng ?? S.defaultLng;
 
@@ -1813,6 +1872,7 @@ async function openLocatePopup() {
       _leafletMarker.setLatLng(e.latlng);
       setUserLocation(e.latlng.lat, e.latlng.lng);
     });
+    document.getElementById("locate-places-btn").addEventListener("click", toggleLeafletPlaces);
   } else {
     _leafletMarker.setLatLng([lat, lng]);
     _leafletMap.panTo([lat, lng]); // preserve user's zoom level on reopen
@@ -1822,6 +1882,33 @@ async function openLocatePopup() {
 
 function closeLocatePopup() {
   document.getElementById("locate-map-popup").classList.add("hidden");
+}
+
+function toggleLeafletPlaces() {
+  _leafletPlacesOn = !_leafletPlacesOn;
+  const btn = document.getElementById("locate-places-btn");
+  if (btn) btn.classList.toggle("active", _leafletPlacesOn);
+  if (!_leafletMap || !_leafletL) return;
+  if (_leafletPlacesOn) {
+    if (!_leafletPlacesLayer) {
+      const markers = [];
+      for (const r of S.allRecords) {
+        const rlat = Number(r.lat), rlng = Number(r.lng);
+        if (!Number.isFinite(rlat) || !Number.isFinite(rlng)) continue;
+        const name = r.latin_std || r.latin || r.modern || "";
+        const color = TYPE_COLORS[r.type] || "#92400E";
+        const m = _leafletL.circleMarker([rlat, rlng], {
+          radius: 4, color, weight: 1.5, fillColor: color, fillOpacity: 0.7,
+        });
+        if (name) m.bindTooltip(name, { direction: "top", offset: [0, -4] });
+        markers.push(m);
+      }
+      _leafletPlacesLayer = _leafletL.layerGroup(markers);
+    }
+    _leafletPlacesLayer.addTo(_leafletMap);
+  } else if (_leafletPlacesLayer) {
+    _leafletMap.removeLayer(_leafletPlacesLayer);
+  }
 }
 
 function acquireGps(openAfter = false) {
