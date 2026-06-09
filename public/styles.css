@@ -63,7 +63,7 @@ body, html {
 
 #top-bar {
   position: absolute;
-  top: 10px; left: 52px; right: 10px;
+  top: 10px; left: 66px; right: 10px;
   display: flex;
   justify-content: space-between;
   z-index: 10;
@@ -100,16 +100,26 @@ body, html {
 .segment-btn-group {
   display: flex;
   gap: 2px;
+  align-items: center;
+}
+.seg-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  padding: 0 4px 0 0;
+  user-select: none;
 }
 .seg-btn {
   background: var(--panel-bg);
-  color: var(--text-muted);
-  border: 1px solid var(--border-color);
+  color: rgba(215, 220, 230, 0.92);
+  border: 1px solid rgba(120, 130, 150, 0.55);
   border-radius: 5px;
-  padding: 6px 9px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   cursor: pointer;
   line-height: 1;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -377,6 +387,16 @@ body, html {
 
 /* Utilities */
 .hidden { display: none !important; }
+
+/* Startup demo animations */
+@keyframes demoPanelIn { from { opacity: 0; transform: scale(0.92) translateY(8px); } to { opacity: 1; transform: none; } }
+.demo-panel-in { animation: demoPanelIn 0.35s ease-out forwards; }
+@keyframes demoBtnPulse {
+  0%   { transform: scale(1);    box-shadow: none; }
+  45%  { transform: scale(1.45); box-shadow: 0 0 14px 5px rgba(200,160,80,0.75); }
+  100% { transform: scale(1);    box-shadow: none; }
+}
+.demo-btn-pulse { animation: demoBtnPulse 0.55s ease-out forwards; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.5); }
 
 /* ── Mobile menu overlay ─────────────────────────────────────── */
@@ -561,9 +581,16 @@ body, html {
 #locate-leaflet-map { width: 100%; flex: 1; min-height: 0; }
 #locate-map-hint {
   font-size: 10px; color: var(--text-muted);
-  margin: 4px 12px 6px; text-align: center;
+  margin: 4px 12px 2px; text-align: center;
   flex-shrink: 0;
 }
+#locate-map-attr {
+  font-size: 9px; color: var(--text-muted);
+  margin: 0 12px 4px; text-align: center;
+  flex-shrink: 0;
+}
+#locate-map-attr a { color: var(--accent); text-decoration: none; }
+#locate-map-attr a:hover { text-decoration: underline; }
 /* Compact Leaflet popup for locate marker */
 .locate-popup .leaflet-popup-content-wrapper {
   padding: 0 !important;

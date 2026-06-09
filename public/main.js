@@ -32,7 +32,7 @@ const SEGMENT_COUNT = 11;
 const TYPE_COLORS = {
   city:           "#8B0000",
   port:           "#1D4ED8",
-  road_station:   "#92400E",
+  road_station:   "#D97706",
   river:          "#0e7490",
   lake:           "#0369a1",
   island:         "#15803d",
@@ -457,7 +457,8 @@ function focusStartup(immediate = false) {
 function setupSegmentSelector() {
   const container = document.getElementById("segment-buttons");
   if (!container) return;
-  container.innerHTML = S.segments.map((seg) => {
+  const label = `<span class="seg-group-label">Map Seg.</span>`;
+  container.innerHTML = label + S.segments.map((seg) => {
     const n = Number(seg.number);
     const roman = String(seg.roman || n);
     return `<button class="seg-btn" data-seg="${n}" title="${roman}: ${seg.label || roman}">${roman}</button>`;
@@ -693,13 +694,6 @@ function drawUserCrosshair(ctx, cx, cy) {
   ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
   ctx.stroke();
 
-  // Center dot
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#fff";
-  ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#FF2222";
-  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
-
   ctx.restore();
 }
 
@@ -890,58 +884,37 @@ function renderMarkers() {
         const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
         outsideAngle = Math.atan2(cy - ccy, cx - ccx);
       }
-      // Gold pulse ring + glow for snap match (not outside)
-      if (!S.userLocOutside && S.highlightLocate && S.highlightDataId && Date.now() < S.highlightUntil) {
-        const t = (Date.now() % 1000) / 1000;
-        ctx.save();
-        ctx.globalAlpha = (1 - t) * 0.22;
-        ctx.beginPath(); ctx.arc(cx, cy, 44 + t * 80, 0, Math.PI * 2);
-        ctx.fillStyle = "#FFD700"; ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.restore();
-        drawHighlightRing(ctx, cx, cy, 40);
-      }
       drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
     }
 
-    // Nearest locate place: permanent marker + label (independent of type filter / timer)
+    // Draw the locate-matched place as a search-style highlighted marker.
+    // Drawn regardless of category filter; only this specific item, not the whole category.
     if (S.userLocPlace) {
-      const hlVp = placeVp(S.userLocPlace);
-      if (hlVp) {
-        const { cx: hcx, cy: hcy } = viewportToCanvas(hlVp.vx, hlVp.vy);
-        const hlColor = TYPE_COLORS[S.userLocPlace.type] || "#92400E";
-        // Pulsing ring during the 20-second highlight window
-        if (S.highlightLocate && S.highlightDataId && Date.now() < S.highlightUntil) {
-          drawHighlightRing(ctx, hcx, hcy, 14);
-        }
-        // Permanent colored dot with gold border
+      const locPlaceVp = placeVp(S.userLocPlace);
+      if (locPlaceVp) {
+        const { cx: pcx, cy: pcy } = viewportToCanvas(locPlaceVp.vx, locPlaceVp.vy);
+        const color = TYPE_COLORS[S.userLocPlace.type] || "#92400E";
+        const rw = 24, rh = 16;
+        const rx = pcx - rw / 2, ry = pcy - rh / 2;
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(hcx, hcy, 11, 0, Math.PI * 2);
-        ctx.fillStyle = hlColor;
-        ctx.fill();
-        ctx.strokeStyle = "#FFD700";
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.restore();
-        // Permanent label with dark background, above the crosshair circle
-        const hlLabel = S.userLocPlace.latin_std || S.userLocPlace.latin || "";
-        if (hlLabel) {
+        ctx.globalAlpha = 0.25; ctx.fillStyle = color;
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.globalAlpha = 0.8; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+        ctx.strokeRect(rx, ry, rw, rh);
+        ctx.globalAlpha = 1; ctx.restore();
+        drawSelectionFrame(ctx, rx, ry, rw, rh);
+        if (S.highlightLocate && S.highlightDataId === Number(S.userLocPlace.data_id) && Date.now() < S.highlightUntil) {
+          const t = (Date.now() % 1000) / 1000;
           ctx.save();
-          ctx.font = "bold 13px 'Segoe UI', Arial, sans-serif";
-          ctx.textBaseline = "bottom";
-          ctx.textAlign = "center";
-          const tw = ctx.measureText(hlLabel).width;
-          const pad = 5;
-          const labelY = hcy - 36;
-          ctx.fillStyle = "rgba(0,0,0,0.78)";
-          ctx.fillRect(hcx - tw / 2 - pad, labelY - 16, tw + pad * 2, 18);
-          ctx.fillStyle = "#FFD700";
-          ctx.fillText(hlLabel, hcx, labelY);
-          ctx.restore();
+          ctx.globalAlpha = (1 - t) * 0.22;
+          ctx.beginPath(); ctx.arc(pcx, pcy, 44 + t * 80, 0, Math.PI * 2);
+          ctx.fillStyle = "#FFD700"; ctx.fill();
+          ctx.globalAlpha = 1; ctx.restore();
+          drawHighlightRing(ctx, pcx, pcy, 22);
         }
       }
     }
+
     return;
   }
 
@@ -1399,6 +1372,10 @@ function showInfoPanel(place) {
       resolveWikiSummaryFromUrl(reqId, wikiSummary, place.wiki_url);
     } else {
       wikiLink.classList.add("hidden");
+      if (wikiSummary) {
+        wikiSummary.textContent = "No Wikipedia article available.";
+        wikiSummary.classList.remove("hidden");
+      }
     }
   }
 
@@ -1541,6 +1518,32 @@ function placeVp(place) {
   return { vx: Number.isFinite(vx) ? vx : 0.5, vy: Number.isFinite(vy) ? vy : 0.5 };
 }
 
+// Inverse-distance-weighted interpolation of user's lat/lng onto the Tabula calibration space.
+// Uses the 8 nearest SegIV-space places as anchors. Returns viewport {vx, vy} or null.
+function idwTabulaVp(lat, lng) {
+  if (!S.places.length) return null;
+
+  // Collect nearest anchor places using their proper stitched viewport positions
+  const anchors = [];
+  for (const p of S.places) {
+    const plat = Number(p.lat), plng = Number(p.lng);
+    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+    const vp = placeVp(p);
+    if (!vp) continue;
+    anchors.push({ vx: vp.vx, vy: vp.vy, d: locDistKm(lat, lng, plat, plng) });
+  }
+  anchors.sort((a, b) => a.d - b.d);
+  const nearest = anchors.slice(0, LOCATE_IDW_K);
+  if (!nearest.length) return null;
+
+  let sumW = 0, sumVx = 0, sumVy = 0;
+  for (const { vx, vy, d } of nearest) {
+    const w = 1 / Math.max(d * d, 0.01);
+    sumW += w; sumVx += w * vx; sumVy += w * vy;
+  }
+  return { vx: sumVx / sumW, vy: sumVy / sumW };
+}
+
 function panToPlace(place, hw = null) {
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
@@ -1568,8 +1571,16 @@ function panToPlace(place, hw = null) {
     return;
   }
   if (S.newSourceKind === "stitched") {
-    const statusEl = document.getElementById("status");
-    if (statusEl) statusEl.textContent = "Place overlays are calibrated for the readable 150dpi segment IV source.";
+    const vp = placeVp(place);
+    if (vp && S.viewer.viewport) {
+      S.highlightVp = vp;
+      const sz = S.stitchedTile?.Image?.Size;
+      const aspect = sz ? Number(sz.Height) / Number(sz.Width) : IMG_H / IMG_W;
+      const usedHw = hw ?? (S.isMobile ? 0.014 : 0.05);
+      S.viewer.viewport.fitBounds(
+        new OpenSeadragon.Rect(vp.vx - usedHw, vp.vy - usedHw * aspect, usedHw * 2, usedHw * 2 * aspect)
+      );
+    }
     return;
   }
   const aspect = IMG_H / IMG_W;
@@ -1590,10 +1601,14 @@ let _leafletMarker = null;
 let _leafletL = null;
 let _leafletPlacesLayer = null;
 let _leafletPlacesOn = false;
+let _leafletRoadsLayer = null;
+let _leafletRoadsOn = false;
+let _omnesViaeData = null;
 
-const LOCATE_SNAP_KM     = 15;   // snap to nearest place within this distance
-const LOCATE_INSIDE_KM   = 150;  // max distance for "on the map" treatment (no direction arrow)
-const LOCATE_MAX_DIST_KM = 500;  // ring + info panel shown up to this distance
+const LOCATE_SNAP_KM     = 10;   // crosshair snaps exactly to nearest place within this distance
+const LOCATE_IDW_KM      = 150;  // use IDW interpolation for inside-zone up to this distance
+const LOCATE_MAX_DIST_KM = 500;  // ring + info panel shown up to this distance from the map
+const LOCATE_IDW_K       = 8;    // number of nearest anchor places used for IDW interpolation
 
 function locDistKm(lat1, lng1, lat2, lng2) {
   const dlat = lat1 - lat2;
@@ -1757,9 +1772,11 @@ function setUserLocation(lat, lng, isDefault = false) {
   S.userLocLat = lat;
   S.userLocLng = lng;
 
+  // Default/fallback location: only update Leaflet marker position, don't draw on Tabula
+  if (isDefault) return;
+
   const statusEl = document.getElementById("status");
   const hint = document.getElementById("locate-map-hint");
-  const prefix = isDefault ? "Default location — " : "";
 
   if (best) {
     S.userLocPlace = best;
@@ -1768,30 +1785,34 @@ function setUserLocation(lat, lng, isDefault = false) {
     const distRound = Math.round(distKm);
 
     if (distKm <= LOCATE_SNAP_KM) {
-      S.userLocVp = placeVp(best);
-      S.userLocLabel = name;
+      // Snap: crosshair at place position + rect drawn on top
+      const snapVp = placeVp(best);
+      S.userLocVp = snapVp;
+      S.userLocLabel = "";
       S.userLocOutside = false; S.userLocCentVp = null;
       startHighlight(best, true);
-      panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
+      if (snapVp) panToLocVp(snapVp.vx, snapVp.vy);
       if (!S.isMobile) showInfoPanel(best);
-      if (statusEl) { statusEl.textContent = prefix + `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+      if (statusEl) { statusEl.textContent = `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(`${name} (~${distRound} km)`);
 
     } else {
       const edgeResult = projectToTabulaEdge(lat, lng);
 
-      if (edgeResult.isInside && distKm <= LOCATE_INSIDE_KM) {
-        // Inside: on-place crosshair, no arrow — close enough to be "on" the Tabula
+      if (edgeResult.isInside && distKm <= LOCATE_IDW_KM) {
+        // Inside: crosshair at nearest place + rect drawn on top
+        // Use IDW interpolation for crosshair (user's actual Tabula position between places)
+        const idwVp = idwTabulaVp(lat, lng);
         const nearestVp = placeVp(best);
-        S.userLocVp = nearestVp;
+        S.userLocVp = idwVp || nearestVp;
         S.userLocCentVp = null;
         S.userLocOutside = false;
-        S.userLocLabel = `~${name}`;
+        S.userLocLabel = "";
         startHighlight(best, true);
-        if (nearestVp) panToLocVp(nearestVp.vx, nearestVp.vy);
+        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
         if (!S.isMobile) showInfoPanel(best);
-        if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+        if (statusEl) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
         if (hint) hint.textContent = "Click map or drag marker to set location";
         showLocateMarkerPopup(`~${name} (~${distRound} km)`);
 
@@ -1807,7 +1828,7 @@ function setUserLocation(lat, lng, isDefault = false) {
           // Outside-near: ring + info panel for the nearest reference
           startHighlight(best, true);
           if (!S.isMobile) showInfoPanel(best);
-          if (statusEl) { statusEl.textContent = prefix + `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+          if (statusEl) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
           if (hint) hint.textContent = "Click map or drag marker to set location";
           showLocateMarkerPopup(`~${name} (~${distRound} km)`);
         } else {
@@ -1884,6 +1905,9 @@ async function openLocatePopup() {
       setUserLocation(e.latlng.lat, e.latlng.lng);
     });
     document.getElementById("locate-places-btn").addEventListener("click", toggleLeafletPlaces);
+    document.getElementById("locate-roads-btn").addEventListener("click", toggleLeafletRoads);
+    // Default: roads on (behind), then places on top
+    toggleLeafletRoads().then(() => toggleLeafletPlaces());
   } else {
     _leafletMarker.setLatLng([lat, lng]);
     _leafletMap.panTo([lat, lng]); // preserve user's zoom level on reopen
@@ -1893,6 +1917,73 @@ async function openLocatePopup() {
 
 function closeLocatePopup() {
   document.getElementById("locate-map-popup").classList.add("hidden");
+}
+
+async function toggleLeafletRoads() {
+  _leafletRoadsOn = !_leafletRoadsOn;
+  const btn = document.getElementById("locate-roads-btn");
+  if (btn) btn.classList.toggle("active", _leafletRoadsOn);
+  if (!_leafletMap || !_leafletL) return;
+
+  if (_leafletRoadsOn) {
+    if (!_leafletRoadsLayer) {
+      // Load once, cache in _omnesViaeData
+      if (!_omnesViaeData) {
+        if (btn) btn.textContent = "Loading…";
+        try {
+          const resp = await fetch("data/omnesviae_roads.json");
+          _omnesViaeData = await resp.json();
+        } catch (e) {
+          console.error("Failed to load OmnesViae roads:", e);
+          if (btn) btn.textContent = "Tabula Roman Roads";
+          _leafletRoadsOn = false;
+          if (btn) btn.classList.remove("active");
+          return;
+        }
+        if (btn) btn.innerHTML =
+          `<svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2" y1="14" x2="9" y2="4"/><line x1="9" y1="4" x2="16" y2="14"/><line x1="4" y1="10" x2="14" y2="10"/></svg> Tabula Roman Roads`;
+      }
+
+      const lines = [];
+      for (const road of _omnesViaeData.roads) {
+        const fromLL = road.f;
+        const toLL   = road.t;
+
+        let color   = "#EA580C";   // orange — normal road
+        let weight  = 2.5;
+        let dash    = null;
+        let opacity = 0.51;        // 40% more transparent than original 0.85
+
+        if (road.w) {
+          color = "#0284C7";        // sky blue — over water
+        } else if (road.m) {
+          color = "#7C2D12";        // deep red-brown — crosses mountains
+        }
+        if (road.r) {
+          dash = "6 5";             // dashed — reconstructed
+          opacity = 0.33;          // 40% more transparent than original 0.55
+        }
+
+        const opts = { color, weight, opacity, interactive: true };
+        if (dash) opts.dashArray = dash;
+
+        const parts = [road.fl, road.tl].filter(Boolean);
+        const nameStr = parts.length === 2 ? `${parts[0]} → ${parts[1]}` : parts[0] || "";
+        const distStr = road.d != null ? `${road.d} Roman miles (${(road.d * 1.479).toFixed(1)} km)` : "";
+        const flags = [road.w && "over water", road.r && "reconstructed", road.m && "crosses mountains"]
+          .filter(Boolean).join(", ");
+        const popupHtml = `<b>${nameStr}</b>${distStr ? `<br>${distStr}` : ""}${flags ? `<br><i>${flags}</i>` : ""}`;
+
+        const line = _leafletL.polyline([fromLL, toLL], opts);
+        line.bindPopup(popupHtml);
+        lines.push(line);
+      }
+      _leafletRoadsLayer = _leafletL.layerGroup(lines);
+    }
+    _leafletRoadsLayer.addTo(_leafletMap);
+  } else if (_leafletRoadsLayer) {
+    _leafletMap.removeLayer(_leafletRoadsLayer);
+  }
 }
 
 function toggleLeafletPlaces() {
@@ -1907,11 +1998,23 @@ function toggleLeafletPlaces() {
         const rlat = Number(r.lat), rlng = Number(r.lng);
         if (!Number.isFinite(rlat) || !Number.isFinite(rlng)) continue;
         const name = r.latin_std || r.latin || r.modern || "";
-        const color = TYPE_COLORS[r.type] || "#92400E";
+        const seg = Number(r.tabula_segment ?? r.grid_segment);
+        const isSeg1 = seg === 1;
+        const color = isSeg1 ? "#9CA3AF" : (TYPE_COLORS[r.type] || "#D97706");
         const m = _leafletL.circleMarker([rlat, rlng], {
-          radius: 4, color, weight: 1.5, fillColor: color, fillOpacity: 0.7,
+          radius: isSeg1 ? 3 : 4, color, weight: 1.5, fillColor: color,
+          fillOpacity: isSeg1 ? 0.4 : 0.7,
         });
-        if (name) m.bindTooltip(name, { direction: "top", offset: [0, -4] });
+        const tooltip = isSeg1 ? (name ? `${name} [Segment I — lost]` : "[Segment I — lost]") : name;
+        if (tooltip) m.bindTooltip(tooltip, { direction: "top", offset: [0, -4] });
+        // Click a place dot → navigate Tabula to it and open info panel
+        m.on("click", () => {
+          const full = S.allRecords.find(a => a.data_id === r.data_id) || r;
+          panToPlace(full);
+          startHighlight(full);
+          showInfoPanel(full);
+          renderMarkers();
+        });
         markers.push(m);
       }
       _leafletPlacesLayer = _leafletL.layerGroup(markers);
@@ -1997,8 +2100,12 @@ function setupControls() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       hideInfoPanel();
-      document.getElementById("about-panel")?.classList.add("hidden");
-      document.getElementById("about-modal-backdrop")?.classList.add("hidden");
+      const ap = document.getElementById("about-panel");
+      const bd = document.getElementById("about-modal-backdrop");
+      if (ap && !ap.classList.contains("hidden")) {
+        bd?.classList.add("hidden");
+        demoFlyToButton(ap, "about-btn", 380, () => {}, true);
+      }
     }
   });
   document.addEventListener("click", (e) => {
@@ -2133,8 +2240,8 @@ function setupTypeFilters() {
     aboutBackdrop?.classList.remove("hidden");
   }
   function closeAboutPanel() {
-    aboutPanel.classList.add("hidden");
     aboutBackdrop?.classList.add("hidden");
+    demoFlyToButton(aboutPanel, "about-btn", 380, () => {}, true);
   }
   if (aboutBtn && aboutPanel) {
     aboutBtn.addEventListener("click", () => {
@@ -2380,9 +2487,11 @@ function setupInteraction() {
       return;
     }
 
-    // Nothing hit — close info panel if open
-    const panel = document.getElementById("info-panel");
-    if (!panel.classList.contains("hidden")) hideInfoPanel();
+    // Nothing hit — close info panel if open (only in old mode; stitched mode has no clickable markers)
+    if (S.mapMode === "old") {
+      const panel = document.getElementById("info-panel");
+      if (!panel.classList.contains("hidden")) hideInfoPanel();
+    }
   });
 }
 
@@ -3186,6 +3295,7 @@ async function init() {
         focusStartup(true);
         initialFocused = true;
         showAboutPanelOnStartup();
+        setTimeout(runStartupDemo, 1000);
       }
       renderMarkers();
     });
@@ -3335,5 +3445,66 @@ async function reloadDb() {
   // Show on first load if portrait touch
   maybeShow();
 })();
+
+// centered=true for panels using transform:translate(-50%,-50%) for centering (e.g. about modal)
+function demoFlyToButton(panel, btnId, duration, onDone, centered = false) {
+  const btn = document.getElementById(btnId);
+  const pr = panel.getBoundingClientRect();
+  let dx = 0, dy = 0;
+  if (btn) {
+    const br = btn.getBoundingClientRect();
+    dx = (br.left + br.width  / 2) - (pr.left + pr.width  / 2);
+    dy = (br.top  + br.height / 2) - (pr.top  + pr.height / 2);
+  }
+  // Set an explicit start state that matches the current visual so the transition has a clean from-value
+  panel.style.transition = "none";
+  panel.style.transform  = centered
+    ? `translate(calc(-50% + 0px), calc(-50% + 0px)) scale(1)`
+    : `translate(0px,0px) scale(1)`;
+  void panel.offsetHeight; // flush so browser commits the start state before transition begins
+  panel.style.transition = `transform ${duration}ms ease-in, opacity ${duration}ms ease-in`;
+  panel.style.transform  = centered
+    ? `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.06)`
+    : `translate(${dx}px,${dy}px) scale(0.06)`;
+  panel.style.opacity    = "0";
+  setTimeout(() => {
+    panel.style.transition = "";
+    panel.style.transform  = "";
+    panel.style.opacity    = "";
+    panel.classList.add("hidden");
+    if (btn) {
+      btn.classList.add("demo-btn-pulse");
+      setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
+    }
+    onDone?.();
+  }, duration);
+}
+
+function runStartupDemo() {
+  const aboutPanelEl   = document.getElementById("about-panel");
+  const aboutBackdropEl = document.getElementById("about-modal-backdrop");
+  const locPopup       = document.getElementById("locate-map-popup");
+  if (!locPopup) return;
+
+  const showLocate = () => {
+    setTimeout(() => {
+      openLocatePopup().catch(() => {});
+      locPopup.classList.remove("hidden");
+      locPopup.classList.add("demo-panel-in");
+      setTimeout(() => {
+        locPopup.classList.remove("demo-panel-in");
+        demoFlyToButton(locPopup, "control-locate", 420, () => {});
+      }, 980);
+    }, 300);
+  };
+
+  // Fly the about panel toward its button first, then show locate popup
+  aboutBackdropEl?.classList.add("hidden");
+  if (aboutPanelEl && !aboutPanelEl.classList.contains("hidden")) {
+    demoFlyToButton(aboutPanelEl, "about-btn", 380, showLocate, true);
+  } else {
+    showLocate();
+  }
+}
 
 window.addEventListener("DOMContentLoaded", init);
