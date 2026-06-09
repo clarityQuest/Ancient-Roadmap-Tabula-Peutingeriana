@@ -1,0 +1,103 @@
+# Tabula Peutingeriana — Interactive Ancient Roman Road Map
+
+> Interactive zoomable viewer of the Tabula Peutingeriana — the world's most complete surviving Roman road map (c. 4th–5th century AD, medieval copy c. 1200 AD). Covers the Roman Empire and beyond, from Britain to India, with 3,974 annotated places and GPS-locate functionality. Free, no login required.
+
+URL: https://tabula-peutingeriana.com/
+
+## What is the Tabula Peutingeriana?
+
+The Tabula Peutingeriana (also: Peutinger Map / Peutingersche Tafel) is a medieval copy of a late-antique Roman road map. The surviving parchment scroll measures 6.75 metres long and 34 cm tall. It shows roads, distances in Roman miles (*milia passuum*), and over 3,500 named settlements across the entire known world of late antiquity — from the British Isles and the Atlantic coast in the west to India and Sri Lanka in the east.
+
+Three cities receive special pictorial treatment as enthroned figures: Rome, Constantinople, and Antioch — reflecting their supreme status in the late Roman world.
+
+The surviving copy dates to c. 1200 AD, made by a monk in Colmar (Alsace), likely from a Carolingian copy of a late-antique original. It has been held at the Österreichische Nationalbibliothek (Austrian National Library) in Vienna since 1738. It is a UNESCO Memory of the World document (2007).
+
+Named after Konrad Peutinger (1465–1547), the Augsburg humanist who owned the map for decades.
+
+## Viewer Features
+
+- **High-resolution zoomable map** — stitched 12-segment image, panned/zoomed with OpenSeadragon
+- **3,974 annotated places** with Latin names and modern equivalents: road stations, cities, rivers, mountains, islands, regions, Roman provinces, modern states, spas/thermal baths, temples, ports, lakes
+- **81% located** — 3,230 of 3,974 places have georeferenced modern coordinates
+- **Search** by Latin name or modern equivalent
+- **Wikipedia integration** — summaries and thumbnail images for located places
+- **GPS locate** — press the crosshair button to find your nearest ancient Roman location; works worldwide, shows edge direction for locations outside the map's coverage
+- **OmnesViae Roman roads layer** — overlay the ancient road network on the modern location map
+- **Category filters** — filter by place type (road stations, cities, rivers, etc.)
+- **Segment navigation** — jump to any of the 12 segments by button
+- **Miller itineraria overlay** — toggle the 1887 K. Miller map overlay
+- **Links to academic databases** — Ulm University TP database (tp-online.ku.de) and tabula-peutingeriana.de (M. Weber)
+
+## Place Coverage by Type
+
+| Type | Total | Located |
+|---|---|---|
+| Road stations | 2,469 | 2,000 (81.0%) |
+| Cities | 466 | ~440 |
+| Rivers | 252 | most |
+| Mountains | 162 | most |
+| Peoples / tribes | 148 | most |
+| Islands | 130 | most |
+| Regions | 108 | most |
+| Modern states | 46 | all |
+| Roman provinces | 37 | all |
+| Spas / thermal baths | 36 | ~30 |
+| Water bodies | 34 | most |
+| Ports | 31 | ~25 |
+| Temples | 30 | ~20 |
+| Lakes | 25 | most |
+
+## Geographic Coverage (Segments II–XII)
+
+Segment I (Britain west, Iberia, Atlantic Morocco) is lost. Segments II–XII survive intact.
+
+- **Segment II**: Iberian Peninsula, SE Britain, North Africa (Mauritania, NW Algeria)
+- **Segment III**: Southern Gaul, Italian Alps, North Africa (Algeria, Tunisia)
+- **Segments IV–V**: Italy (north and south), Dalmatia, Tunisia, Libya (Tripolitania)
+- **Segment VI**: Balkans, Greece, Adriatic coast, Libya (Tripolitania/Cyrenaica)
+- **Segments VII–VIII**: Aegean, Anatolia/Turkey, Greece, Egypt
+- **Segment IX**: Eastern Turkey (Pontus, Cappadocia), Syria, Palestine/Israel, Egypt, Arabian coast
+- **Segment X**: Central-eastern Turkey, Caucasus, Upper Mesopotamia
+- **Segment XI**: Armenia, Azerbaijan, Georgia, Syria, Iraq, NW Iran
+- **Segment XII**: Persia (Iran), Central Asia, Indian subcontinent (Pakistan, India, Sri Lanka)
+
+## Data Sources
+
+- **Place database**: tabula-peutingeriana.de (M. Weber, Universität Freiburg) + tp-online.ku.de (Universität Ulm / Ulm DB)
+- **Map image**: K. Miller, 1887 (Wikimedia Commons) — stitched high-resolution scan
+- **Roman road network**: OmnesViae (omnesviae.org)
+- **Modern coordinates**: Wikipedia API, Nominatim/OpenStreetMap, AI-assisted geocoding with web search
+- **Modern state boundaries**: Natural Earth
+
+## Frequently Asked Questions
+
+**What is the Tabula Peutingeriana?**
+A medieval parchment copy (c. 1200 AD) of a late-antique Roman road map originally dating to the 4th–5th century AD. It is the most complete surviving Roman cartographic document, covering the entire Roman Empire and beyond.
+
+**Where is the Tabula Peutingeriana kept?**
+At the Österreichische Nationalbibliothek (Austrian National Library) in Vienna, Austria. It has been there since 1738.
+
+**How many places are on the Tabula Peutingeriana?**
+Approximately 3,500–3,974 named places depending on counting method. This viewer annotates 3,974 records (2,469 road stations plus cities, rivers, mountains, islands, provinces, peoples, etc.), of which 3,230 (81%) are geographically located.
+
+**Can I find my own location on the ancient Roman map?**
+Yes — press the crosshair (locate) button in the viewer. It uses GPS or lets you pick a location on an interactive modern map, then navigates to the nearest ancient Roman road station, city or province. Works for any location on Earth; locations outside the map's coverage get an edge direction marker.
+
+**What language is the map in?**
+Latin, with some Greek place names, especially in the eastern segments.
+
+**Is the viewer free?**
+Yes, completely free, open to all, no login required.
+
+**What happened to Segment I?**
+The first segment — covering Britain (except the southeast), the Iberian Peninsula, and the Atlantic coast of Morocco — was already lost by the 16th century. The remaining eleven segments (II–XII) survive intact.
+
+**Who was Konrad Peutinger?**
+A German humanist and collector (1465–1547) from Augsburg. The map is named after him because he owned it for decades and commissioned the first printed edition. He received it from Konrad Celtes, who had discovered it in 1494.
+
+## Contact and Attribution
+
+- Site: https://tabula-peutingeriana.com/
+- Author: three-mills.com
+- Contact: info@three-mills.com
+- Data attribution: tabula-peutingeriana.de (M. Weber) · tp-online.ku.de (Univ. Ulm) · OmnesViae · OpenStreetMap contributors · K. Miller (1887)

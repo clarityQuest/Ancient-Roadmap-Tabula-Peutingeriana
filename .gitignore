@@ -23,3 +23,11 @@ scripts/tp_150dpi_3.jpg
 scripts/omnesviae_sample.json
 scripts/tabula_places_full.json
 scripts/geocoding_cache.json
+
+# DB backup snapshots
+public/data/review_places_db_backup_*.json
+
+# Temp / working files
+miller_calibration*.json
+scripts/_*.py
+scripts/_*.txt

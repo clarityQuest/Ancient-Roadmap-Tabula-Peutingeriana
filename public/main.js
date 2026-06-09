@@ -94,7 +94,7 @@ const I18N = {
     water: "Water", spa: "Spa", temple: "Temple", mountain: "Mountain",
     people: "People",
     province: "Province",
-    wiki_link: "Wikipedia ↗", ulm_link: "Scientific Info ↗",
+    wiki_link: "Wiki ↗", ulm_link: "Scientific Info ↗",
     unknown_modern: "(unknown modern name)",
     wiki_lang: "en",
     tabula_view_label: "Original Tabula Peutingeriana view",
@@ -124,7 +124,7 @@ const I18N = {
     water: "Gewässer", spa: "Heilbad", temple: "Tempel", mountain: "Berg",
     people: "Volk",
     province: "Provinz",
-    wiki_link: "Wikipedia ↗", ulm_link: "Wiss. Info ↗",
+    wiki_link: "Wiki ↗", ulm_link: "Wiss. Info ↗",
     unknown_modern: "(moderner Name unbekannt)",
     wiki_lang: "de",
     tabula_view_label: "Originalansicht der Tabula Peutingeriana",
@@ -217,7 +217,6 @@ const S = {
   segments:     [],
   mapMode:      "old",       // "old" | "new"
   selectedSegment: DEFAULT_SEGMENT,
-  newSourceKind: "readable-seg4", // "readable-seg4" | "stitched"
   markersOn:      true,
   labelsOn:       true,
   activeTypes:    new Set(["city", "temple", "spa"]),
@@ -246,13 +245,11 @@ const S = {
   isMobile: window.matchMedia("(pointer: coarse), (max-width: 600px)").matches,
   canvas:       null,
   ctx:          null,
-  readableTile: null,
   originalTile: null,
   stitchedTile: null,
   boundsBySource: {
     old: {},
     stitched: {},
-    readableSeg4: {},
   },
 };
 
@@ -377,13 +374,11 @@ function buildUniformBounds(segmentNumbers) {
 }
 
 function activeBoundsKey() {
-  if (S.mapMode === "old") return "old";
-  return S.newSourceKind === "stitched" ? "stitched" : "readableSeg4";
+  return S.mapMode === "old" ? "old" : "stitched";
 }
 
 function boundsKeyForMode(mode) {
-  if (mode === "old") return "old";
-  return S.newSourceKind === "stitched" ? "stitched" : "readableSeg4";
+  return mode === "old" ? "old" : "stitched";
 }
 
 function getSegmentBounds(segmentNumber, boundsKey = activeBoundsKey()) {
@@ -404,10 +399,6 @@ function focusSegment(segmentNumber, immediate = false) {
   const bounds = getSegmentBounds(n);
   if (!bounds) {
     applySegmentUIState();
-    const statusEl = document.getElementById("status");
-    if (statusEl && S.mapMode === "new" && S.newSourceKind === "readable-seg4") {
-      statusEl.textContent = "Readable fallback only supports segment IV until stitched assets are generated.";
-    }
     return false;
   }
 
@@ -496,48 +487,6 @@ function defaultRectSize(type) {
   return { w: 6, h: 6 };
 }
 
-function placeRectCorners(place) {
-  const d = defaultRectSize(place.type);
-  const w = Number.isFinite(place.rect_w) && place.rect_w > 0 ? place.rect_w : d.w;
-  const h = Number.isFinite(place.rect_h) && place.rect_h > 0 ? place.rect_h : d.h;
-
-  let x1 = place.rect_x1;
-  let y1 = place.rect_y1;
-  let x2 = place.rect_x2;
-  let y2 = place.rect_y2;
-
-  const hasCorners = Number.isFinite(x1) && Number.isFinite(y1) && Number.isFinite(x2) && Number.isFinite(y2);
-  if (!hasCorners) {
-    const cx = Number(place.px);
-    const cy = Number(place.py);
-    x1 = cx - w / 2;
-    y1 = cy - h / 2;
-    x2 = cx + w / 2;
-    y2 = cy + h / 2;
-  }
-
-  // If user explicitly set a rectangle, trust the provided corners exactly.
-  // Do not substitute with defaults for user-set records.
-  if (place.rect_user_set && !hasCorners) {
-    const cx = Number(place.px);
-    const cy = Number(place.py);
-    x1 = cx - w / 2;
-    y1 = cy - h / 2;
-    x2 = cx + w / 2;
-    y2 = cy + h / 2;
-  }
-
-  if (x1 > x2) [x1, x2] = [x2, x1];
-  if (y1 > y2) [y1, y2] = [y2, y1];
-
-  x1 = Math.max(0, Math.min(IMG_W, x1));
-  y1 = Math.max(0, Math.min(IMG_H, y1));
-  x2 = Math.max(0, Math.min(IMG_W, x2));
-  y2 = Math.max(0, Math.min(IMG_H, y2));
-
-  return { x1, y1, x2, y2, w: Math.max(1, x2 - x1), h: Math.max(1, y2 - y1) };
-}
-
 function isVisibleAtZoom(type, zoom) {
   if (zoom >= LP.zoomThreshAll) return true;
   if (zoom >= LP.zoomThreshMid) return type !== "road_station";
@@ -591,12 +540,8 @@ function startHighlight(place, isLocate = false) {
   S.highlightUntil  = Date.now() + 20000;
   S.highlightLocate = isLocate;
   S.highlightPlace  = place;
-  function tick() {
-    renderMarkers();
-    if (Date.now() < S.highlightUntil) requestAnimationFrame(tick);
-    else { S.highlightDataId = null; S.highlightLocate = false; renderMarkers(); }
-  }
-  requestAnimationFrame(tick);
+  renderMarkers();
+  setTimeout(() => { S.highlightDataId = null; S.highlightLocate = false; renderMarkers(); }, 20000);
 }
 
 function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle = null) {
@@ -698,17 +643,14 @@ function drawUserCrosshair(ctx, cx, cy) {
 }
 
 function drawHighlightRing(ctx, cx, cy, baseR) {
-  const now = Date.now();
   ctx.save();
-  for (let i = 0; i < 2; i++) {
-    const t = ((now + i * 500) % 1000) / 1000;
-    ctx.globalAlpha = (1 - t) * 0.85;
-    ctx.beginPath();
-    ctx.arc(cx, cy, baseR + t * baseR * 2.5, 0, Math.PI * 2);
-    ctx.strokeStyle = "#FFD700";
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-  }
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.arc(cx, cy, baseR + 6, 0, Math.PI * 2);
+  ctx.strokeStyle = "#FFD700";
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
   ctx.restore();
 }
 
@@ -741,7 +683,9 @@ function renderMillerOverlay(ctx) {
     (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
   );
   for (const item of renderCalib) {
-    if (!S.activeTypes.has(item.type)) continue;
+    const isHighlightedItem = item.data_id === S.highlightDataId && Date.now() < S.highlightUntil;
+    const isSelectedItem    = item.data_id === S.selectedDataId;
+    if (!isHighlightedItem && !isSelectedItem && !S.activeTypes.has(item.type)) continue;
     const vx1 = item.rect_x1 / MILLER_W;
     const vx2 = item.rect_x2 / MILLER_W;
     const vy1 = item.rect_y1 / MILLER_W;
@@ -864,78 +808,40 @@ function renderMarkers() {
   if (!S.viewer || !S.ctx) return;
   const ctx = S.ctx;
   const el = S.viewer.element;
-  // Re-sync canvas if the element has been resized (catches startup layout settle on large screens)
   const dpr = window.devicePixelRatio || 1;
   if (S.canvas.width !== el.clientWidth * dpr || S.canvas.height !== el.clientHeight * dpr) {
     sizeCanvas();
   }
   ctx.clearRect(0, 0, S.canvas.width, S.canvas.height);
 
-  let highlightDrawn = false;
-  if (S.millerOverlayOn && S.millerCalib.length && S.mapMode === "old")
-    highlightDrawn = renderMillerOverlay(ctx) || false;
+  // Old map: Miller overlay handles calibration markers; crosshair on top
+  if (S.mapMode === "old") {
+    if (S.millerOverlayOn && S.millerCalib.length) renderMillerOverlay(ctx);
+    _drawUserCrosshair(ctx);
+    return;
+  }
 
-  // User location crosshair (old map / stitched path)
-  if (S.mapMode === "old" || S.newSourceKind === "stitched" || !S.places.length) {
-    if (S.userLocVp) {
-      const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
-      let outsideAngle = null;
-      if (S.userLocOutside && S.userLocCentVp) {
-        const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
-        outsideAngle = Math.atan2(cy - ccy, cx - ccx);
-      }
-      drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
-    }
-
-    // Draw the locate-matched place as a search-style highlighted marker.
-    // Drawn regardless of category filter; only this specific item, not the whole category.
-    if (S.userLocPlace) {
-      const locPlaceVp = placeVp(S.userLocPlace);
-      if (locPlaceVp) {
-        const { cx: pcx, cy: pcy } = viewportToCanvas(locPlaceVp.vx, locPlaceVp.vy);
-        const color = TYPE_COLORS[S.userLocPlace.type] || "#92400E";
-        const rw = 24, rh = 16;
-        const rx = pcx - rw / 2, ry = pcy - rh / 2;
-        ctx.save();
-        ctx.globalAlpha = 0.25; ctx.fillStyle = color;
-        ctx.fillRect(rx, ry, rw, rh);
-        ctx.globalAlpha = 0.8; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
-        ctx.strokeRect(rx, ry, rw, rh);
-        ctx.globalAlpha = 1; ctx.restore();
-        drawSelectionFrame(ctx, rx, ry, rw, rh);
-        if (S.highlightLocate && S.highlightDataId === Number(S.userLocPlace.data_id) && Date.now() < S.highlightUntil) {
-          const t = (Date.now() % 1000) / 1000;
-          ctx.save();
-          ctx.globalAlpha = (1 - t) * 0.22;
-          ctx.beginPath(); ctx.arc(pcx, pcy, 44 + t * 80, 0, Math.PI * 2);
-          ctx.fillStyle = "#FFD700"; ctx.fill();
-          ctx.globalAlpha = 1; ctx.restore();
-          drawHighlightRing(ctx, pcx, pcy, 22);
-        }
-      }
-    }
-
+  // Stitched mode — no calibrated places yet
+  if (!S.places.length) {
+    _drawUserCrosshair(ctx);
     return;
   }
 
   const vp = S.viewer.viewport;
   const zoom = vp.getZoom(true);
   const bounds = vp.getBounds(true);
+  const bx0 = bounds.x, bx1 = bounds.x + bounds.width;
+  const by0 = bounds.y, by1 = bounds.y + bounds.height;
 
-  const bx0 = bounds.x;
-  const bx1 = bounds.x + bounds.width;
-  const by0 = bounds.y;
-  const by1 = bounds.y + bounds.height;
-
-  const MAX_LABELS  = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
-  const LABEL_PAD   = LP.labelPad;
+  const MAX_LABELS = S.isMobile ? LP.maxLabelsMobile : LP.maxLabelsDesktop;
+  const LABEL_PAD  = LP.labelPad;
+  let highlightDrawn = false;
   let rendered = 0;
 
-  // Pass 1: draw markers in z-order, collect label + region candidates with cached geometry
+  // Pass 1: draw markers in z-order, collect label candidates
   const renderPlaces = [...S.places].sort(
     (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
   );
-
   const labelCandidates = [];
 
   for (const p of renderPlaces) {
@@ -944,15 +850,10 @@ function renderMarkers() {
     if (p.vx < bx0 || p.vx > bx1 || p.vy < by0 || p.vy > by1) continue;
     if (!isHighlighted && !isVisibleAtZoom(p.type, zoom)) continue;
 
-    const rr = placeRectCorners(p);
-    const p1 = imageToCanvas(rr.x1, rr.y1);
-    const p2 = imageToCanvas(rr.x2, rr.y2);
-    const x = Math.min(p1.cx, p2.cx);
-    const y = Math.min(p1.cy, p2.cy);
-    const w = Math.max(1, Math.abs(p2.cx - p1.cx));
-    const h = Math.max(1, Math.abs(p2.cy - p1.cy));
-    const cx = (p1.cx + p2.cx) / 2;
-    const cy = (p1.cy + p2.cy) / 2;
+    const { cx, cy } = viewportToCanvas(p.vx, p.vy);
+    const d = defaultRectSize(p.type);
+    const rw = d.w, rh = d.h;
+    const x = cx - rw / 2, y = cy - rh / 2;
     const color = TYPE_COLORS[p.type] || "#92400E";
     const isRegion = p.type === "region";
 
@@ -961,55 +862,43 @@ function renderMarkers() {
       if (isRegion) {
         ctx.fillStyle = color;
         ctx.globalAlpha = 0.07 * ma;
-        ctx.fillRect(x, y, w, h);
+        ctx.fillRect(x, y, rw, rh);
         ctx.globalAlpha = 0.35 * ma;
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([7, 5]);
-        ctx.strokeRect(x, y, w, h);
+        ctx.strokeRect(x, y, rw, rh);
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
       } else {
         ctx.fillStyle = color;
         ctx.globalAlpha = 0.23 * ma;
-        ctx.fillRect(x, y, w, h);
+        ctx.fillRect(x, y, rw, rh);
         ctx.globalAlpha = 0.65 * ma;
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(x, y, w, h);
+        ctx.strokeRect(x, y, rw, rh);
         ctx.globalAlpha = 1;
       }
     }
 
     if (p.data_id === S.selectedDataId) {
-      drawSelectionFrame(ctx, x, y, w, h);
+      drawSelectionFrame(ctx, x, y, rw, rh);
     }
     if (p.data_id === S.highlightDataId && Date.now() < S.highlightUntil) {
-      if (S.highlightLocate) {
-        // Locate snap: large pulsing glow + filled halo
-        const t = (Date.now() % 1000) / 1000;
-        ctx.save();
-        ctx.globalAlpha = (1 - t) * 0.22;
-        ctx.beginPath(); ctx.arc(cx, cy, 44 + t * 80, 0, Math.PI * 2);
-        ctx.fillStyle = "#FFD700"; ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.restore();
-        drawHighlightRing(ctx, cx, cy, 40);
-      } else {
-        drawHighlightRing(ctx, cx, cy, Math.max(w, h) / 2 + 4);
-      }
+      drawHighlightRing(ctx, cx, cy, Math.max(rw, rh) / 2 + 4);
       highlightDrawn = true;
     }
 
     if (S.labelsOn) {
       const latin  = p.latin_std || p.latin || null;
       const modern = truncWords(p.modern, 4) || null;
-      if (latin || modern) labelCandidates.push({ p, x, y, w, h, cx, cy, color, isRegion, latin, modern });
+      if (latin || modern) labelCandidates.push({ p, x, y, w: rw, h: rh, cx, cy, color, isRegion, latin, modern });
     }
     rendered++;
   }
 
-  // Pass 2: draw labels — regions inline (no budget), point features in priority order
+  // Pass 2: labels — regions inline (no budget), point features in priority order
   if (S.labelsOn && labelCandidates.length) {
     const fontSize = computeFont(zoom);
     if (fontSize > 0) {
@@ -1022,26 +911,19 @@ function renderMarkers() {
       const labelRects2 = [];
       let labelCount2 = 0;
 
-      // Region labels first (always shown, no budget limit)
       for (const { cx, cy, color, latin, modern, isRegion } of labelCandidates) {
         if (!isRegion) continue;
         const label = (latin || modern || "").toUpperCase();
         ctx.save();
         ctx.font = `italic ${regionFs}px 'Segoe UI', system-ui, sans-serif`;
-        ctx.textBaseline = "middle";
-        ctx.textAlign = "center";
-        ctx.strokeStyle = "rgba(0,0,0,0.7)";
-        ctx.lineWidth = 3;
-        ctx.lineJoin = "round";
+        ctx.textBaseline = "middle"; ctx.textAlign = "center";
+        ctx.strokeStyle = "rgba(0,0,0,0.7)"; ctx.lineWidth = 3; ctx.lineJoin = "round";
         ctx.strokeText(label, cx, cy);
-        ctx.fillStyle = color;
-        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = color; ctx.globalAlpha = 0.85;
         ctx.fillText(label, cx, cy);
-        ctx.globalAlpha = 1;
-        ctx.restore();
+        ctx.globalAlpha = 1; ctx.restore();
       }
 
-      // Point-feature labels in priority order (city/temple/spa first)
       const pointCandidates = labelCandidates.filter(c => !c.isRegion)
         .sort((a, b) => (TYPE_LABEL_PRIORITY[a.p.type] ?? 2) - (TYPE_LABEL_PRIORITY[b.p.type] ?? 2));
       for (const { x, y, w, h, latin, modern } of pointCandidates) {
@@ -1053,9 +935,7 @@ function renderMarkers() {
         let overlaps = false;
         if (!skipOverlap) {
           for (const r of labelRects2) {
-            if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) {
-              overlaps = true; break;
-            }
+            if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) { overlaps = true; break; }
           }
         }
         if (!overlaps) {
@@ -1063,24 +943,18 @@ function renderMarkers() {
                              x2: bx + Math.min(boxW, w) + LABEL_PAD, y2: by + boxH + LABEL_PAD });
           labelCount2++;
           ctx.save();
-          ctx.strokeStyle = "rgba(0,0,0,0.8)";
-          ctx.lineWidth = 3;
-          ctx.lineJoin = "round";
+          ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 3; ctx.lineJoin = "round";
           let dy = by;
           if (latin) {
             ctx.font = `${fsNorm}px 'Segoe UI', system-ui, sans-serif`;
             ctx.textBaseline = "top";
-            ctx.strokeText(latin, bx, dy);
-            ctx.fillStyle = "#e5e7eb";
-            ctx.fillText(latin, bx, dy);
+            ctx.strokeText(latin, bx, dy); ctx.fillStyle = "#e5e7eb"; ctx.fillText(latin, bx, dy);
             dy += lineH;
           }
           if (modern) {
             ctx.font = `bold ${fsBold}px 'Segoe UI', system-ui, sans-serif`;
             ctx.textBaseline = "top";
-            ctx.strokeText(modern, bx, dy);
-            ctx.fillStyle = "#ffffff";
-            ctx.fillText(modern, bx, dy);
+            ctx.strokeText(modern, bx, dy); ctx.fillStyle = "#ffffff"; ctx.fillText(modern, bx, dy);
           }
           ctx.restore();
         }
@@ -1088,73 +962,76 @@ function renderMarkers() {
     }
   }
 
-  // Fallback: draw a dot + ring at the estimated position when no real marker was rendered
+  // Fallback dot when highlight place is off-screen or filtered out
   if (!highlightDrawn && S.highlightDataId && Date.now() < S.highlightUntil && S.highlightVp) {
     const { cx, cy } = viewportToCanvas(S.highlightVp.vx, S.highlightVp.vy);
     const hlPlace = S.places.find(p => p.data_id === S.highlightDataId);
     const color = hlPlace ? (TYPE_COLORS[hlPlace.type] || "#92400E") : "#92400E";
     ctx.save();
     ctx.globalAlpha = 0.9;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.7)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.restore();
     drawHighlightRing(ctx, cx, cy, 11);
   }
 
-  // User location crosshair (seg4 path)
-  if (S.userLocVp) {
-    const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
-    let outsideAngle = null;
-    if (S.userLocOutside && S.userLocCentVp) {
-      const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
-      outsideAngle = Math.atan2(cy - ccy, cx - ccx);
+  // Locate-matched place: permanent marker visible regardless of category filter
+  if (S.userLocPlace) {
+    const locPlaceVp = placeVp(S.userLocPlace);
+    if (locPlaceVp) {
+      const { cx: pcx, cy: pcy } = viewportToCanvas(locPlaceVp.vx, locPlaceVp.vy);
+      const color = TYPE_COLORS[S.userLocPlace.type] || "#92400E";
+      const rw = 24, rh = 16;
+      const rx = pcx - rw / 2, ry = pcy - rh / 2;
+      ctx.save();
+      ctx.globalAlpha = 0.25; ctx.fillStyle = color;
+      ctx.fillRect(rx, ry, rw, rh);
+      ctx.globalAlpha = 0.8; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+      ctx.strokeRect(rx, ry, rw, rh);
+      ctx.globalAlpha = 1; ctx.restore();
+      drawSelectionFrame(ctx, rx, ry, rw, rh);
+      if (S.highlightLocate && S.highlightDataId === Number(S.userLocPlace.data_id) && Date.now() < S.highlightUntil) {
+        drawHighlightRing(ctx, pcx, pcy, 22);
+      }
     }
-    drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
   }
+
+  // User crosshair drawn last — on top of all markers
+  _drawUserCrosshair(ctx);
+}
+
+function _drawUserCrosshair(ctx) {
+  if (!S.userLocVp) return;
+  const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
+  let outsideAngle = null;
+  if (S.userLocOutside && S.userLocCentVp) {
+    const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
+    outsideAngle = Math.atan2(cy - ccy, cx - ccx);
+  }
+  drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
 }
 
 /* ============================================================
    Hit-test (find place under cursor)
    ============================================================ */
 function hitTest(clientX, clientY) {
-  if (!S.viewer || !S.markersOn || S.mapMode === "old" || S.newSourceKind === "stitched") return null;
+  if (!S.viewer || !S.markersOn || S.mapMode === "old") return null;
   const vp = S.viewer.viewport;
   const zoom = vp.getZoom(true);
   const elRect = S.viewer.element.getBoundingClientRect();
   const ex = clientX - elRect.left;
   const ey = clientY - elRect.top;
-
-  let best = null;
-  let bestDist = Infinity;
-  const threshold = 6;
+  const threshold = 14;
+  let best = null, bestDist = Infinity;
 
   for (const p of S.places) {
     if (!S.activeTypes.has(p.type)) continue;
     if (!isVisibleAtZoom(p.type, zoom)) continue;
-    const rr = placeRectCorners(p);
-    const p1 = imageToCanvas(rr.x1, rr.y1);
-    const p2 = imageToCanvas(rr.x2, rr.y2);
-    const x0 = Math.min(p1.cx, p2.cx) - threshold;
-    const x1 = Math.max(p1.cx, p2.cx) + threshold;
-    const y0 = Math.min(p1.cy, p2.cy) - threshold;
-    const y1 = Math.max(p1.cy, p2.cy) + threshold;
-    const cx = (p1.cx + p2.cx) / 2;
-    const cy = (p1.cy + p2.cy) / 2;
-
-    if (ex >= x0 && ex <= x1 && ey >= y0 && ey <= y1) {
-      const dx = cx - ex;
-      const dy = cy - ey;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = p;
-      }
-    }
+    const { cx, cy } = viewportToCanvas(p.vx, p.vy);
+    const dx = cx - ex, dy = cy - ey;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < threshold && dist < bestDist) { bestDist = dist; best = p; }
   }
   return best;
 }
@@ -1253,9 +1130,27 @@ function showMillerTooltip(item, x, y) {
 /* ============================================================
    Info Panel
    ============================================================ */
+function syncLeafletSelectedMarker(place) {
+  if (_leafletSelectedMarker && _leafletMap) {
+    _leafletMap.removeLayer(_leafletSelectedMarker);
+    _leafletSelectedMarker = null;
+  }
+  if (!place || !_leafletMap || !_leafletL) return;
+  const rec = S.allRecords.find(r => place.data_id != null && r.data_id === Number(place.data_id));
+  const lat = Number(rec?.lat ?? place.lat);
+  const lng = Number(rec?.lng ?? place.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 || lng === 0) return;
+  _leafletSelectedMarker = _leafletL.circleMarker([lat, lng], {
+    radius: 11, color: "#FFD700", weight: 3,
+    fillColor: "#FFD700", fillOpacity: 0.25, interactive: false,
+  }).addTo(_leafletMap);
+  _leafletMap.panTo([lat, lng]);
+}
+
 function showInfoPanel(place) {
   S.selectedPlace = place;
   S.selectedDataId = place.data_id != null ? Number(place.data_id) : null;
+  syncLeafletSelectedMarker(place);
   renderMarkers();
   infoPanelOpenedAt = Date.now();
 
@@ -1414,6 +1309,7 @@ function hideInfoPanel() {
   document.getElementById("info-panel").classList.add("hidden");
   S.selectedPlace = null;
   S.selectedDataId = null;
+  syncLeafletSelectedMarker(null);
   renderMarkers();
 }
 
@@ -1461,13 +1357,6 @@ function setupSearch() {
     const place = pool.find(p => String(p.id) === id);
     if (!place) return;
 
-    // Ensure the place's type is visible before navigating
-    if (place.type && !S.activeTypes.has(place.type)) {
-      S.activeTypes.add(place.type);
-      document.querySelectorAll(`.type-filter-btn[data-type="${place.type}"]`)
-        .forEach(b => b.classList.add("active"));
-    }
-
     panToPlace(place);
     startHighlight(place);
     showInfoPanel(place);
@@ -1495,67 +1384,22 @@ function placeVp(place) {
     const rowMap = { a: 1 / 6, b: 1 / 2, c: 5 / 6 };
     return { vx: (segIdx + 0.5) / 11, vy: (rowMap[place.tabula_row] ?? 0.5) * millerAspect };
   }
-  // Stitched mode: px/py are calibrated for the segment-IV readable image (IMG_W × IMG_H).
-  // Segments 1–5 (and null) use that same SegIV pixel space → always use seg-4 stitched bounds.
-  // Segments 6–12 were each calibrated in their own segment image → use their own bounds.
-  if (S.newSourceKind === "stitched") {
-    const rawSeg = Number(place.tabula_segment ?? place.grid_segment);
-    const segKey = (Number.isFinite(rawSeg) && rawSeg >= 6) ? String(rawSeg) : "4";
-    const sb = S.boundsBySource.stitched?.[segKey];
-    const px = Number(place.px), py = Number(place.py);
-    if (sb && Number.isFinite(px) && Number.isFinite(py)) {
-      const sz = S.stitchedTile?.Image?.Size;
-      const sW = sz ? Number(sz.Width)  : 32878;
-      const sH = sz ? Number(sz.Height) : 2125;
-      const localX = px / IMG_W;
-      const localY = py / IMG_H;
-      const vx = sb.x0 + localX * (sb.x1 - sb.x0);
-      const vy = (sb.y0 + localY * (sb.y1 - sb.y0)) * sH / sW;
-      return { vx, vy };
-    }
-  }
-  const vx = Number(place.vx), vy = Number(place.vy);
-  return { vx: Number.isFinite(vx) ? vx : 0.5, vy: Number.isFinite(vy) ? vy : 0.5 };
+  // Stitched mode: vx/vy precomputed per segment bounds in reloadDb
+  return { vx: Number.isFinite(place.vx) ? place.vx : 0.5, vy: Number.isFinite(place.vy) ? place.vy : 0.5 };
 }
 
-// Inverse-distance-weighted interpolation of user's lat/lng onto the Tabula calibration space.
-// Uses the 8 nearest SegIV-space places as anchors. Returns viewport {vx, vy} or null.
-function idwTabulaVp(lat, lng) {
-  if (!S.places.length) return null;
-
-  // Collect nearest anchor places using their proper stitched viewport positions
-  const anchors = [];
-  for (const p of S.places) {
-    const plat = Number(p.lat), plng = Number(p.lng);
-    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-    const vp = placeVp(p);
-    if (!vp) continue;
-    anchors.push({ vx: vp.vx, vy: vp.vy, d: locDistKm(lat, lng, plat, plng) });
-  }
-  anchors.sort((a, b) => a.d - b.d);
-  const nearest = anchors.slice(0, LOCATE_IDW_K);
-  if (!nearest.length) return null;
-
-  let sumW = 0, sumVx = 0, sumVy = 0;
-  for (const { vx, vy, d } of nearest) {
-    const w = 1 / Math.max(d * d, 0.01);
-    sumW += w; sumVx += w * vx; sumVy += w * vy;
-  }
-  return { vx: sumVx / sumW, vy: sumVy / sumW };
-}
 
 function panToPlace(place, hw = null) {
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
-    const mhw = hw ?? (S.isMobile ? 0.008 : 0.02);
+    const targetZoom = 15;
     const mc = S.millerCalib.find(m => m.data_id === place.data_id);
     if (mc) {
       const cx = (mc.rect_x1 + mc.rect_x2) / 2 / MILLER_W;
       const cy = (mc.rect_y1 + mc.rect_y2) / 2 / MILLER_W;
       S.highlightVp = { vx: cx, vy: cy };
-      S.viewer.viewport.fitBounds(
-        new OpenSeadragon.Rect(cx - mhw, cy - mhw * millerAspect, mhw * 2, mhw * 2 * millerAspect)
-      );
+      S.viewer.viewport.zoomTo(targetZoom, new OpenSeadragon.Point(cx, cy));
+      S.viewer.viewport.panTo(new OpenSeadragon.Point(cx, cy));
     } else {
       // Estimate from tabula segment/row when no calibration exists
       const seg = Number(place.tabula_segment);
@@ -1564,33 +1408,21 @@ function panToPlace(place, hw = null) {
       const rowMap = { a: 1 / 6, b: 1 / 2, c: 5 / 6 };
       const estVy = (rowMap[place.tabula_row] ?? 0.5) * millerAspect;
       S.highlightVp = { vx: estVx, vy: estVy };
-      S.viewer.viewport.fitBounds(
-        new OpenSeadragon.Rect(estVx - mhw, estVy - mhw * millerAspect, mhw * 2, mhw * 2 * millerAspect)
-      );
+      S.viewer.viewport.zoomTo(targetZoom, new OpenSeadragon.Point(estVx, estVy));
+      S.viewer.viewport.panTo(new OpenSeadragon.Point(estVx, estVy));
     }
     return;
   }
-  if (S.newSourceKind === "stitched") {
-    const vp = placeVp(place);
-    if (vp && S.viewer.viewport) {
-      S.highlightVp = vp;
-      const sz = S.stitchedTile?.Image?.Size;
-      const aspect = sz ? Number(sz.Height) / Number(sz.Width) : IMG_H / IMG_W;
-      const usedHw = hw ?? (S.isMobile ? 0.014 : 0.05);
-      S.viewer.viewport.fitBounds(
-        new OpenSeadragon.Rect(vp.vx - usedHw, vp.vy - usedHw * aspect, usedHw * 2, usedHw * 2 * aspect)
-      );
-    }
-    return;
+  const vp = placeVp(place);
+  if (vp && S.viewer.viewport) {
+    S.highlightVp = vp;
+    const sz = S.stitchedTile?.Image?.Size;
+    const aspect = sz ? Number(sz.Height) / Number(sz.Width) : IMG_H / IMG_W;
+    const usedHw = hw ?? (S.isMobile ? 0.014 : 0.05);
+    S.viewer.viewport.fitBounds(
+      new OpenSeadragon.Rect(vp.vx - usedHw, vp.vy - usedHw * aspect, usedHw * 2, usedHw * 2 * aspect)
+    );
   }
-  const aspect = IMG_H / IMG_W;
-  const vx = Number.isFinite(place.vx) ? place.vx : 0.5;
-  const vy = Number.isFinite(place.vy) ? place.vy : 0.5;
-  S.highlightVp = { vx, vy };
-  const usedHw = hw ?? (S.isMobile ? 0.008 : 0.02);
-  S.viewer.viewport.fitBounds(
-    new OpenSeadragon.Rect(vx - usedHw, vy - usedHw * aspect, usedHw * 2, usedHw * 2 * aspect)
-  );
 }
 
 /* ============================================================
@@ -1603,6 +1435,7 @@ let _leafletPlacesLayer = null;
 let _leafletPlacesOn = false;
 let _leafletRoadsLayer = null;
 let _leafletRoadsOn = false;
+let _leafletSelectedMarker = null;
 let _omnesViaeData = null;
 
 const LOCATE_SNAP_KM     = 10;   // crosshair snaps exactly to nearest place within this distance
@@ -1631,6 +1464,7 @@ function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
   const candidates = [];
   for (const p of pool) {
     if (IDW_EXCLUDE_TYPES.has(p.type)) continue;
+    if (p.lat == null || p.lng == null) continue;
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
     let vx, vy;
@@ -1639,6 +1473,7 @@ function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
       vx = (Number(p.rect_x1) + Number(p.rect_x2)) / 2 / MILLER_W;
       vy = (Number(p.rect_y1) + Number(p.rect_y2)) / 2 / MILLER_W;
     } else {
+      if (p.px == null || p.py == null) continue;
       vx = Number(p.vx); vy = Number(p.vy);
       if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
     }
@@ -1672,6 +1507,7 @@ function projectToTabulaEdge(userLat, userLng) {
   let minVx = Infinity, maxVx = -Infinity, minVy = Infinity, maxVy = -Infinity;
   let sumLat = 0, sumLng = 0, count = 0;
   for (const p of pool) {
+    if (p.lat == null || p.lng == null) continue;
     const lat = Number(p.lat), lng = Number(p.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
     minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
@@ -1683,6 +1519,7 @@ function projectToTabulaEdge(userLat, userLng) {
       vx = (Number(p.rect_x1) + Number(p.rect_x2)) / 2 / MILLER_W;
       vy = (Number(p.rect_y1) + Number(p.rect_y2)) / 2 / MILLER_W;
     } else {
+      if (p.px == null || p.py == null) continue;
       vx = Number(p.vx); vy = Number(p.vy);
       if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
     }
@@ -1727,14 +1564,14 @@ function panToLocVp(vx, vy, isOutside = false) {
   S.highlightVp = { vx, vy };
   const hw = isOutside
     ? (S.isMobile ? 0.06 : 0.12)
-    : (S.isMobile ? 0.014 : 0.05);
+    : (S.isMobile ? 0.011 : 0.033);
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
     S.viewer.viewport.fitBounds(
       new OpenSeadragon.Rect(vx - hw, vy - hw * millerAspect, hw * 2, hw * 2 * millerAspect)
     );
   } else {
-    const sz = S.newSourceKind === "stitched" ? S.stitchedTile?.Image?.Size : null;
+    const sz = S.stitchedTile?.Image?.Size;
     const aspect = sz ? Number(sz.Height) / Number(sz.Width) : IMG_H / IMG_W;
     S.viewer.viewport.fitBounds(
       new OpenSeadragon.Rect(vx - hw, vy - hw * aspect, hw * 2, hw * 2 * aspect)
@@ -1747,6 +1584,8 @@ function setUserLocation(lat, lng, isDefault = false) {
   let bestNonArea = null, bestNonAreaSq = Infinity;
   let bestArea = null, bestAreaSq = Infinity;
   for (const p of pool) {
+    if (p.lat == null || p.lng == null) continue;
+    if (S.mapMode !== "old" && (p.px == null || p.py == null)) continue;
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
     const dsq = (lat - plat) ** 2 + (lng - plng) ** 2;
@@ -1760,7 +1599,9 @@ function setUserLocation(lat, lng, isDefault = false) {
     ? locDistKm(lat, lng, Number(bestNonArea.lat), Number(bestNonArea.lng))
     : Infinity;
   let best;
-  if (!bestArea || nonAreaDistKm <= LOCATE_AREA_FALLBACK_KM) {
+  if (!bestArea && !bestNonArea) {
+    best = null;
+  } else if (!bestArea) {
     best = bestNonArea;
   } else if (!bestNonArea) {
     best = bestArea;
@@ -1803,7 +1644,7 @@ function setUserLocation(lat, lng, isDefault = false) {
       if (edgeResult.isInside && distKm <= LOCATE_IDW_KM) {
         // Inside: crosshair at nearest place + rect drawn on top
         // Use IDW interpolation for crosshair (user's actual Tabula position between places)
-        const idwVp = idwTabulaVp(lat, lng);
+        const idwVp = interpolateTabulaVp(lat, lng, LOCATE_IDW_KM);
         const nearestVp = placeVp(best);
         S.userLocVp = idwVp || nearestVp;
         S.userLocCentVp = null;
@@ -1817,22 +1658,36 @@ function setUserLocation(lat, lng, isDefault = false) {
         showLocateMarkerPopup(`~${name} (~${distRound} km)`);
 
       } else {
-        // Outside: edge crosshair with direction arrow
-        S.userLocVp = edgeResult.vp;
+        // Outside or far-inside: interpolate crosshair from nearest place → edge
+        const nearestVp = placeVp(best);
+        const edgeVp = edgeResult.vp;
+        // t=0 at IDW boundary (crosshair at nearest place), t=1 at max range (crosshair at edge)
+        const t = Math.min(1, Math.max(0,
+          (distKm - LOCATE_IDW_KM) / (LOCATE_MAX_DIST_KM - LOCATE_IDW_KM)
+        ));
+        if (nearestVp && edgeVp) {
+          S.userLocVp = {
+            vx: nearestVp.vx + t * (edgeVp.vx - nearestVp.vx),
+            vy: nearestVp.vy + t * (edgeVp.vy - nearestVp.vy),
+          };
+        } else {
+          S.userLocVp = edgeVp || nearestVp;
+        }
         S.userLocCentVp = edgeResult.centVp;
-        S.userLocOutside = true;
-        S.userLocLabel = `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`;
-        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
+        // Only show direction arrow when truly outside the geographic bbox
+        S.userLocOutside = !edgeResult.isInside;
+        S.userLocLabel = !edgeResult.isInside
+          ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`
+          : "";
+        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, !edgeResult.isInside);
 
         if (distKm <= LOCATE_MAX_DIST_KM) {
-          // Outside-near: ring + info panel for the nearest reference
           startHighlight(best, true);
           if (!S.isMobile) showInfoPanel(best);
           if (statusEl) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
           if (hint) hint.textContent = "Click map or drag marker to set location";
           showLocateMarkerPopup(`~${name} (~${distRound} km)`);
         } else {
-          // Outside-far: no ring, no info panel
           if (statusEl) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
           if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
           showLocateMarkerPopup(`Outside (~${distRound} km)`);
@@ -1935,13 +1790,13 @@ async function toggleLeafletRoads() {
           _omnesViaeData = await resp.json();
         } catch (e) {
           console.error("Failed to load OmnesViae roads:", e);
-          if (btn) btn.textContent = "Tabula Roman Roads";
+          if (btn) btn.textContent = "Roman Roads";
           _leafletRoadsOn = false;
           if (btn) btn.classList.remove("active");
           return;
         }
         if (btn) btn.innerHTML =
-          `<svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2" y1="14" x2="9" y2="4"/><line x1="9" y1="4" x2="16" y2="14"/><line x1="4" y1="10" x2="14" y2="10"/></svg> Tabula Roman Roads`;
+          `<svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2" y1="14" x2="9" y2="4"/><line x1="9" y1="4" x2="16" y2="14"/><line x1="4" y1="10" x2="14" y2="10"/></svg> Roman Roads`;
       }
 
       const lines = [];
@@ -1963,6 +1818,10 @@ async function toggleLeafletRoads() {
           dash = "6 5";             // dashed — reconstructed
           opacity = 0.33;          // 40% more transparent than original 0.55
         }
+        if (road.x) {
+          dash = "4 8";             // long-gap dash — extrapolated (skips unlocated places)
+          opacity = 0.28;
+        }
 
         const opts = { color, weight, opacity, interactive: true };
         if (dash) opts.dashArray = dash;
@@ -1970,7 +1829,7 @@ async function toggleLeafletRoads() {
         const parts = [road.fl, road.tl].filter(Boolean);
         const nameStr = parts.length === 2 ? `${parts[0]} → ${parts[1]}` : parts[0] || "";
         const distStr = road.d != null ? `${road.d} Roman miles (${(road.d * 1.479).toFixed(1)} km)` : "";
-        const flags = [road.w && "over water", road.r && "reconstructed", road.m && "crosses mountains"]
+        const flags = [road.w && "over water", road.r && "reconstructed", road.m && "crosses mountains", road.x && "extrapolated (intermediate places unlocated)"]
           .filter(Boolean).join(", ");
         const popupHtml = `<b>${nameStr}</b>${distStr ? `<br>${distStr}` : ""}${flags ? `<br><i>${flags}</i>` : ""}`;
 
@@ -1995,6 +1854,7 @@ function toggleLeafletPlaces() {
     if (!_leafletPlacesLayer) {
       const markers = [];
       for (const r of S.allRecords) {
+        if (r.lat == null || r.lng == null) continue;
         const rlat = Number(r.lat), rlng = Number(r.lng);
         if (!Number.isFinite(rlat) || !Number.isFinite(rlng)) continue;
         const name = r.latin_std || r.latin || r.modern || "";
@@ -2152,7 +2012,7 @@ function setupTypeFilters() {
   const container = document.getElementById("type-filter-buttons");
   if (!container) return;
   // 'region' and 'roman_province' handled via region-solo button; not used as individual filters
-  const types = Object.keys(TYPE_COLORS).filter(t => t !== "region" && t !== "roman_province");
+  const types = Object.keys(TYPE_COLORS).filter(t => t !== "region" && t !== "roman_province" && t !== "modern_state");
   container.innerHTML = types.map(t => {
     const color = TYPE_COLORS[t];
     const label = TYPE_LABELS[t];
@@ -2191,6 +2051,25 @@ function setupTypeFilters() {
         container.querySelectorAll(".type-filter-btn").forEach(b => b.classList.add("active"));
         toggleAllBtn.classList.add("active");
       }
+      renderMarkers();
+    });
+  }
+
+  // Modern States toggle button
+  const modernStateBtn = document.getElementById("modern-state-solo-btn");
+  if (modernStateBtn) {
+    modernStateBtn.addEventListener("click", () => {
+      if (S.regionSolo) exitRegionSolo();
+      const on = S.activeTypes.has("modern_state");
+      if (on) {
+        S.activeTypes.delete("modern_state");
+      } else {
+        S.activeTypes.add("modern_state");
+      }
+      modernStateBtn.classList.toggle("active", !on);
+      // Sync the type-filter-btn if visible
+      const tfBtn = container.querySelector(`.type-filter-btn[data-type="modern_state"]`);
+      if (tfBtn) tfBtn.classList.toggle("active", !on);
       renderMarkers();
     });
   }
@@ -2487,11 +2366,9 @@ function setupInteraction() {
       return;
     }
 
-    // Nothing hit — close info panel if open (only in old mode; stitched mode has no clickable markers)
-    if (S.mapMode === "old") {
-      const panel = document.getElementById("info-panel");
-      if (!panel.classList.contains("hidden")) hideInfoPanel();
-    }
+    // Nothing hit — close info panel if open
+    const panel = document.getElementById("info-panel");
+    if (panel && !panel.classList.contains("hidden")) hideInfoPanel();
   });
 }
 
@@ -3204,22 +3081,11 @@ async function init() {
   const stitchedDefaultBounds = buildUniformBounds(segmentNumbers);
   S.boundsBySource.old = boundsConfig?.maps?.old?.segments || oldDefaultBounds;
   S.boundsBySource.stitched = boundsConfig?.maps?.stitched?.segments || stitchedDefaultBounds;
-  S.boundsBySource.readableSeg4 = boundsConfig?.maps?.readableSeg4?.segments || { "4": { x0: 0, y0: 0, x1: 1, y1: 1 } };
 
   await reloadDb();
 
-  // Readable tile source (Weber segment IV DZI)
-  const isFile = window.location.protocol === "file:";
-  S.readableTile = isFile ? {
-    Image: {
-      xmlns: "http://schemas.microsoft.com/deepzoom/2008",
-      Url: "Readable_SegIV_files/",
-      Format: "jpeg", Overlap: "1", TileSize: "254",
-      Size: { Width: "4371", Height: "2105" }
-    }
-  } : "Readable_SegIV.dzi";
-
   // Original tile source (Miller full image)
+  const isFile = window.location.protocol === "file:";
   S.originalTile = isFile ? {
     Image: {
       xmlns: "http://schemas.microsoft.com/deepzoom/2008",
@@ -3245,9 +3111,6 @@ async function init() {
     } else {
       S.stitchedTile = String(boundsConfig?.maps?.stitched?.dzi || "Tabula_Peutingeriana_150dpi_Stitched.dzi");
     }
-    S.newSourceKind = "stitched";
-  } else {
-    S.newSourceKind = "readable-seg4";
   }
 
   // Start on new map mode.
@@ -3259,6 +3122,8 @@ async function init() {
     showNavigator: true,
     navigatorPosition: "BOTTOM_RIGHT",
     navigatorAutoFade: true,
+    navigatorHeight: "182px",
+    navigatorWidth: "1144px",
     defaultZoomLevel: 0,
     minZoomLevel: 0,
     maxZoomLevel: 80,
@@ -3333,7 +3198,7 @@ async function init() {
   initResizablePanels();
   applyI18n(); // apply language to About panel content and type filter labels
 
-  console.log(`Tabula Peutingeriana loaded: ${S.places.length} seg4 places, ${S.millerCalib.length} Miller calibrations`);
+  console.log(`Tabula Peutingeriana loaded: ${S.places.length} calibrated places, ${S.millerCalib.length} Miller calibrations`);
 
   // Listen for calibrate saves on the same local server and hot-reload the DB.
   try {
@@ -3384,15 +3249,28 @@ async function reloadDb() {
   S.millerCalibHit = [...S.millerCalib].sort(
     (a, b) => (TYPE_DRAW_ORDER[b.type] ?? 4) - (TYPE_DRAW_ORDER[a.type] ?? 4)
   );
+  const sz = S.stitchedTile?.Image?.Size;
+  const sW = sz ? Number(sz.Width)  : 32878;
+  const sH = sz ? Number(sz.Height) : 2125;
   S.places = placeData.map(p => {
     const base = {
       ...p,
       ...(Number.isFinite(Number(p.data_id)) ? (draftMap.get(Number(p.data_id)) || {}) : {}),
-      vx: p.px / IMG_W,
-      vy: p.py / IMG_W,
     };
-    // Segment I is lost — pin its places to the far-left edge so they don't
-    // appear inside later segments based on unreliable px/py estimates.
+    // Compute correct stitched viewport coords using per-segment calibration bounds.
+    // Segments 1–5 (calibrated in seg-IV space) use seg-4 bounds; segs 6–12 use own bounds.
+    const rawSeg = Number(p.tabula_segment ?? p.grid_segment);
+    const segKey = (Number.isFinite(rawSeg) && rawSeg >= 6) ? String(rawSeg) : "4";
+    const sb = S.boundsBySource.stitched?.[segKey];
+    if (sb) {
+      base.vx = sb.x0 + (p.px / IMG_W) * (sb.x1 - sb.x0);
+      base.vy = (sb.y0 + (p.py / IMG_H) * (sb.y1 - sb.y0)) * sH / sW;
+    } else {
+      const segIdx = Number.isFinite(rawSeg) ? rawSeg - 2 : 5;
+      base.vx = (segIdx + 0.5) / 11;
+      base.vy = 0.5 * sH / sW;
+    }
+    // Segment I is lost — pin to far-left edge so these places don't appear inside later segments.
     if (Number(p.tabula_segment) === 1) {
       const row = String(p.tabula_row || p.grid_row || 'b').toLowerCase();
       const col = Math.max(1, Number(p.tabula_col || p.grid_col || 1));

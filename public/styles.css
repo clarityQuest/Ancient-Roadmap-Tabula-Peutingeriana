@@ -70,16 +70,26 @@ body, html {
   pointer-events: none;
 }
 
-#left-controls, #right-controls, #search-container {
+#left-controls, #right-controls {
   pointer-events: auto;
   display: flex;
   gap: 8px;
   align-items: center;
 }
+#left-controls { flex: 1; min-width: 0; }
+#search-container {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-width: 320px;
+}
 
 #bottom-left-controls {
   position: absolute;
-  bottom: 40px;
+  bottom: 10px;
   left: 10px;
   z-index: 10;
   pointer-events: auto;
@@ -103,7 +113,7 @@ body, html {
   align-items: center;
 }
 .seg-group-label {
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
   letter-spacing: 0.04em;
@@ -147,6 +157,25 @@ body, html {
 }
 .ctrl-btn:hover { background: rgba(50, 50, 60, 0.95); }
 .toggle-btn { padding: 8px 12px; font-weight: 600; font-size: 13px; }
+
+/* About button — prominent on large screens */
+.about-btn-label { display: none; }
+@media (min-width: 700px) {
+  #about-btn {
+    padding: 8px 16px;
+    gap: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    border-color: rgba(160, 130, 90, 0.5);
+    color: #d4b483;
+  }
+  #about-btn:hover {
+    background: rgba(55, 42, 10, 0.95);
+    border-color: #c8a050;
+    color: #ffd080;
+  }
+  .about-btn-label { display: inline; }
+}
 #control-locate {
   border-color: rgba(200, 160, 80, 0.55);
   color: #c8a050;
@@ -166,7 +195,7 @@ body, html {
   color: var(--text-main);
   border: 1px solid var(--border-color); 
   border-radius: 6px;
-  padding: 8px 12px; width: 250px; font-size: 14px; outline: none;
+  padding: 8px 12px; width: 100%; font-size: 14px; outline: none; box-sizing: border-box;
 }
 #search-input:focus { border-color: var(--accent); }
 
@@ -192,7 +221,7 @@ body, html {
 /* Info Panel */
 #info-panel {
   position: absolute;
-  right: 20px; top: 60px; width: 400px;
+  right: 20px; top: 60px; width: 360px;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
   border-radius: 8px; padding: 16px 16px 12px; z-index: 30;
@@ -378,10 +407,8 @@ body, html {
 .about-settings-btn { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-size: 11px; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
 .about-settings-btn:hover { color: var(--text-main); border-color: rgba(255,255,255,0.3); }
 
-/* Status & Footer Elements */
-#status, #attribution { position: absolute; bottom: 10px; z-index: 10; font-size: 12px; color: var(--text-muted); background: rgba(15, 17, 23, 0.8); padding: 4px 8px; border-radius: 4px; pointer-events: none; }
-#status { left: 10px; }
-#attribution { right: 10px; pointer-events: auto; }
+/* Footer Elements */
+#attribution { position: absolute; bottom: 10px; right: 10px; z-index: 10; font-size: 12px; color: var(--text-muted); background: rgba(15, 17, 23, 0.8); padding: 4px 8px; border-radius: 4px; pointer-events: auto; }
 #attribution a { color: var(--accent); text-decoration: none; }
 #attribution a:hover { text-decoration: underline; }
 
@@ -532,8 +559,14 @@ body, html {
 /* ── Location map popup ─────────────────────────────────────── */
 #locate-map-popup {
   position: absolute;
-  top: 10px; left: 60px;
-  width: 300px; height: 320px;
+  /* top-left corner aligns with locate button's top-left in #zoom-controls */
+  top: 168px; left: 10px;
+  /* height fills down to just above the category filter buttons */
+  height: calc(100vh - 344px);
+  /* width is 2/3 of height */
+  width: calc((100vh - 344px) * 2 / 3);
+  min-height: 200px;
+  min-width: 160px;
   display: flex; flex-direction: column;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
@@ -542,9 +575,6 @@ body, html {
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   pointer-events: auto;
   overflow: hidden;
-}
-@media (min-width: 1000px) {
-  #locate-map-popup { width: 600px; height: 580px; }
 }
 /* Mobile portrait: nearly full-width, decent height */
 @media (max-width: 600px) and (orientation: portrait) {

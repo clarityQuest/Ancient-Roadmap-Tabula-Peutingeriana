@@ -6,7 +6,7 @@
 
   <!-- Primary SEO -->
   <title>Tabula Peutingeriana — Interactive Ancient Roman Road Map</title>
-  <meta name="description" content="Explore the Tabula Peutingeriana — the world's most detailed surviving Roman road map (4th–5th c. AD). Interactive zoomable viewer with 3,500+ annotated places. Locate yourself on the ancient Roman world with GPS — find your nearest Roman road station, city or province." />
+  <meta name="description" content="Explore the Tabula Peutingeriana — the world's most complete surviving Roman road map (4th–5th c. AD). Interactive viewer with 3,900+ annotated places (road stations, cities, rivers, provinces). GPS locate: find your nearest ancient Roman station, city or province anywhere on Earth." />
   <meta name="keywords" content="Tabula Peutingeriana, Roman road map, ancient Rome, Roman cartography, medieval map, Roman roads, via romana, ancient geography, Roman Empire map, Peutinger map, Peutingersche Tafel, antique map viewer, OmnesViae, Roman places, ancient cities, GPS location, locate me on map, ancient Roman GPS" />
   <meta name="author" content="three-mills.com" />
   <link rel="canonical" href="https://tabula-peutingeriana.com/" />
@@ -16,7 +16,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://tabula-peutingeriana.com/" />
   <meta property="og:title" content="Tabula Peutingeriana — Interactive Ancient Roman Road Map" />
-  <meta property="og:description" content="Explore the Tabula Peutingeriana — the world's most detailed surviving Roman road map (4th–5th c. AD). Zoomable viewer with 3,500+ annotated ancient places across the Roman world, from Britain to India. Now with GPS: locate yourself on the ancient Roman world!" />
+  <meta property="og:description" content="Explore the Tabula Peutingeriana — the world's most complete surviving Roman road map (4th–5th c. AD). Zoomable viewer with 3,900+ annotated ancient places across the Roman world, from Britain to India. Use GPS to find your nearest ancient Roman location!" />
   <meta property="og:image" content="https://tabula-peutingeriana.com/og-image.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -27,7 +27,7 @@
   <!-- Twitter / X Cards -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Tabula Peutingeriana — Interactive Ancient Roman Road Map" />
-  <meta name="twitter:description" content="Zoomable viewer of the 4th-century Roman road map with 3,500+ annotated cities, road stations, rivers and provinces. Use GPS to see your ancient Roman equivalent location!" />
+  <meta name="twitter:description" content="Zoomable viewer of the 4th-century Roman road map with 3,900+ annotated places: cities, road stations, rivers, provinces. Use GPS to find your ancient Roman equivalent location!" />
   <meta name="twitter:image" content="https://tabula-peutingeriana.com/og-image.jpg" />
 
   <!-- Structured data — WebApplication -->
@@ -73,8 +73,59 @@
   }
   </script>
 
+  <!-- Structured data — FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is the Tabula Peutingeriana?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The Tabula Peutingeriana (Peutinger Map) is a medieval copy of a late-antique Roman road map dating to the 4th–5th century AD. It is 6.75 metres long and depicts roads, distances in Roman miles, and over 3,500 named settlements across the known world — from Britain to India. The surviving copy (c. 1200 AD) is held at the Österreichische Nationalbibliothek in Vienna and is a UNESCO Memory of the World document (2007)."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Where is the Tabula Peutingeriana kept?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The Tabula Peutingeriana has been held at the Österreichische Nationalbibliothek (Austrian National Library) in Vienna, Austria since 1738. It was declared a UNESCO Memory of the World document in 2007."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How many places are on the Tabula Peutingeriana?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The Tabula Peutingeriana shows approximately 3,500–3,974 named places: road stations, cities, rivers, mountains, islands, Roman provinces, and peoples. This interactive viewer annotates 3,974 places, of which 3,230 (81%) have been geographically located with modern coordinates."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I find my own location on the ancient Roman map?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Press the crosshair (locate) button in the viewer. It uses your GPS or lets you pick any location on an interactive modern map, then navigates to the nearest ancient Roman road station, city or province on the Tabula Peutingeriana. Works for any location on Earth."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What happened to Segment I of the Tabula Peutingeriana?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Segment I — covering Britain (except the southeast), the Iberian Peninsula, and the Atlantic coast of Morocco — was already lost by the 16th century. The remaining eleven segments (II–XII) survive intact and are fully available in this viewer."
+        }
+      }
+    ]
+  }
+  </script>
+
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
+  <link rel="stylesheet" href="styles.css?v=20260609g" />
 </head>
 <body>
   <div id="app">
@@ -109,16 +160,16 @@
     <header id="top-bar">
       <div id="left-controls">
         <div id="segment-buttons" class="segment-btn-group" role="group" aria-label="Select segment"></div>
-      </div>
-
-      <div id="search-container">
-        <input type="text" id="search-input" placeholder="Search places (Latin or modern)..." autocomplete="off" />
-        <div id="search-results" class="hidden"></div>
+        <div id="search-container">
+          <input type="text" id="search-input" placeholder="Search places (Latin or modern)..." autocomplete="off" />
+          <div id="search-results" class="hidden"></div>
+        </div>
       </div>
 
       <div id="right-controls">
         <button id="about-btn" class="ctrl-btn" aria-label="About the Tabula Peutingeriana" title="About the Tabula Peutingeriana">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7.5"/><line x1="9" y1="8" x2="9" y2="14" stroke-width="2"/><circle cx="9" cy="5.5" r="1" fill="currentColor" stroke="none"/></svg>
+          <span class="about-btn-label">About</span>
         </button>
       </div>
     </header>
@@ -134,7 +185,10 @@
         </button>
       </div>
       <div id="type-filter-buttons" class="type-filter-group" role="group" aria-label="Filter by place type"></div>
-      <button id="region-solo-btn" class="ctrl-btn toggle-btn toggle-btn-sm region-solo-btn" title="Show Roman regions, provinces and peoples only">Regions, Provinces &amp; People</button>
+      <div class="toggle-row">
+        <button id="modern-state-solo-btn" class="ctrl-btn toggle-btn toggle-btn-sm" title="Toggle modern state boundaries">Modern States</button>
+        <button id="region-solo-btn" class="ctrl-btn toggle-btn toggle-btn-sm region-solo-btn" title="Show Roman regions, provinces and peoples only">Regions, Provinces &amp; People</button>
+      </div>
     </div>
 
     <!-- OpenSeadragon viewer -->
@@ -320,11 +374,11 @@
           </button>
           <button id="locate-places-btn" class="ctrl-btn toggle-btn" title="Toggle Tabula place locations on map">
             <svg width="14" height="14" viewBox="0 0 18 18" fill="currentColor" stroke="none"><path d="M9 1.5C6.52 1.5 4.5 3.52 4.5 6c0 3.57 4.5 9.5 4.5 9.5s4.5-5.93 4.5-9.5c0-2.48-2.02-4.5-4.5-4.5zm0 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
-            Tabula Places
+            Places
           </button>
           <button id="locate-roads-btn" class="ctrl-btn toggle-btn" title="Toggle Roman road network (OmnesViae)">
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2" y1="14" x2="9" y2="4"/><line x1="9" y1="4" x2="16" y2="14"/><line x1="4" y1="10" x2="14" y2="10"/></svg>
-            Tabula Roman Roads
+            Roman Roads
           </button>
           <button id="locate-map-close" aria-label="Close">&times;</button>
         </div>
@@ -333,9 +387,6 @@
       <p id="locate-map-hint">Click map or drag marker to set location</p>
       <p id="locate-map-attr">Road data: <a href="https://omnesviae.org" target="_blank" rel="noopener">OmnesViae</a> · Map: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>
     </div>
-
-    <!-- Status -->
-    <div id="status"></div>
 
     <!-- Attribution -->
     <div id="attribution">
@@ -350,17 +401,24 @@
     <style>#app{display:none}</style>
     <div style="max-width:800px;margin:40px auto;font-family:Georgia,serif;padding:20px;line-height:1.7">
       <h1>Tabula Peutingeriana &mdash; Interactive Ancient Roman Road Map</h1>
-      <p>The <strong>Tabula Peutingeriana</strong> (Peutinger Map) is a medieval copy of a late-antique Roman road map, dating to the 4th&ndash;5th century AD. It is the most detailed surviving cartographic document of the Roman world, stretching 6.75 metres in length and depicting roads, distances in Roman miles, and over 3,500 named settlements across the known world &mdash; from Britain and the Atlantic coast in the west to India and Sri Lanka in the east.</p>
-      <p>This interactive viewer lets you explore the full Tabula in high resolution, search for ancient place names (Latin and modern), and access Wikipedia articles, Pleiades links, and ULM database entries for each location.</p>
+      <p>The <strong>Tabula Peutingeriana</strong> (Peutinger Map / Peutingersche Tafel) is a medieval copy of a late-antique Roman road map, dating to the 4th&ndash;5th century AD. It is the most complete surviving cartographic document of the Roman world, stretching 6.75 metres in length and depicting roads, distances in Roman miles (<em>milia passuum</em>), and over 3,500 named settlements across the known world &mdash; from Britain and the Atlantic coast in the west to India and Sri Lanka in the east.</p>
+      <p>Three cities receive special pictorial treatment as enthroned figures: <strong>Rome</strong>, <strong>Constantinople</strong>, and <strong>Antioch</strong> &mdash; reflecting their supreme importance in the late Roman world.</p>
+      <p>This interactive viewer lets you explore the full Tabula in high resolution, search for ancient place names (Latin and modern), access Wikipedia articles and ULM database entries for each location, and use GPS to locate yourself on the ancient Roman world.</p>
       <h2>Key Facts</h2>
       <ul>
         <li>Original date: c. 4th&ndash;5th century AD</li>
-        <li>Surviving copy: c. 1200 AD (Colmar scriptorium)</li>
-        <li>Dimensions: 6.75 m long &times; 34 cm tall</li>
-        <li>3,500+ named places: cities, road stations, rivers, mountains, islands, provinces</li>
-        <li>Preserved at: &Ouml;sterreichische Nationalbibliothek, Vienna</li>
+        <li>Surviving copy: c. 1200 AD (Colmar scriptorium, Alsace)</li>
+        <li>Dimensions: 6.75 m long &times; 34 cm tall (scroll of 11 parchment sheets)</li>
+        <li>3,974 annotated places: 2,469 road stations, 466 cities, 252 rivers, 162 mountains, 130 islands, 108 regions, 37 Roman provinces and more</li>
+        <li>3,230 places (81%) geographically located with modern coordinates</li>
+        <li>Preserved at: &Ouml;sterreichische Nationalbibliothek, Vienna, Austria</li>
         <li>UNESCO Memory of the World (2007)</li>
+        <li>Named after Konrad Peutinger (1465&ndash;1547), German humanist of Augsburg</li>
       </ul>
+      <h2>Geographic Coverage</h2>
+      <p>Segments II&ndash;XII cover: Iberian Peninsula &bull; Southern Gaul &bull; Italian Alps &bull; All of Italy &bull; Dalmatian coast &bull; Balkans &bull; Greece &bull; North Africa (Morocco to Egypt) &bull; Asia Minor (Turkey) &bull; Syria &bull; Palestine &bull; Egypt &bull; Mesopotamia &bull; Caucasus &bull; Persia (Iran) &bull; Central Asia &bull; Indian subcontinent. Segment I (Britain west of the southeast, Iberia, Atlantic Morocco) is lost.</p>
+      <h2>Data Sources</h2>
+      <p>Place database: <a href="https://www.tabula-peutingeriana.de/">tabula-peutingeriana.de</a> (M. Weber) &bull; <a href="https://tp-online.ku.de/">tp-online.ku.de</a> (Universit&auml;t Ulm) &bull; Map image: K. Miller, 1887 (Wikimedia Commons) &bull; Roads: OmnesViae</p>
       <p>JavaScript is required to use this viewer. Please enable JavaScript in your browser.</p>
       <p>Contact: <a href="mailto:info@three-mills.com">info@three-mills.com</a></p>
     </div>
@@ -374,6 +432,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260609z"></script>
+  <script src="main.js?v=20260609g"></script>
 </body>
 </html>
