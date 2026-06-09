@@ -234,6 +234,7 @@ const S = {
   highlightLocate: false, // true when highlight was triggered by user locate snap
   highlightPlace:  null,  // the place record that is currently highlighted
   userLocVp:      null,   // {vx,vy} viewport coords where crosshair is drawn
+  userLocPlace:   null,   // nearest calibrated place from locate (permanent, not timer-gated)
   userLocLat:     null,
   userLocLng:     null,
   userLocLabel:   "",     // short label drawn near the crosshair
@@ -903,33 +904,40 @@ function renderMarkers() {
       drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
     }
 
-    // Highlighted locate match — draw marker+label even when type filters would hide it
-    if (S.highlightLocate && S.highlightPlace && S.highlightDataId && Date.now() < S.highlightUntil) {
-      const hlVp = placeVp(S.highlightPlace);
+    // Nearest locate place: permanent marker + label (independent of type filter / timer)
+    if (S.userLocPlace) {
+      const hlVp = placeVp(S.userLocPlace);
       if (hlVp) {
         const { cx: hcx, cy: hcy } = viewportToCanvas(hlVp.vx, hlVp.vy);
-        const hlColor = TYPE_COLORS[S.highlightPlace.type] || "#92400E";
+        const hlColor = TYPE_COLORS[S.userLocPlace.type] || "#92400E";
+        // Pulsing ring during the 20-second highlight window
+        if (S.highlightLocate && S.highlightDataId && Date.now() < S.highlightUntil) {
+          drawHighlightRing(ctx, hcx, hcy, 14);
+        }
+        // Permanent colored dot with gold border
         ctx.save();
         ctx.beginPath();
-        ctx.arc(hcx, hcy, 7, 0, Math.PI * 2);
+        ctx.arc(hcx, hcy, 11, 0, Math.PI * 2);
         ctx.fillStyle = hlColor;
         ctx.fill();
         ctx.strokeStyle = "#FFD700";
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 3;
         ctx.stroke();
         ctx.restore();
-        const hlLabel = S.highlightPlace.latin_std || S.highlightPlace.latin || "";
+        // Permanent label with dark background, above the crosshair circle
+        const hlLabel = S.userLocPlace.latin_std || S.userLocPlace.latin || "";
         if (hlLabel) {
           ctx.save();
           ctx.font = "bold 13px 'Segoe UI', Arial, sans-serif";
           ctx.textBaseline = "bottom";
           ctx.textAlign = "center";
-          ctx.strokeStyle = "rgba(0,0,0,0.75)";
-          ctx.lineWidth = 3;
-          ctx.lineJoin = "round";
-          ctx.strokeText(hlLabel, hcx, hcy - 10);
+          const tw = ctx.measureText(hlLabel).width;
+          const pad = 5;
+          const labelY = hcy - 36;
+          ctx.fillStyle = "rgba(0,0,0,0.78)";
+          ctx.fillRect(hcx - tw / 2 - pad, labelY - 16, tw + pad * 2, 18);
           ctx.fillStyle = "#FFD700";
-          ctx.fillText(hlLabel, hcx, hcy - 10);
+          ctx.fillText(hlLabel, hcx, labelY);
           ctx.restore();
         }
       }
@@ -1511,10 +1519,12 @@ function placeVp(place) {
     return { vx: (segIdx + 0.5) / 11, vy: (rowMap[place.tabula_row] ?? 0.5) * millerAspect };
   }
   // Stitched mode: px/py are calibrated for the segment-IV readable image (IMG_W × IMG_H).
-  // Convert through per-segment stitched bounds so the crosshair lands in the correct segment.
+  // Segments 1–5 (and null) use that same SegIV pixel space → always use seg-4 stitched bounds.
+  // Segments 6–12 were each calibrated in their own segment image → use their own bounds.
   if (S.newSourceKind === "stitched") {
-    const seg = String(place.tabula_segment ?? place.grid_segment ?? "");
-    const sb = S.boundsBySource.stitched?.[seg];
+    const rawSeg = Number(place.tabula_segment ?? place.grid_segment);
+    const segKey = (Number.isFinite(rawSeg) && rawSeg >= 6) ? String(rawSeg) : "4";
+    const sb = S.boundsBySource.stitched?.[segKey];
     const px = Number(place.px), py = Number(place.py);
     if (sb && Number.isFinite(px) && Number.isFinite(py)) {
       const sz = S.stitchedTile?.Image?.Size;
@@ -1752,6 +1762,7 @@ function setUserLocation(lat, lng, isDefault = false) {
   const prefix = isDefault ? "Default location — " : "";
 
   if (best) {
+    S.userLocPlace = best;
     const name = best.latin_std || best.latin || "";
     const distKm = locDistKm(lat, lng, Number(best.lat), Number(best.lng));
     const distRound = Math.round(distKm);
