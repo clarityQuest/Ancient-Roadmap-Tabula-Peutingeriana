@@ -86,6 +86,36 @@ const TYPE_ICONS = {
   spa: "♨", temple: "⛩", mountain: "⛰", people: "👥",
 };
 
+// Country filter: DB codes → ISO 3166-1 alpha-2
+const DB_TO_ISO2 = {
+  D:"DE", I:"IT", F:"FR", A:"AT", AUT:"AT", CH:"CH", GB:"GB",
+  GR:"GR", TR:"TR", BG:"BG", HR:"HR", RS:"RS", HU:"HU", SK:"SK",
+  SI:"SI", SLO:"SI", RO:"RO", TN:"TN", DZ:"DZ", MA:"MA", LY:"LY",
+  LAR:"LY", EG:"EG", ET:"EG", SY:"SY", SYR:"SY", JO:"JO", JOR:"JO",
+  IL:"IL", IQ:"IQ", IRQ:"IQ", IR:"IR", ARM:"AM", AZ:"AZ", GE:"GE",
+  AL:"AL", MK:"MK", ME:"ME", MNE:"ME", BA:"BA", BIH:"BA", NL:"NL",
+  BE:"BE", B:"BE", PL:"PL", UA:"UA", RU:"RU", RUS:"RU", LB:"LB",
+  RL:"LB", XK:"XK", RKS:"XK", CY:"CY", LU:"LU", DK:"DK",
+  E:"ES", P:"PT", IN:"IN", IND:"IN", PK:"PK", PAK:"PK",
+  AF:"AF", AFG:"AF", LK:"LK", KZ:"KZ", TM:"TM", KG:"KG",
+  SD:"SD", CN:"CN", AM:"AM", AT:"AT", DE:"DE", IT:"IT",
+  FR:"FR", ES:"ES", PT:"PT", MD:"MD", YU:"RS", V:"VA", VA:"VA",
+};
+function dbCodesToIso2(dbCode) {
+  if (!dbCode) return [];
+  return [...new Set(
+    dbCode.split("|").map(c => DB_TO_ISO2[c.trim()] || (c.trim().length === 2 ? c.trim() : null)).filter(Boolean)
+  )];
+}
+
+// 20 visually distinct colors for country polygons (most distinct first)
+const COUNTRY_COLORS = [
+  "#e63946","#2196f3","#ff9800","#4caf50","#9c27b0",
+  "#00bcd4","#ff5722","#8bc34a","#673ab7","#ffc107",
+  "#03a9f4","#e91e63","#009688","#ff6f00","#5c6bc0",
+  "#76ff03","#f50057","#00e5ff","#69f0ae","#d500f9",
+];
+
 const I18N = {
   en: {
     city: "City", port: "Port", road_station: "Road Station",
@@ -222,6 +252,9 @@ const S = {
   activeTypes:    new Set(["city", "temple", "spa"]),
   regionSolo:     false,
   savedActiveTypes: null,
+  countrySelectMode: false,
+  countryFilter:  null,   // ISO_A2 code of selected country, or null
+  countryPlaces:  null,   // Set<data_id> of matching places, or null
   millerOverlayOn: true,
   millerCalib:    [],   // loaded from miller_rect_* fields in review_places_db.json
   millerCalibHit: [],   // same records, sorted cities-first for hit-testing
@@ -847,8 +880,14 @@ function renderMarkers() {
   for (const p of renderPlaces) {
     const isHighlighted = S.highlightDataId && Number(p.data_id) === S.highlightDataId && Date.now() < S.highlightUntil;
     if (!isHighlighted && !S.activeTypes.has(p.type)) continue;
+    // Country filter: show ONLY places in the selected country; use pre-built Set for performance
+    const isCountryMatch = S.countryFilter
+      ? (S.countryPlaces !== null && S.countryPlaces.has(p.data_id))
+      : false;
+    if (S.countryFilter && !isHighlighted && !isCountryMatch) continue;
     if (p.vx < bx0 || p.vx > bx1 || p.vy < by0 || p.vy > by1) continue;
-    if (!isHighlighted && !isVisibleAtZoom(p.type, zoom)) continue;
+    // Country-matched places always visible regardless of zoom (like highlighted places)
+    if (!isHighlighted && !isCountryMatch && !isVisibleAtZoom(p.type, zoom)) continue;
 
     const { cx, cy } = viewportToCanvas(p.vx, p.vy);
     const d = defaultRectSize(p.type);
@@ -893,7 +932,7 @@ function renderMarkers() {
     if (S.labelsOn) {
       const latin  = p.latin_std || p.latin || null;
       const modern = truncWords(p.modern, 4) || null;
-      if (latin || modern) labelCandidates.push({ p, x, y, w: rw, h: rh, cx, cy, color, isRegion, latin, modern });
+      if (latin || modern) labelCandidates.push({ p, x, y, w: rw, h: rh, cx, cy, color, isRegion, latin, modern, isCountryMatch });
     }
     rendered++;
   }
@@ -925,15 +964,19 @@ function renderMarkers() {
       }
 
       const pointCandidates = labelCandidates.filter(c => !c.isRegion)
-        .sort((a, b) => (TYPE_LABEL_PRIORITY[a.p.type] ?? 2) - (TYPE_LABEL_PRIORITY[b.p.type] ?? 2));
-      for (const { x, y, w, h, latin, modern } of pointCandidates) {
-        if (labelCount2 >= MAX_LABELS) break;
+        .sort((a, b) => {
+          // Country matches always rendered first, then by type priority
+          if (a.isCountryMatch !== b.isCountryMatch) return a.isCountryMatch ? -1 : 1;
+          return (TYPE_LABEL_PRIORITY[a.p.type] ?? 2) - (TYPE_LABEL_PRIORITY[b.p.type] ?? 2);
+        });
+      for (const { x, y, w, h, latin, modern, isCountryMatch } of pointCandidates) {
+        if (!isCountryMatch && labelCount2 >= MAX_LABELS) break;
         const boxW = Math.max(modern ? modern.length * charW : 0, latin ? latin.length * charW : 0);
         const boxH = (latin ? lineH : 0) + (modern ? lineH : 0);
         const bx = x + 2;
         const by = y + Math.max(2, h - boxH - 2) + lineH * 0.3;
         let overlaps = false;
-        if (!skipOverlap) {
+        if (!skipOverlap && !isCountryMatch) {
           for (const r of labelRects2) {
             if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) { overlaps = true; break; }
           }
@@ -1139,7 +1182,13 @@ function syncLeafletSelectedMarker(place) {
   const rec = S.allRecords.find(r => place.data_id != null && r.data_id === Number(place.data_id));
   const lat = Number(rec?.lat ?? place.lat);
   const lng = Number(rec?.lng ?? place.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 || lng === 0) return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 || lng === 0) {
+    const hint = document.getElementById("locate-map-hint");
+    if (hint) { hint.textContent = "Location unknown for this place"; hint.style.color = "#ef4444"; }
+    return;
+  }
+  const hint = document.getElementById("locate-map-hint");
+  if (hint) { hint.textContent = "Click map or drag marker to set location"; hint.style.color = ""; }
   _leafletSelectedMarker = _leafletL.circleMarker([lat, lng], {
     radius: 11, color: "#FFD700", weight: 3,
     fillColor: "#FFD700", fillOpacity: 0.25, interactive: false,
@@ -1331,7 +1380,7 @@ function setupSearch() {
       const matches = pool.filter(p => {
         const lat = (p.latin_std || p.latin || "").toLowerCase();
         const latRaw = (p.latin || "").toLowerCase();
-        const mod = (p.modern || "").toLowerCase();
+        const mod = (p.modern || p.modern_preferred || "").toLowerCase();
         return lat.includes(q) || latRaw.includes(q) || mod.includes(q);
       }).slice(0, 30);
 
@@ -1339,10 +1388,10 @@ function setupSearch() {
 
       results.innerHTML = matches.map(p => {
         const color = TYPE_COLORS[p.type] || "#92400E";
-        return `<div class="search-item" data-id="${p.id}">
+        return `<div class="search-item" data-id="${p.data_id}">
           <span class="dot" style="background:${color}"></span>
           <span class="si-latin">${escHtml(p.latin_std || p.latin)}</span>
-          <span class="si-modern">${escHtml(p.modern || "")}</span>
+          <span class="si-modern">${escHtml(p.modern || p.modern_preferred || "")}</span>
         </div>`;
       }).join("");
       results.classList.remove("hidden");
@@ -1354,7 +1403,7 @@ function setupSearch() {
     if (!item) return;
     const id = item.dataset.id;
     const pool = S.allRecords.length ? S.allRecords : S.places;
-    const place = pool.find(p => String(p.id) === id);
+    const place = pool.find(p => String(p.data_id) === id);
     if (!place) return;
 
     panToPlace(place);
@@ -1437,6 +1486,11 @@ let _leafletRoadsLayer = null;
 let _leafletRoadsOn = false;
 let _leafletSelectedMarker = null;
 let _omnesViaeData = null;
+let _countriesGeoJSON = null;
+let _leafletCountriesLayer = null;
+let _countryColorMap = {};   // ISO_A2 → hex color
+let _countryNameMap = {};    // ISO_A2 → display name
+let _countryFilterSet = null; // Set<data_id> for current country filter (null = no filter)
 
 const LOCATE_SNAP_KM     = 10;   // crosshair snaps exactly to nearest place within this distance
 const LOCATE_IDW_KM      = 150;  // use IDW interpolation for inside-zone up to this distance
@@ -1726,6 +1780,238 @@ function loadLeaflet() {
   });
 }
 
+/* ============================================================
+   Country filter feature
+   ============================================================ */
+// Convert a DB country code string (e.g. "I", "A|BIH|HR") to an array of ISO2 codes.
+// Re-uses the existing COUNTRY_TO_ISO2 map that's already in this file.
+function dbCodesToIso2Arr(dbCode) {
+  if (!dbCode) return [];
+  return [...new Set(
+    dbCode.split("|").map(c => {
+      c = c.trim();
+      return COUNTRY_TO_ISO2[c] || (c.length === 2 ? c : null);
+    }).filter(Boolean)
+  )];
+}
+
+function buildCountryFilterSet(iso2) {
+  if (!iso2) { _countryFilterSet = null; return; }
+  _countryFilterSet = new Set();
+  for (const r of S.allRecords) {
+    if (r.type === "modern_state") continue;
+    if (dbCodesToIso2Arr(r.country || "").includes(iso2)) {
+      _countryFilterSet.add(r.data_id);
+    }
+  }
+}
+
+function buildCountryColorMap() {
+  const counts = {};
+  for (const r of S.allRecords) {
+    if (r.type === "modern_state" || !r.lat) continue;
+    for (const iso2 of dbCodesToIso2Arr(r.country || "")) {
+      counts[iso2] = (counts[iso2] || 0) + 1;
+    }
+  }
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  _countryColorMap = {};
+  sorted.forEach(([iso2], i) => {
+    _countryColorMap[iso2] = COUNTRY_COLORS[i % COUNTRY_COLORS.length];
+  });
+}
+
+function renderCountryLayer() {
+  if (!_leafletMap || !_countriesGeoJSON) return;
+  if (_leafletCountriesLayer) _leafletMap.removeLayer(_leafletCountriesLayer);
+  // Custom pane so country polygons stay at full opacity even when overlayPane is dimmed
+  if (!_leafletMap.getPane("countriesPane")) {
+    _leafletMap.createPane("countriesPane");
+    _leafletMap.getPane("countriesPane").style.zIndex = "390";
+  }
+  _leafletCountriesLayer = _leafletL.geoJSON(_countriesGeoJSON, {
+    pane: "countriesPane",
+    style: f => {
+      const iso2 = f.properties.ISO_A2;
+      const color = _countryColorMap[iso2] || "#888888";
+      const selected = S.countryFilter === iso2;
+      return {
+        fillColor: color,
+        color: selected ? "#ffffff" : color,
+        weight: selected ? 2.5 : 1,
+        fillOpacity: selected ? 0.6 : 0.35,
+        opacity: 0.85,
+      };
+    },
+    onEachFeature: (f, layer) => {
+      const iso2 = f.properties.ISO_A2;
+      const name = f.properties.NAME || iso2;
+      layer.bindTooltip(name, { sticky: true, className: "country-tooltip" });
+      layer.on("click", e => {
+        _leafletL.DomEvent.stopPropagation(e);  // prevent map click from firing
+        setCountryFilter(iso2);
+      });
+      layer.on("mouseover", e => { if (S.countryFilter !== iso2) e.target.setStyle({ fillOpacity: 0.55, weight: 2 }); });
+      layer.on("mouseout", () => { if (_leafletCountriesLayer) _leafletCountriesLayer.resetStyle(layer); });
+    },
+  }).addTo(_leafletMap);
+}
+
+function placeMatchesIso2(p, iso2) {
+  if (!iso2) return true;
+  // Check explicit country code using both lookup tables for maximum coverage
+  if (p.country) {
+    const matches = p.country.split("|").map(c => c.trim()).some(c =>
+      (COUNTRY_TO_ISO2[c] || DB_TO_ISO2[c] || (c.length === 2 ? c : null)) === iso2
+    );
+    if (matches) return true;
+  }
+  // Fallback: guess from coordinates
+  if (p.lat && p.lng) {
+    return guessCountryFromLatLng(p.lat, p.lng) === iso2;
+  }
+  return false;
+}
+
+function zoomToCountryPlaces(iso2) {
+  if (!S.viewer?.viewport) return;
+  const filtered = S.places.filter(p => placeMatchesIso2(p, iso2));
+  if (!filtered.length) return;
+  const vxMin = Math.min(...filtered.map(p => p.vx));
+  const vxMax = Math.max(...filtered.map(p => p.vx));
+  const vyMin = Math.min(...filtered.map(p => p.vy));
+  const vyMax = Math.max(...filtered.map(p => p.vy));
+  const pad = 0.012;
+  S.viewer.viewport.fitBounds(
+    new OpenSeadragon.Rect(vxMin - pad, vyMin - pad, (vxMax - vxMin) + pad * 2, (vyMax - vyMin) + pad * 2),
+    false
+  );
+}
+
+function setCountryFilter(iso2) {
+  S.countryFilter = iso2;
+  S.countryPlaces = iso2
+    ? new Set(S.places.filter(p => placeMatchesIso2(p, iso2)).map(p => p.data_id))
+    : null;
+  // Clear any active place highlight so it doesn't override the country filter
+  S.highlightDataId = null;
+  S.highlightLocate = false;
+  renderCountryLayer();
+  renderMarkers();
+  zoomToCountryPlaces(iso2);
+  const name = _countryNameMap[iso2] || iso2;
+  const chip = document.getElementById("country-filter-chip");
+  if (chip) chip.textContent = "× " + name;
+  document.getElementById("country-filter-bar")?.classList.remove("hidden");
+  const sel = document.getElementById("country-filter-select");
+  if (sel) sel.value = iso2;
+}
+
+function exitCountryFilter() {
+  S.countryFilter = null;
+  S.countryPlaces = null;
+  renderMarkers();
+  document.getElementById("country-filter-bar")?.classList.add("hidden");
+  const sel = document.getElementById("country-filter-select");
+  if (sel) sel.value = "";
+  if (_leafletCountriesLayer) renderCountryLayer();
+}
+
+function populateCountryDropdown() {
+  const sel = document.getElementById("country-filter-select");
+  if (!sel || !_countriesGeoJSON) return;
+  const features = _countriesGeoJSON.features
+    .filter(f => _countryColorMap[f.properties.ISO_A2])
+    .sort((a, b) => (a.properties.NAME || "").localeCompare(b.properties.NAME || ""));
+  sel.innerHTML = '<option value="">— Select country —</option>' +
+    features.map(f => {
+      const iso2 = f.properties.ISO_A2;
+      return `<option value="${iso2}">${f.properties.NAME || iso2}</option>`;
+    }).join("");
+  sel.onchange = () => { if (sel.value) setCountryFilter(sel.value); else exitCountryFilter(); };
+}
+
+function fitLeafletToCountries() {
+  if (!_countriesGeoJSON || !_leafletMap) return;
+  const relevant = _countriesGeoJSON.features.filter(f => _countryColorMap[f.properties.ISO_A2]);
+  if (!relevant.length) return;
+  const layer = _leafletL.geoJSON({ type: "FeatureCollection", features: relevant });
+  _leafletMap.fitBounds(layer.getBounds().pad(0.05));
+}
+
+function pointInRing(pt, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)
+      inside = !inside;
+  }
+  return inside;
+}
+
+function pointInGeoJSONFeature(pt, feature) {
+  const geom = feature.geometry;
+  if (!geom) return false;
+  const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+  return polys.some(poly => poly.length > 0 && pointInRing(pt, poly[0]));
+}
+
+function locateMyCountry() {
+  if (!S.userLocLat || !_countriesGeoJSON) return;
+  const pt = [S.userLocLng, S.userLocLat];
+  for (const f of _countriesGeoJSON.features) {
+    if (pointInGeoJSONFeature(pt, f)) {
+      setCountryFilter(f.properties.ISO_A2);
+      return;
+    }
+  }
+}
+
+async function toggleCountryMode() {
+  S.countrySelectMode = !S.countrySelectMode;
+  document.getElementById("modern-state-solo-btn")?.classList.toggle("active", S.countrySelectMode);
+
+  if (S.countrySelectMode) {
+    await openLocatePopup();
+    if (!_countriesGeoJSON) {
+      _countriesGeoJSON = await loadJSONOptional("data/countries.geojson", null);
+      if (_countriesGeoJSON) {
+        // Build name map for tooltips and chips
+        for (const f of _countriesGeoJSON.features) {
+          _countryNameMap[f.properties.ISO_A2] = f.properties.NAME || f.properties.ISO_A2;
+        }
+      }
+    }
+    if (_countriesGeoJSON) {
+      renderCountryLayer();
+      populateCountryDropdown();
+      fitLeafletToCountries();
+    }
+    // Dim roads/places pane so country polygons are the focus
+    if (_leafletMap) {
+      const pane = _leafletMap.getPane("overlayPane");
+      if (pane) pane.style.opacity = "0.45";
+      const mPane = _leafletMap.getPane("markerPane");
+      if (mPane) mPane.style.opacity = "0.45";
+    }
+    document.getElementById("country-select-bar")?.classList.remove("hidden");
+  } else {
+    exitCountryFilter();
+    if (_leafletMap && _leafletCountriesLayer) {
+      _leafletMap.removeLayer(_leafletCountriesLayer);
+      _leafletCountriesLayer = null;
+    }
+    // Restore pane opacity
+    if (_leafletMap) {
+      const pane = _leafletMap.getPane("overlayPane");
+      if (pane) pane.style.opacity = "";
+      const mPane = _leafletMap.getPane("markerPane");
+      if (mPane) mPane.style.opacity = "";
+    }
+    document.getElementById("country-select-bar")?.classList.add("hidden");
+  }
+}
+
 async function openLocatePopup() {
   const popup = document.getElementById("locate-map-popup");
   popup.classList.remove("hidden");
@@ -1756,6 +2042,7 @@ async function openLocatePopup() {
       setUserLocation(pos.lat, pos.lng);
     });
     _leafletMap.on("click", (e) => {
+      if (S.countrySelectMode) return;
       _leafletMarker.setLatLng(e.latlng);
       setUserLocation(e.latlng.lat, e.latlng.lng);
     });
@@ -1816,11 +2103,10 @@ async function toggleLeafletRoads() {
         }
         if (road.r) {
           dash = "6 5";             // dashed — reconstructed
-          opacity = 0.33;          // 40% more transparent than original 0.55
         }
         if (road.x) {
           dash = "4 8";             // long-gap dash — extrapolated (skips unlocated places)
-          opacity = 0.28;
+          opacity = 0.4;
         }
 
         const opts = { color, weight, opacity, interactive: true };
@@ -1855,6 +2141,7 @@ function toggleLeafletPlaces() {
       const markers = [];
       for (const r of S.allRecords) {
         if (r.lat == null || r.lng == null) continue;
+        if (r.type === "modern_state") continue;
         const rlat = Number(r.lat), rlng = Number(r.lng);
         if (!Number.isFinite(rlat) || !Number.isFinite(rlng)) continue;
         const name = r.latin_std || r.latin || r.modern || "";
@@ -1862,13 +2149,14 @@ function toggleLeafletPlaces() {
         const isSeg1 = seg === 1;
         const color = isSeg1 ? "#9CA3AF" : (TYPE_COLORS[r.type] || "#D97706");
         const m = _leafletL.circleMarker([rlat, rlng], {
-          radius: isSeg1 ? 3 : 4, color, weight: 1.5, fillColor: color,
-          fillOpacity: isSeg1 ? 0.4 : 0.7,
+          radius: isSeg1 ? 4 : 6, color, weight: 1.5, fillColor: color,
+          fillOpacity: isSeg1 ? 0.4 : 0.75,
         });
         const tooltip = isSeg1 ? (name ? `${name} [Segment I — lost]` : "[Segment I — lost]") : name;
         if (tooltip) m.bindTooltip(tooltip, { direction: "top", offset: [0, -4] });
-        // Click a place dot → navigate Tabula to it and open info panel
+        // Click a place dot → navigate Tabula to it and open info panel (blocked in country mode)
         m.on("click", () => {
+          if (S.countrySelectMode) return;
           const full = S.allRecords.find(a => a.data_id === r.data_id) || r;
           panToPlace(full);
           startHighlight(full);
@@ -1933,6 +2221,10 @@ function setupControls() {
   document.getElementById("control-locate").addEventListener("click", locateMe);
   document.getElementById("locate-map-close").addEventListener("click", closeLocatePopup);
   document.getElementById("locate-gps-btn").addEventListener("click", acquireGps);
+  document.getElementById("locate-my-country-btn")?.addEventListener("click", locateMyCountry);
+  document.getElementById("country-filter-chip")?.addEventListener("click", () => {
+    exitCountryFilter();
+  });
   document.addEventListener("fullscreenchange", () => {
     // Let OSD adapt to the new size after fullscreen transition
     setTimeout(() => renderMarkers(), 150);
@@ -2012,7 +2304,7 @@ function setupTypeFilters() {
   const container = document.getElementById("type-filter-buttons");
   if (!container) return;
   // 'region' and 'roman_province' handled via region-solo button; not used as individual filters
-  const types = Object.keys(TYPE_COLORS).filter(t => t !== "region" && t !== "roman_province" && t !== "modern_state");
+  const types = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state");
   container.innerHTML = types.map(t => {
     const color = TYPE_COLORS[t];
     const label = TYPE_LABELS[t];
@@ -2055,22 +2347,12 @@ function setupTypeFilters() {
     });
   }
 
-  // Modern States toggle button
+  // Modern States button → country filter mode
   const modernStateBtn = document.getElementById("modern-state-solo-btn");
   if (modernStateBtn) {
     modernStateBtn.addEventListener("click", () => {
       if (S.regionSolo) exitRegionSolo();
-      const on = S.activeTypes.has("modern_state");
-      if (on) {
-        S.activeTypes.delete("modern_state");
-      } else {
-        S.activeTypes.add("modern_state");
-      }
-      modernStateBtn.classList.toggle("active", !on);
-      // Sync the type-filter-btn if visible
-      const tfBtn = container.querySelector(`.type-filter-btn[data-type="modern_state"]`);
-      if (tfBtn) tfBtn.classList.toggle("active", !on);
-      renderMarkers();
+      toggleCountryMode();
     });
   }
 
@@ -2139,9 +2421,8 @@ function setupMobileMenu() {
   if (!menu) return;
 
   function openMenu() {
-    // Sync type filter buttons (region excluded — handled by region-solo button)
     const typeContainer = document.getElementById("mobile-type-filter-buttons");
-    const types = Object.keys(TYPE_COLORS).filter(t => t !== "region");
+    const types = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state");
     const allOn = types.every(t => S.activeTypes.has(t));
     typeContainer.innerHTML =
       `<button class="ctrl-btn toggle-btn${allOn ? " active" : ""}" id="mobile-toggle-all" style="width:100%;margin-bottom:6px">Select All</button>` +
@@ -3013,17 +3294,19 @@ function initResizablePanels() {
   }
 
   function makeDraggable(panel, handle) {
-    handle.addEventListener("mousedown", e => {
-      if (e.target.closest("button, a, input, select")) return;
-      e.preventDefault();
+    function startDrag(clientX, clientY) {
       const pr = panel.getBoundingClientRect();
       const cr = (panel.offsetParent || document.documentElement).getBoundingClientRect();
       const initLeft = pr.left - cr.left, initTop = pr.top - cr.top;
-      const sx = e.clientX, sy = e.clientY;
-      // Convert from right-anchored to left-anchored once
       panel.style.left  = initLeft + "px";
       panel.style.right = "auto";
       panel.style.top   = initTop  + "px";
+      return { initLeft, initTop, sx: clientX, sy: clientY };
+    }
+    handle.addEventListener("mousedown", e => {
+      if (e.target.closest("button, a, input, select")) return;
+      e.preventDefault();
+      const { initLeft, initTop, sx, sy } = startDrag(e.clientX, e.clientY);
       const onMove = e => {
         panel.style.left = Math.max(0, initLeft + e.clientX - sx) + "px";
         panel.style.top  = Math.max(0, initTop  + e.clientY - sy) + "px";
@@ -3035,6 +3318,23 @@ function initResizablePanels() {
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup",   onUp);
     });
+    handle.addEventListener("touchstart", e => {
+      if (e.target.closest("button, a, input, select")) return;
+      const t0 = e.touches[0];
+      const { initLeft, initTop, sx, sy } = startDrag(t0.clientX, t0.clientY);
+      const onMove = e => {
+        e.preventDefault();
+        const t = e.touches[0];
+        panel.style.left = Math.max(0, initLeft + t.clientX - sx) + "px";
+        panel.style.top  = Math.max(0, initTop  + t.clientY - sy) + "px";
+      };
+      const onEnd = () => {
+        document.removeEventListener("touchmove", onMove);
+        document.removeEventListener("touchend",  onEnd);
+      };
+      document.addEventListener("touchmove", onMove, { passive: false });
+      document.addEventListener("touchend",  onEnd);
+    }, { passive: true });
   }
 
   const locPopup = document.getElementById("locate-map-popup");
@@ -3083,6 +3383,7 @@ async function init() {
   S.boundsBySource.stitched = boundsConfig?.maps?.stitched?.segments || stitchedDefaultBounds;
 
   await reloadDb();
+  buildCountryColorMap();
 
   // Original tile source (Miller full image)
   const isFile = window.location.protocol === "file:";
@@ -3122,8 +3423,8 @@ async function init() {
     showNavigator: true,
     navigatorPosition: "BOTTOM_RIGHT",
     navigatorAutoFade: true,
-    navigatorHeight: "182px",
-    navigatorWidth: "1144px",
+    navigatorHeight: Math.min(182, Math.round(window.innerHeight * 0.15)) + "px",
+    navigatorWidth:  Math.round(Math.min(182, Math.round(window.innerHeight * 0.15)) * (1144 / 182)) + "px",
     defaultZoomLevel: 0,
     minZoomLevel: 0,
     maxZoomLevel: 80,

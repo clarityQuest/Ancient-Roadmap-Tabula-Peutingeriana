@@ -118,14 +118,72 @@
           "@type": "Answer",
           "text": "Segment I — covering Britain (except the southeast), the Iberian Peninsula, and the Atlantic coast of Morocco — was already lost by the 16th century. The remaining eleven segments (II–XII) survive intact and are fully available in this viewer."
         }
+      },
+      {
+        "@type": "Question",
+        "name": "What language is the Tabula Peutingeriana written in?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The Tabula Peutingeriana is written in Latin. Place names appear in their classical Latin forms (e.g. 'Roma', 'Constantinopolis', 'Londinium'). This viewer shows both the original Latin names and their modern equivalents for each of the 3,974 annotated places."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the difference between the Peutinger Map and a modern map?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Unlike modern maps, the Tabula Peutingeriana is not geographically accurate — it is schematic, stretched horizontally to fit a long scroll, and distorts coastlines and distances. Its purpose was practical navigation along Roman roads, not geographic accuracy. Distances between stations are given in Roman miles (milia passuum), and roads are shown as connecting lines with named waypoints."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Where can I see the Tabula Peutingeriana online?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The full Tabula Peutingeriana can be explored interactively at tabula-peutingeriana.com — this viewer. High-resolution scans are also available via the Österreichische Nationalbibliothek (ÖNB) digital library and Wikimedia Commons. The original parchment is on permanent display at the ÖNB in Vienna."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I search for a place on the Tabula Peutingeriana?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Use the search bar at the top of the viewer. You can type either the ancient Latin name (e.g. 'Londinium', 'Aquae', 'Colonia') or a modern place name (e.g. 'London', 'Bath', 'Cologne'). The viewer will navigate to the matching place on the map and show its details, Wikipedia link, and nearest road connections."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Who was Konrad Peutinger and why is the map named after him?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Konrad Peutinger (1465–1547) was a German humanist, lawyer, and antiquarian from Augsburg. He received a copy of the medieval road map from the scholar Conrad Celtis around 1508, worked on it for decades, and was the first to plan its publication. Although he died before it was printed, the map has been known as the 'Tabula Peutingeriana' in his honour since its first edition in 1598."
+        }
       }
     ]
   }
   </script>
 
+  <!-- Structured data — WebSite SearchAction -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "url": "https://tabula-peutingeriana.com/",
+    "name": "Tabula Peutingeriana Viewer",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://tabula-peutingeriana.com/?q={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260609g" />
+  <link rel="stylesheet" href="styles.css?v=20260611e" />
 </head>
 <body>
   <div id="app">
@@ -186,8 +244,10 @@
       </div>
       <div id="type-filter-buttons" class="type-filter-group" role="group" aria-label="Filter by place type"></div>
       <div class="toggle-row">
-        <button id="modern-state-solo-btn" class="ctrl-btn toggle-btn toggle-btn-sm" title="Toggle modern state boundaries">Modern States</button>
         <button id="region-solo-btn" class="ctrl-btn toggle-btn toggle-btn-sm region-solo-btn" title="Show Roman regions, provinces and peoples only">Regions, Provinces &amp; People</button>
+      </div>
+      <div id="country-filter-bar" class="hidden">
+        <button id="country-filter-chip" class="filter-chip" title="Clear country filter">× —</button>
       </div>
     </div>
 
@@ -380,8 +440,20 @@
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2" y1="14" x2="9" y2="4"/><line x1="9" y1="4" x2="16" y2="14"/><line x1="4" y1="10" x2="14" y2="10"/></svg>
             Roman Roads
           </button>
+          <button id="modern-state-solo-btn" class="ctrl-btn toggle-btn" title="Show modern country filter on map">
+            <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="14" height="14" rx="1"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="9" y1="2" x2="9" y2="16"/></svg>
+            Countries
+          </button>
           <button id="locate-map-close" aria-label="Close">&times;</button>
         </div>
+      </div>
+      <!-- Country filter bar — shown when country mode is active -->
+      <div id="country-select-bar" class="hidden">
+        <select id="country-filter-select" title="Select country to filter Tabula places"></select>
+        <button id="locate-my-country-btn" class="ctrl-btn" title="Select my current country from GPS location">
+          <svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="9" r="3.5"/><line x1="9" y1="1" x2="9" y2="5.5"/><line x1="9" y1="12.5" x2="9" y2="17"/><line x1="1" y1="9" x2="5.5" y2="9"/><line x1="12.5" y1="9" x2="17" y2="9"/></svg>
+          My Country
+        </button>
       </div>
       <div id="locate-leaflet-map"></div>
       <p id="locate-map-hint">Click map or drag marker to set location</p>
@@ -432,6 +504,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260609g"></script>
+  <script src="main.js?v=20260611i"></script>
 </body>
 </html>
