@@ -2149,7 +2149,7 @@ function toggleLeafletPlaces() {
         const isSeg1 = seg === 1;
         const color = isSeg1 ? "#9CA3AF" : (TYPE_COLORS[r.type] || "#D97706");
         const m = _leafletL.circleMarker([rlat, rlng], {
-          radius: isSeg1 ? 4 : 6, color, weight: 1.5, fillColor: color,
+          radius: isSeg1 ? 3.2 : 4.8, color, weight: 1.5, fillColor: color,
           fillOpacity: isSeg1 ? 0.4 : 0.75,
         });
         const tooltip = isSeg1 ? (name ? `${name} [Segment I — lost]` : "[Segment I — lost]") : name;

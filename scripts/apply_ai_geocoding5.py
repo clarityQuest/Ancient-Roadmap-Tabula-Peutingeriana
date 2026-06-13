@@ -189,13 +189,13 @@ def main():
         r["geocoding_timestamp"] = datetime.utcnow().isoformat() + "+00:00"
         name = r.get("latin", "") or r.get("latin_std", "")
         country = r.get("country", "")
-        print(f"  SET  id={data_id} [{country}] {name:30s} → lat={info['lat']:.3f} lng={info['lng']:.3f} gc={info['gc']}")
+        print(f"  SET  id={data_id} [{country}] {name:30s} -> lat={info['lat']:.3f} lng={info['lng']:.3f} gc={info['gc']}")
         updated += 1
 
     with open(DB_PATH, "w", encoding="utf-8") as f:
         json.dump(db, f, ensure_ascii=False, separators=(",", ":"))
 
-    print(f"\nUpdated {updated}/{len(FINDS)} records → {DB_PATH}")
+    print(f"\nUpdated {updated}/{len(FINDS)} records -> {DB_PATH}")
 
 
 if __name__ == "__main__":

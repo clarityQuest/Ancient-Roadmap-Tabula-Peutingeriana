@@ -73,15 +73,16 @@ kept = []
 for f in raw_geojson["features"]:
     props = f.get("properties", {})
     iso2  = props.get("ISO_A2", "") or ""
-    iso3  = props.get("ISO_A3", "") or props.get("ADM0_A3", "") or ""
+    _iso3 = props.get("ISO_A3", "")
+    iso3  = (_iso3 if _iso3 and _iso3 != "-99" else None) or props.get("ADM0_A3", "") or ""
     name  = (props.get("NAME_EN") or props.get("NAME") or
              props.get("ADMIN") or iso2)
 
-    # Kosovo: Natural Earth uses ISO_A2="-99" but ISO_A3="XKX"
-    if iso3 in ("KOS", "XKX", "XKK") or props.get("NAME_EN") == "Kosovo":
-        iso2 = "XK"
-
+    # Countries where Natural Earth uses ISO_A2="-99" — fix via ISO_A3/ADM0_A3
+    ISO3_FIX = {"XKX": "XK", "KOS": "XK", "XKK": "XK", "FRA": "FR", "NOR": "NO"}
     if not iso2 or iso2 == "-99":
+        iso2 = ISO3_FIX.get(iso3, "")
+    if not iso2:
         continue
     if iso2 not in iso2_with_places:
         continue
