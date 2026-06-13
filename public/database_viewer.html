@@ -1802,6 +1802,7 @@
         statusEl.style.color = 'var(--ok)';
         setTimeout(closeEditModal, 700);
         applyFilters();
+        try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
       } else {
         statusEl.textContent = 'Error: ' + (json.error || 'Unknown');
         statusEl.style.color = 'var(--alert)';
@@ -1831,6 +1832,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dbFullData),
       });
+      try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
     } catch (e) {
       alert('Error saving after delete: ' + e.message);
     }

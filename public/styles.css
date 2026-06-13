@@ -41,16 +41,20 @@ body, html {
 }
 
 #marker-canvas {
-  position: absolute; 
+  position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
   /* Crucial: lets drag/scroll events pass through to OpenSeadragon */
-  pointer-events: none; 
+  pointer-events: none;
   z-index: 2;
+}
+/* OSD navigator must sit above the marker canvas so markers don't bleed into the minimap */
+.navigator {
+  z-index: 3 !important;
 }
 
 /* Top Controls */
-/* Vertical zoom/nav strip — top-left */
+/* Zoom / nav controls — top-left */
 #zoom-controls {
   position: absolute;
   top: 10px; left: 10px;
@@ -60,10 +64,32 @@ body, html {
   gap: 4px;
   pointer-events: auto;
 }
+#nav-btns-row {
+  display: flex;
+  gap: 3px;
+  align-items: flex-start;
+}
+#nav-square {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+#nav-square .ctrl-btn {
+  padding: 5px;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+}
+.nav-sq-btn {
+  padding: 5px;
+  width: 28px;
+  height: 59px;
+  border-radius: 5px;
+}
 
 #top-bar {
   position: absolute;
-  top: 10px; left: 66px; right: 10px;
+  top: 10px; left: 110px; right: 10px;
   display: flex;
   justify-content: space-between;
   z-index: 10;
@@ -74,7 +100,7 @@ body, html {
   pointer-events: auto;
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
 }
 #left-controls { flex: 1; min-width: 0; }
 #search-container {
@@ -91,26 +117,73 @@ body, html {
   position: absolute;
   bottom: 10px;
   left: 10px;
-  z-index: 10;
+  z-index: 30;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
 }
 .toggle-row { display: flex; gap: 6px; }
 
-#bottom-left-controls .type-filter-group {
+/* Category popup */
+#cat-popup-wrapper { position: relative; }
+#cat-popup-btn {
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  border-radius: 8px;
+  border-color: rgba(200, 160, 80, 0.55);
+  color: #c8a050;
+}
+#cat-popup-btn:hover {
+  background: rgba(55, 42, 10, 0.95);
+  border-color: #c8a050;
+  color: #ffd080;
+}
+#cat-popup-btn svg { width: 30px; height: 30px; }
+#category-popup {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  z-index: 20;
+  min-width: 220px;
+  padding-bottom: 62px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.cat-popup-top-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.cat-type-sep {
+  width: 100%;
+  height: 0;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  margin: 6px 0;
+  flex-basis: 100%;
+}
+.cat-popup-solo-row {
+  margin-top: 6px;
+}
+#category-popup .type-filter-group {
   flex-wrap: wrap;
-  max-width: 340px;
+  max-width: 300px;
   gap: 4px;
 }
+
 
 /* Segment button group */
 .segment-btn-group {
   display: flex;
   gap: 2px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .seg-group-label {
   font-size: 13px;
@@ -121,13 +194,30 @@ body, html {
   padding: 0 4px 0 0;
   user-select: none;
 }
+#segment-buttons-wrapper { position: relative; }
+.seg-hover-info {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  z-index: 20;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
 .seg-btn {
   background: var(--panel-bg);
   color: rgba(215, 220, 230, 0.92);
   border: 1px solid rgba(120, 130, 150, 0.55);
   border-radius: 5px;
-  padding: 6px 10px;
-  font-size: 13px;
+  padding: 5px 8px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.05em;
   cursor: pointer;
@@ -221,7 +311,7 @@ body, html {
 /* Info Panel */
 #info-panel {
   position: absolute;
-  right: 20px; top: 60px; width: 360px;
+  right: 20px; top: 60px; width: 280px;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
   border-radius: 8px; padding: 16px 16px 12px; z-index: 30;
@@ -308,15 +398,15 @@ body, html {
 /* Type filter buttons */
 .type-filter-group { display: flex; gap: 3px; flex-wrap: wrap; }
 .type-filter-btn {
-  padding: 5px 9px; border-radius: 5px; border: 1px solid var(--border-color);
+  padding: 6px 10px; border-radius: 5px; border: 1px solid var(--border-color);
   background: var(--panel-bg); color: var(--text-muted);
-  font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
-  display: flex; align-items: center; gap: 5px;
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
   transition: all 0.15s;
   line-height: 1;
   opacity: 0.6;
 }
-.type-filter-btn .tf-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.type-filter-btn .tf-dot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
 .type-filter-btn.active {
   opacity: 1;
   color: var(--text-main);
@@ -379,7 +469,14 @@ body, html {
 }
 #close-about:hover { color: #fff; }
 .about-title { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
-.about-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; font-style: italic; }
+.about-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; font-style: italic; }
+.about-tabula-img-wrap {
+  margin: 0 0 18px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+.about-tabula-img-wrap img { width: 100%; height: auto; display: block; }
 .about-section { margin-bottom: 18px; }
 .about-section h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: 8px; }
 .about-section p { font-size: 14px; line-height: 1.6; color: var(--text-main); margin-bottom: 8px; }
@@ -465,12 +562,9 @@ body, html {
 
 /* ── Mobile responsive overrides ────────────────────────────── */
 @media (pointer: coarse), (max-width: 600px) {
-  /* Settings button lives in About panel, not top bar */
-  #segment-buttons { display: none; }
-  /* On mobile: hide full category row + Markers/Labels from toggle-row; show bottom filter btn */
-  #bottom-left-controls #type-filter-buttons { display: none; }
-  #toggle-markers, #toggle-labels { display: none; }
-  #bottom-filter-btn { display: flex !important; }
+  /* On mobile: hide segment popup jump button (use mobile menu instead) */
+  #segment-buttons-wrapper { display: none; }
+  /* Category popup still accessible via cat-popup-btn on mobile */
   #bottom-left-controls { bottom: 10px; flex-direction: row; gap: 6px; align-items: center; }
   #attribution { display: none; }
 
@@ -598,12 +692,11 @@ body, html {
 /* ── Location map popup ─────────────────────────────────────── */
 #locate-map-popup {
   position: absolute;
-  /* top-left corner aligns with locate button's top-left in #zoom-controls */
-  top: 168px; left: 10px;
-  /* height fills down to just above the category filter buttons */
-  height: calc(100vh - 344px);
-  /* width is 2/3 of height */
-  width: calc((100vh - 344px) * 2 / 3);
+  /* aligns with top of the locate button: zoom-controls top(10) + nav-btns-row(59) + gap(4) */
+  top: 73px; left: 10px;
+  bottom: 10px;
+  height: auto;
+  width: 25vw;
   min-height: 200px;
   min-width: 160px;
   display: flex; flex-direction: column;
@@ -617,7 +710,7 @@ body, html {
 }
 /* Mobile portrait: nearly full-width, decent height */
 @media (max-width: 600px) and (orientation: portrait) {
-  #locate-map-popup { left: 8px; width: calc(100vw - 16px); height: 280px; }
+  #locate-map-popup { left: 8px; width: calc(100vw - 16px); bottom: 60px; height: auto; }
 }
 /* Mobile landscape: narrower to leave room on the right */
 @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {

@@ -12,8 +12,11 @@ Serves public/ as static files and handles:
 import http.server
 import json
 import os
+import queue
 import re
+import socketserver
 import sys
+import threading
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -22,6 +25,24 @@ ROOT    = Path(__file__).parent.parent / "public"
 DB_PATH = ROOT / "data" / "review_places_db.json"
 PORT    = 8080
 
+# SSE: clients waiting for DB-change notifications
+_sse_clients: list[queue.Queue] = []
+_sse_lock = threading.Lock()
+
+
+def _notify_db_changed() -> None:
+    """Push a db_updated event to every connected SSE client."""
+    msg = b"data: db_updated\n\n"
+    with _sse_lock:
+        dead = []
+        for q in _sse_clients:
+            try:
+                q.put_nowait(msg)
+            except queue.Full:
+                dead.append(q)
+        for q in dead:
+            _sse_clients.remove(q)
+
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -29,7 +50,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     # ── GET handler ───────────────────────────────────────────────────────────
     def do_GET(self):
-        if self.path.startswith('/api/ulm-inset'):
+        if self.path.startswith('/api/db-events'):
+            self._db_events_get()
+        elif self.path.startswith('/api/ulm-inset'):
             self._ulm_inset_get()
         elif self.path.startswith('/api/ulm-detail'):
             self._ulm_detail_get()
@@ -37,6 +60,38 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._wiki_stats_get()
         else:
             super().do_GET()
+
+    def _db_events_get(self):
+        """Server-Sent Events stream: pushes 'db_updated' whenever the DB is saved."""
+        q: queue.Queue = queue.Queue(maxsize=8)
+        with _sse_lock:
+            _sse_clients.append(q)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            self.wfile.write(b": connected\n\n")
+            self.wfile.flush()
+            while True:
+                try:
+                    msg = q.get(timeout=20)
+                    self.wfile.write(msg)
+                    self.wfile.flush()
+                except queue.Empty:
+                    # keepalive comment so the connection doesn't time out
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+        except Exception:
+            pass
+        finally:
+            with _sse_lock:
+                try:
+                    _sse_clients.remove(q)
+                except ValueError:
+                    pass
 
     def _ulm_detail_get(self):
         """Return Barrington modern name, Pleiades id, Großraum, and wiki URL for a ULM entry."""
@@ -149,6 +204,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 encoding="utf-8"
             )
             tmp.replace(DB_PATH)
+            _notify_db_changed()
 
             n = len(data["records"])
             self._json_ok({"ok": True, "records": n})
@@ -279,10 +335,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             super().log_message(fmt, *args)
 
 
+class _ThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+
+
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else PORT
     os.chdir(ROOT)
-    with http.server.HTTPServer(("", port), Handler) as srv:
+    with _ThreadingServer(("", port), Handler) as srv:
         print(f"Serving  http://localhost:{port}/")
         print(f"DB path  {DB_PATH}")
         print(f"Press Ctrl+C to stop.\n")

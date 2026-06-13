@@ -127,6 +127,7 @@ const I18N = {
     wiki_link: "Wiki ↗", ulm_link: "Scientific Info ↗",
     unknown_modern: "(unknown modern name)",
     wiki_lang: "en",
+    jump_to_segment: "Jump to Segment",
     tabula_view_label: "Original Tabula Peutingeriana view",
     about_subtitle: "The Road Map of the Ancient World",
     about_intro: "The Tabula Peutingeriana is one of the most remarkable surviving documents of antiquity — a medieval copy of a Roman road map that charts the entire known world, from the Atlantic coast of Britain to the Indian subcontinent, in extraordinary detail.",
@@ -157,6 +158,7 @@ const I18N = {
     wiki_link: "Wiki ↗", ulm_link: "Wiss. Info ↗",
     unknown_modern: "(moderner Name unbekannt)",
     wiki_lang: "de",
+    jump_to_segment: "Zum Segment",
     tabula_view_label: "Originalansicht der Tabula Peutingeriana",
     about_subtitle: "Die Straßenkarte der antiken Welt",
     about_intro: "Die Tabula Peutingeriana ist eines der bemerkenswertesten erhaltenen Dokumente der Antike — eine mittelalterliche Kopie einer römischen Straßenkarte, die die gesamte bekannte Welt von der Atlantikküste Britanniens bis zum indischen Subkontinent in außerordentlicher Detailtreue erfasst.",
@@ -302,6 +304,30 @@ function getLang() {
 function getText(key) {
   const lang = getLang();
   return (I18N[lang] || I18N.en)[key] ?? I18N.en[key] ?? key;
+}
+
+// Translations for long Latin descriptive inscriptions that have no modern name
+const LATIN_DESCRIPTIONS = {
+  en: {
+    "Desertum ubi quadraginta annis erraverunt filii Israelis ducente Moyse": "Desert of the 40-year Exodus of Israel under Moses",
+    "In his locis scorpiones nascuntur": "In these places scorpions are born",
+    "In his locis elephanti nascuntur": "In these places elephants are born",
+  },
+  de: {
+    "Desertum ubi quadraginta annis erraverunt filii Israelis ducente Moyse": "Wüste des 40-jährigen Exodus Israels unter Mose",
+    "In his locis scorpiones nascuntur": "An diesen Orten entstehen Skorpione",
+    "In his locis elephanti nascuntur": "An diesen Orten entstehen Elefanten",
+  },
+};
+function latinDescription(latinText) {
+  if (!latinText) return null;
+  const lang = getLang();
+  const map = LATIN_DESCRIPTIONS[lang] || LATIN_DESCRIPTIONS.en;
+  const clean = latinText.replace(/[·̇\[\]˙~]/g, "").replace(/\s+/g, " ").trim();
+  for (const [key, val] of Object.entries(map)) {
+    if (clean.toLowerCase().includes(key.toLowerCase().substring(0, 20))) return val;
+  }
+  return null;
 }
 
 function setLang(lang) {
@@ -481,17 +507,47 @@ function focusStartup(immediate = false) {
 function setupSegmentSelector() {
   const container = document.getElementById("segment-buttons");
   if (!container) return;
-  const label = `<span class="seg-group-label">Map Seg.</span>`;
-  container.innerHTML = label + S.segments.map((seg) => {
+
+  // Build per-segment country info from calibrated records
+  const segCountries = new Map();
+  for (const item of S.millerCalib) {
+    const n = Number(item.tabula_segment);
+    if (!n) continue;
+    if (!segCountries.has(n)) segCountries.set(n, new Set());
+    (item.country || "").split("|").forEach(c => { if (c.trim()) segCountries.get(n).add(c.trim()); });
+  }
+
+  container.innerHTML = S.segments.map((seg) => {
     const n = Number(seg.number);
     const roman = String(seg.roman || n);
-    return `<button class="seg-btn" data-seg="${n}" title="${roman}: ${seg.label || roman}">${roman}</button>`;
+    return `<button class="seg-btn" data-seg="${n}">${roman}</button>`;
   }).join("");
   applySegmentUIState();
+
+  const infoEl = document.getElementById("segment-hover-info");
+
   container.addEventListener("click", (e) => {
     const btn = e.target.closest(".seg-btn");
     if (!btn) return;
     focusSegment(Number(btn.dataset.seg));
+  });
+
+  container.addEventListener("mouseover", (e) => {
+    const btn = e.target.closest(".seg-btn");
+    if (!btn || !infoEl) return;
+    const n = Number(btn.dataset.seg);
+    const seg = S.segments.find(s => Number(s.number) === n);
+    if (!seg) return;
+    const codes = [...(segCountries.get(n) || [])];
+    const countries = codes.slice(0, 8).map(c => countryName(c)).filter(Boolean).join(" · ");
+    infoEl.textContent = `Segment ${seg.roman}${seg.label ? ": " + seg.label : ""}${countries ? " — " + countries : ""}`;
+    infoEl.classList.remove("hidden");
+  });
+
+  container.addEventListener("mouseout", (e) => {
+    if (!e.relatedTarget?.closest("#segment-buttons") && infoEl) {
+      infoEl.classList.add("hidden");
+    }
   });
 }
 
@@ -549,6 +605,7 @@ function loadMillerCalib(allRecords) {
         rect_x1:   x1, rect_y1: y1,
         rect_x2:   x2, rect_y2: y2,
         type:      r.type || "road_station",
+        latin:     r.latin || "",
         latin_std: r.latin_std || r.latin || "",
         modern:    r.modern_preferred || r.modern_tabula || r.modern_omnesviae || "",
         province:  r.province || r.region || "",
@@ -715,10 +772,13 @@ function renderMillerOverlay(ctx) {
   const renderCalib = [...S.millerCalib].sort(
     (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
   );
+  let cBoxX1 = Infinity, cBoxY1 = Infinity, cBoxX2 = -Infinity, cBoxY2 = -Infinity;
   for (const item of renderCalib) {
     const isHighlightedItem = item.data_id === S.highlightDataId && Date.now() < S.highlightUntil;
     const isSelectedItem    = item.data_id === S.selectedDataId;
-    if (!isHighlightedItem && !isSelectedItem && !S.activeTypes.has(item.type)) continue;
+    const isCountryMatch = S.countryFilter ? placeMatchesIso2(item, S.countryFilter) : false;
+    if (!isHighlightedItem && !isSelectedItem && !isCountryMatch && !S.activeTypes.has(item.type)) continue;
+    if (S.countryFilter && !isHighlightedItem && !isSelectedItem && !isCountryMatch) continue;
     const vx1 = item.rect_x1 / MILLER_W;
     const vx2 = item.rect_x2 / MILLER_W;
     const vy1 = item.rect_y1 / MILLER_W;
@@ -733,6 +793,12 @@ function renderMillerOverlay(ctx) {
     const w = Math.max(1, Math.abs(p2.cx - p1.cx));
     const h = Math.max(1, Math.abs(p2.cy - p1.cy));
     const color = TYPE_COLORS[item.type] || "#92400E";
+    if (isCountryMatch) {
+      if (x < cBoxX1) cBoxX1 = x;
+      if (y < cBoxY1) cBoxY1 = y;
+      if (x + w > cBoxX2) cBoxX2 = x + w;
+      if (y + h > cBoxY2) cBoxY2 = y + h;
+    }
 
     if (S.markersOn) {
       const ma = LP.markerAlpha ?? 1.0;
@@ -769,10 +835,22 @@ function renderMillerOverlay(ctx) {
     }
 
     if (S.labelsOn) {
-      const txt2 = item.latin_std || "";
+      const txt2 = item.latin || item.latin_std || "";
       const txt1 = truncWords(item.modern, 4) || "";
-      if (txt1 || txt2) mLabelCandidates.push({ item, x, y, w, h, txt1, txt2 });
+      if (txt1 || txt2) mLabelCandidates.push({ item, x, y, w, h, txt1, txt2, isCountryMatch });
     }
+  }
+  if (S.countryFilter && cBoxX1 < Infinity) {
+    const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
+    const pad = 10;
+    ctx.save();
+    ctx.strokeStyle = fColor;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.85;
+    ctx.setLineDash([14, 7]);
+    ctx.strokeRect(cBoxX1 - pad, cBoxY1 - pad, (cBoxX2 - cBoxX1) + pad * 2, (cBoxY2 - cBoxY1) + pad * 2);
+    ctx.setLineDash([]);
+    ctx.restore();
   }
   ctx.globalAlpha = 1;
 
@@ -790,14 +868,14 @@ function renderMillerOverlay(ctx) {
       const skipOverlap = zoom >= (S.isMobile ? LP.labelPadZoomThreshMobile : LP.labelPadZoomThresh);
       const mLabelRects = [];
       let mLabelCount = 0;
-      for (const { x, y, w, h, txt1, txt2 } of mLabelCandidates) {
-        if (mLabelCount >= maxMLabels) break;
+      for (const { x, y, w, h, txt1, txt2, isCountryMatch } of mLabelCandidates) {
+        if (!isCountryMatch && mLabelCount >= maxMLabels) break;
         const boxW = Math.max(txt1.length, txt2.length) * charW;
         const boxH = (txt2 ? lineH : 0) + (txt1 ? lineH : 0);
         const bx = x + 2;
         const by = y + Math.max(2, h - boxH - 2) + lineH * 0.3;
         let overlaps = false;
-        if (!skipOverlap) {
+        if (!skipOverlap && !isCountryMatch) {
           for (const r of mLabelRects) {
             if (bx < r.x2 && bx + boxW > r.x1 && by < r.y2 && by + boxH > r.y1) {
               overlaps = true; break;
@@ -809,20 +887,20 @@ function renderMillerOverlay(ctx) {
                              x2: bx + Math.min(boxW, w) + MPAD, y2: by + boxH + MPAD });
           mLabelCount++;
           ctx.save();
-          ctx.strokeStyle = "rgba(0,0,0,0.8)";
+          ctx.strokeStyle = "rgba(0,0,0,0.85)";
           ctx.lineWidth = 3;
           ctx.lineJoin = "round";
           let dy = by;
           if (txt2) {
-            ctx.font = `${fsNorm}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.font = `${fsNorm}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
             ctx.textBaseline = "top";
             ctx.strokeText(txt2, bx, dy);
-            ctx.fillStyle = "#e5e7eb";
+            ctx.fillStyle = "#e8e8e8";
             ctx.fillText(txt2, bx, dy);
             dy += lineH;
           }
           if (txt1) {
-            ctx.font = `bold ${fsBold}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.font = `bold ${fsBold}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
             ctx.textBaseline = "top";
             ctx.strokeText(txt1, bx, dy);
             ctx.fillStyle = "#ffffff";
@@ -876,14 +954,15 @@ function renderMarkers() {
     (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
   );
   const labelCandidates = [];
+  let cBoxX1 = Infinity, cBoxY1 = Infinity, cBoxX2 = -Infinity, cBoxY2 = -Infinity;
 
   for (const p of renderPlaces) {
     const isHighlighted = S.highlightDataId && Number(p.data_id) === S.highlightDataId && Date.now() < S.highlightUntil;
-    if (!isHighlighted && !S.activeTypes.has(p.type)) continue;
     // Country filter: show ONLY places in the selected country; use pre-built Set for performance
     const isCountryMatch = S.countryFilter
       ? (S.countryPlaces !== null && S.countryPlaces.has(p.data_id))
       : false;
+    if (!isHighlighted && !isCountryMatch && !S.activeTypes.has(p.type)) continue;
     if (S.countryFilter && !isHighlighted && !isCountryMatch) continue;
     if (p.vx < bx0 || p.vx > bx1 || p.vy < by0 || p.vy > by1) continue;
     // Country-matched places always visible regardless of zoom (like highlighted places)
@@ -895,6 +974,12 @@ function renderMarkers() {
     const x = cx - rw / 2, y = cy - rh / 2;
     const color = TYPE_COLORS[p.type] || "#92400E";
     const isRegion = p.type === "region";
+    if (isCountryMatch) {
+      if (x < cBoxX1) cBoxX1 = x;
+      if (y < cBoxY1) cBoxY1 = y;
+      if (x + rw > cBoxX2) cBoxX2 = x + rw;
+      if (y + rh > cBoxY2) cBoxY2 = y + rh;
+    }
 
     if (S.markersOn) {
       const ma = LP.markerAlpha ?? 1.0;
@@ -937,6 +1022,19 @@ function renderMarkers() {
     rendered++;
   }
 
+  if (S.countryFilter && cBoxX1 < Infinity) {
+    const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
+    const pad = 10;
+    ctx.save();
+    ctx.strokeStyle = fColor;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.85;
+    ctx.setLineDash([14, 7]);
+    ctx.strokeRect(cBoxX1 - pad, cBoxY1 - pad, (cBoxX2 - cBoxX1) + pad * 2, (cBoxY2 - cBoxY1) + pad * 2);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   // Pass 2: labels — regions inline (no budget), point features in priority order
   if (S.labelsOn && labelCandidates.length) {
     const fontSize = computeFont(zoom);
@@ -954,7 +1052,7 @@ function renderMarkers() {
         if (!isRegion) continue;
         const label = (latin || modern || "").toUpperCase();
         ctx.save();
-        ctx.font = `italic ${regionFs}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.font = `italic ${regionFs}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
         ctx.textBaseline = "middle"; ctx.textAlign = "center";
         ctx.strokeStyle = "rgba(0,0,0,0.7)"; ctx.lineWidth = 3; ctx.lineJoin = "round";
         ctx.strokeText(label, cx, cy);
@@ -986,16 +1084,16 @@ function renderMarkers() {
                              x2: bx + Math.min(boxW, w) + LABEL_PAD, y2: by + boxH + LABEL_PAD });
           labelCount2++;
           ctx.save();
-          ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 3; ctx.lineJoin = "round";
+          ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.lineWidth = 3; ctx.lineJoin = "round";
           let dy = by;
           if (latin) {
-            ctx.font = `${fsNorm}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.font = `${fsNorm}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
             ctx.textBaseline = "top";
-            ctx.strokeText(latin, bx, dy); ctx.fillStyle = "#e5e7eb"; ctx.fillText(latin, bx, dy);
+            ctx.strokeText(latin, bx, dy); ctx.fillStyle = "#e8e8e8"; ctx.fillText(latin, bx, dy);
             dy += lineH;
           }
           if (modern) {
-            ctx.font = `bold ${fsBold}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.font = `bold ${fsBold}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
             ctx.textBaseline = "top";
             ctx.strokeText(modern, bx, dy); ctx.fillStyle = "#ffffff"; ctx.fillText(modern, bx, dy);
           }
@@ -1096,7 +1194,7 @@ function showTooltip(place, x, y) {
   tt.innerHTML = `
     <div class="tt-latin">${escHtml(displayLatin)}</div>
     ${place.modern ? `<div class="tt-modern">${escHtml(place.modern)}</div>` : ""}
-    ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(place.country || "")}</span></div>` : ""}
+    ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(countryName(place.country) || place.country || "")}</span></div>` : ""}
     <div class="tt-type"><span class="dot" style="background:${color}"></span><span class="tt-type-icon">${typeIcon}</span>${typeLabel}</div>
     ${provLine}${segLine}
   `;
@@ -1127,22 +1225,32 @@ function hitTestMillerOverlay(clientX, clientY) {
 
   // Two-pass hit-test: point types always win over area types.
   // All markers are hittable regardless of which type filters are active.
-  const AREA_TYPES = new Set(["region", "roman_province", "modern_state", "people"]);
+  const AREA_TYPES = new Set(["region", "roman_province", "modern_state"]);
   const inBounds = (item) => {
     const p1 = imageToCanvas(item.rect_x1, item.rect_y1);
     const p2 = imageToCanvas(item.rect_x2, item.rect_y2);
     return ex >= Math.min(p1.cx, p2.cx) - pad && ex <= Math.max(p1.cx, p2.cx) + pad &&
            ey >= Math.min(p1.cy, p2.cy) - pad && ey <= Math.max(p1.cy, p2.cy) + pad;
   };
-  // Pass 1: point types (cities, road_stations, etc.) — always take priority
-  for (const item of S.millerCalibHit) {
-    if (!AREA_TYPES.has(item.type) && inBounds(item)) return item;
+  // Pass 1: collect all point-type hits; prefer smallest rect (most specific place)
+  const pointHits = S.millerCalibHit.filter(item => !AREA_TYPES.has(item.type) && inBounds(item));
+  if (pointHits.length) {
+    if (pointHits.length === 1) return pointHits[0];
+    pointHits.sort((a, b) =>
+      (a.rect_x2 - a.rect_x1) * (a.rect_y2 - a.rect_y1) -
+      (b.rect_x2 - b.rect_x1) * (b.rect_y2 - b.rect_y1)
+    );
+    return pointHits[0];
   }
-  // Pass 2: area types (regions, people) — only when no point type was at this position
+  // Pass 2: area types — prefer smallest matching rect (most specific label wins)
+  let areaHit = null, areaHitSz = Infinity;
   for (const item of S.millerCalibHit) {
-    if (AREA_TYPES.has(item.type) && inBounds(item)) return item;
+    if (AREA_TYPES.has(item.type) && inBounds(item)) {
+      const sz = (item.rect_x2 - item.rect_x1) * (item.rect_y2 - item.rect_y1);
+      if (sz < areaHitSz) { areaHitSz = sz; areaHit = item; }
+    }
   }
-  return null;
+  return areaHit;
 }
 
 function showMillerTooltip(item, x, y) {
@@ -1153,9 +1261,9 @@ function showMillerTooltip(item, x, y) {
   const flagHtml = countryFlagHtml(item.country);
 
   tt.innerHTML = `
-    <div class="tt-latin">${escHtml(item.latin_std || String(item.data_id))}</div>
+    <div class="tt-latin">${escHtml(item.latin || item.latin_std || String(item.data_id))}</div>
     ${item.modern   ? `<div class="tt-modern">${escHtml(item.modern)}</div>` : ""}
-    ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(item.country || "")}</span></div>` : ""}
+    ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(countryName(item.country) || item.country || "")}</span></div>` : ""}
     <div class="tt-type"><span class="dot" style="background:${color}"></span><span class="tt-type-icon">${typeIcon}</span>${typeLabel}</div>
     ${item.province ? `<div class="tt-detail">Province: <span>${escHtml(item.province)}</span></div>` : ""}
   `;
@@ -1216,8 +1324,10 @@ function showInfoPanel(place) {
   }
 
   const panel = document.getElementById("info-panel");
-  document.getElementById("panel-latin").textContent = place.latin_std || place.latin;
-  document.getElementById("panel-modern").textContent = place.modern || getText("unknown_modern");
+  const panelLatin = place.latin || place.latin_std;
+  document.getElementById("panel-latin").textContent = panelLatin;
+  const modernText = place.modern || latinDescription(panelLatin) || getText("unknown_modern");
+  document.getElementById("panel-modern").textContent = modernText;
 
   const color = TYPE_COLORS[place.type] || "#92400E";
   const typeLabel = getText(place.type) || TYPE_LABELS[place.type] || place.type;
@@ -1377,12 +1487,27 @@ function setupSearch() {
       if (q.length < 2) { results.classList.add("hidden"); return; }
 
       const pool = S.allRecords.length ? S.allRecords : S.places;
-      const matches = pool.filter(p => {
+      const calibIds = new Set(S.millerCalib.map(m => m.data_id));
+
+      const scored = [];
+      for (const p of pool) {
         const lat = (p.latin_std || p.latin || "").toLowerCase();
-        const latRaw = (p.latin || "").toLowerCase();
         const mod = (p.modern || p.modern_preferred || "").toLowerCase();
-        return lat.includes(q) || latRaw.includes(q) || mod.includes(q);
-      }).slice(0, 30);
+        // Score: lower = better. Field priority (latin=0, modern=10) + match type (exact=0, prefix=1, substr=2)
+        let s = Infinity;
+        if (lat === q)           s = Math.min(s, 0);
+        if (lat.startsWith(q))   s = Math.min(s, 1);
+        if (lat.includes(q))     s = Math.min(s, 2);
+        if (mod === q)           s = Math.min(s, 10);
+        if (mod.startsWith(q))   s = Math.min(s, 11);
+        if (mod.includes(q))     s = Math.min(s, 12);
+        if (s === Infinity) continue;
+        // Prefer calibrated places within same score tier
+        if (!calibIds.has(p.data_id)) s += 0.5;
+        scored.push({ p, s });
+      }
+      scored.sort((a, b) => a.s - b.s);
+      const matches = scored.slice(0, 30).map(x => x.p);
 
       if (!matches.length) { results.classList.add("hidden"); return; }
 
@@ -1398,21 +1523,28 @@ function setupSearch() {
     }, 200);
   });
 
-  results.addEventListener("click", (e) => {
-    const item = e.target.closest(".search-item");
-    if (!item) return;
-    const id = item.dataset.id;
+  function selectResult(id) {
     const pool = S.allRecords.length ? S.allRecords : S.places;
-    const place = pool.find(p => String(p.data_id) === id);
+    const place = pool.find(p => String(p.data_id) === String(id));
     if (!place) return;
-
     panToPlace(place);
     startHighlight(place);
     showInfoPanel(place);
     renderMarkers();
-
     results.classList.add("hidden");
     input.value = "";
+  }
+
+  results.addEventListener("click", (e) => {
+    const item = e.target.closest(".search-item");
+    if (!item) return;
+    selectResult(item.dataset.id);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const first = results.querySelector(".search-item");
+    if (first) { selectResult(first.dataset.id); e.preventDefault(); }
   });
 
   document.addEventListener("click", (e) => {
@@ -1838,9 +1970,9 @@ function renderCountryLayer() {
       return {
         fillColor: color,
         color: selected ? "#ffffff" : color,
-        weight: selected ? 2.5 : 1,
-        fillOpacity: selected ? 0.6 : 0.35,
-        opacity: 0.85,
+        weight: selected ? 4 : 1,
+        fillOpacity: selected ? 0.72 : 0.35,
+        opacity: selected ? 1 : 0.85,
       };
     },
     onEachFeature: (f, layer) => {
@@ -1850,6 +1982,18 @@ function renderCountryLayer() {
       layer.on("click", e => {
         _leafletL.DomEvent.stopPropagation(e);  // prevent map click from firing
         setCountryFilter(iso2);
+        // Zoom to the country, bounded by the Tabula coverage rectangle
+        try {
+          const tabulaBounds = _leafletL.latLngBounds([[20, -15], [58, 105]]);
+          const countryBounds = layer.getBounds();
+          const bounded = tabulaBounds.intersects(countryBounds)
+            ? _leafletL.latLngBounds(
+                [Math.max(countryBounds.getSouth(), 20), Math.max(countryBounds.getWest(), -15)],
+                [Math.min(countryBounds.getNorth(), 58), Math.min(countryBounds.getEast(), 105)]
+              )
+            : tabulaBounds;
+          _leafletMap.fitBounds(bounded.pad(0.08), { maxZoom: 8 });
+        } catch {}
       });
       layer.on("mouseover", e => { if (S.countryFilter !== iso2) e.target.setStyle({ fillOpacity: 0.55, weight: 2 }); });
       layer.on("mouseout", () => { if (_leafletCountriesLayer) _leafletCountriesLayer.resetStyle(layer); });
@@ -1875,6 +2019,27 @@ function placeMatchesIso2(p, iso2) {
 
 function zoomToCountryPlaces(iso2) {
   if (!S.viewer?.viewport) return;
+  if (S.mapMode === "old") {
+    const items = S.millerCalib.filter(item => placeMatchesIso2(item, iso2));
+    if (!items.length) return;
+    const rx1 = Math.min(...items.map(i => i.rect_x1)) / MILLER_W;
+    const rx2 = Math.max(...items.map(i => i.rect_x2)) / MILLER_W;
+    const ry1 = Math.min(...items.map(i => i.rect_y1)) / MILLER_W;
+    const ry2 = Math.max(...items.map(i => i.rect_y2)) / MILLER_W;
+    const pad = 0.02;
+    const cx = (rx1 + rx2) / 2;
+    const cy = (ry1 + ry2) / 2;
+    // Clamp width to 3 segment widths so large countries (Russia, China) don't zoom out too far
+    const MAX_W = 3 / SEGMENT_COUNT;
+    const rawW = (rx2 - rx1) + pad * 2;
+    const rawH = (ry2 - ry1) + pad * 2;
+    const w = Math.min(rawW, MAX_W);
+    const h = Math.min(rawH, MAX_W * 0.35); // keep aspect roughly readable
+    S.viewer.viewport.fitBounds(
+      new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), false
+    );
+    return;
+  }
   const filtered = S.places.filter(p => placeMatchesIso2(p, iso2));
   if (!filtered.length) return;
   const vxMin = Math.min(...filtered.map(p => p.vx));
@@ -1987,12 +2152,12 @@ async function toggleCountryMode() {
       populateCountryDropdown();
       fitLeafletToCountries();
     }
-    // Dim roads/places pane so country polygons are the focus
+    // Dim and disable interaction on roads/places so only country polygons are active
     if (_leafletMap) {
       const pane = _leafletMap.getPane("overlayPane");
-      if (pane) pane.style.opacity = "0.45";
+      if (pane) { pane.style.opacity = "0.35"; pane.style.pointerEvents = "none"; }
       const mPane = _leafletMap.getPane("markerPane");
-      if (mPane) mPane.style.opacity = "0.45";
+      if (mPane) { mPane.style.opacity = "0.35"; mPane.style.pointerEvents = "none"; }
     }
     document.getElementById("country-select-bar")?.classList.remove("hidden");
   } else {
@@ -2001,12 +2166,12 @@ async function toggleCountryMode() {
       _leafletMap.removeLayer(_leafletCountriesLayer);
       _leafletCountriesLayer = null;
     }
-    // Restore pane opacity
+    // Restore pane opacity and interactivity
     if (_leafletMap) {
       const pane = _leafletMap.getPane("overlayPane");
-      if (pane) pane.style.opacity = "";
+      if (pane) { pane.style.opacity = ""; pane.style.pointerEvents = ""; }
       const mPane = _leafletMap.getPane("markerPane");
-      if (mPane) mPane.style.opacity = "";
+      if (mPane) { mPane.style.opacity = ""; mPane.style.pointerEvents = ""; }
     }
     document.getElementById("country-select-bar")?.classList.add("hidden");
   }
@@ -2102,10 +2267,10 @@ async function toggleLeafletRoads() {
           color = "#7C2D12";        // deep red-brown — crosses mountains
         }
         if (road.r) {
-          dash = "6 5";             // dashed — reconstructed
+          dash = "10 4";            // dashed — reconstructed
         }
         if (road.x) {
-          dash = "4 8";             // long-gap dash — extrapolated (skips unlocated places)
+          dash = "8 6";             // long-gap dash — extrapolated (skips unlocated places)
           opacity = 0.4;
         }
 
@@ -2144,10 +2309,11 @@ function toggleLeafletPlaces() {
         if (r.type === "modern_state") continue;
         const rlat = Number(r.lat), rlng = Number(r.lng);
         if (!Number.isFinite(rlat) || !Number.isFinite(rlng)) continue;
-        const name = r.latin_std || r.latin || r.modern || "";
         const seg = Number(r.tabula_segment ?? r.grid_segment);
-        const isSeg1 = seg === 1;
-        const color = isSeg1 ? "#9CA3AF" : (TYPE_COLORS[r.type] || "#D97706");
+        if (seg === 1) continue; // Segment I is lost — skip from locate map
+        const name = r.latin_std || r.latin || r.modern || "";
+        const isSeg1 = false;
+        const color = TYPE_COLORS[r.type] || "#D97706";
         const m = _leafletL.circleMarker([rlat, rlng], {
           radius: isSeg1 ? 3.2 : 4.8, color, weight: 1.5, fillColor: color,
           fillOpacity: isSeg1 ? 0.4 : 0.75,
@@ -2263,7 +2429,7 @@ function setupControls() {
   document.addEventListener("click", (e) => {
     const panel = document.getElementById("info-panel");
     if (!panel.classList.contains("hidden")) {
-      if (Date.now() - infoPanelOpenedAt < 150) return;
+      if (Date.now() - infoPanelOpenedAt < 4000) return;
       if (!e.target.closest("#info-panel")) hideInfoPanel();
     }
   });
@@ -2303,9 +2469,14 @@ function exitRegionSolo() {
 function setupTypeFilters() {
   const container = document.getElementById("type-filter-buttons");
   if (!container) return;
-  // 'region' and 'roman_province' handled via region-solo button; not used as individual filters
-  const types = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state");
-  container.innerHTML = types.map(t => {
+
+  // Main types, then region/people separated at the bottom
+  const RP_TYPES = new Set(["region", "people"]);
+  const mainTypes = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state" && !RP_TYPES.has(t));
+  const rpTypes   = Object.keys(TYPE_COLORS).filter(t => RP_TYPES.has(t));
+  const types     = [...mainTypes, ...rpTypes];
+
+  const makeBtns = (list) => list.map(t => {
     const color = TYPE_COLORS[t];
     const label = TYPE_LABELS[t];
     const active = S.activeTypes.has(t) ? " active" : "";
@@ -2313,10 +2484,15 @@ function setupTypeFilters() {
       <span class="tf-dot" style="background:${color}"></span>${label}
     </button>`;
   }).join("");
+
+  container.innerHTML =
+    makeBtns(mainTypes) +
+    `<div class="cat-type-sep"></div>` +
+    makeBtns(rpTypes);
+
   container.addEventListener("click", (e) => {
     const btn = e.target.closest(".type-filter-btn");
     if (!btn) return;
-    // Exit region solo if active so standard filters take effect
     if (S.regionSolo) exitRegionSolo();
     const type = btn.dataset.type;
     if (S.activeTypes.has(type)) {
@@ -2333,9 +2509,9 @@ function setupTypeFilters() {
   if (toggleAllBtn) {
     toggleAllBtn.addEventListener("click", () => {
       if (S.regionSolo) exitRegionSolo();
-      const allActive = types.every(t => S.activeTypes.has(t));
-      if (allActive) {
-        types.forEach(t => S.activeTypes.delete(t));
+      const anyActive = types.some(t => S.activeTypes.has(t));
+      if (anyActive) {
+        S.activeTypes = new Set();
         container.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
         toggleAllBtn.classList.remove("active");
       } else {
@@ -2373,22 +2549,17 @@ function setupTypeFilters() {
     });
   }
 
-  const markersBtn = document.getElementById("toggle-markers");
-  if (markersBtn) {
-    markersBtn.addEventListener("click", () => {
-      S.markersOn = !S.markersOn;
-      markersBtn.classList.toggle("active", S.markersOn);
-      renderMarkers();
-    });
-  }
-
-  const labelsBtn = document.getElementById("toggle-labels");
-  if (labelsBtn) {
-    labelsBtn.addEventListener("click", () => {
-      S.labelsOn = !S.labelsOn;
-      labelsBtn.classList.toggle("active", S.labelsOn);
-      renderMarkers();
-    });
+  // Category popup open/close — wrapper is the hover zone (covers button + popup)
+  const catWrapper = document.getElementById("cat-popup-wrapper");
+  const catBtn     = document.getElementById("cat-popup-btn");
+  const catPopup   = document.getElementById("category-popup");
+  if (catWrapper && catPopup) {
+    let catTimer = null;
+    const openCat  = () => { clearTimeout(catTimer); catPopup.classList.remove("hidden"); };
+    const closeCat = () => { catTimer = setTimeout(() => catPopup.classList.add("hidden"), 250); };
+    catWrapper.addEventListener("mouseenter", openCat);
+    catWrapper.addEventListener("mouseleave", closeCat);
+    catBtn?.addEventListener("click", () => catPopup.classList.toggle("hidden"));
   }
 
   // About panel
@@ -2469,7 +2640,8 @@ function setupMobileMenu() {
 
     // Sync segment buttons
     const segContainer = document.getElementById("mobile-segment-buttons");
-    segContainer.innerHTML = document.getElementById("segment-buttons").innerHTML;
+    const segSrc = document.getElementById("segment-buttons");
+    segContainer.innerHTML = segSrc ? segSrc.innerHTML : "";
     segContainer.addEventListener("click", (e) => {
       const b = e.target.closest(".seg-btn");
       if (!b) return;
@@ -2626,7 +2798,7 @@ function setupInteraction() {
     if (millerItem) {
       showInfoPanel({
         latin_std:      millerItem.latin_std,
-        latin:          millerItem.latin_std,
+        latin:          millerItem.latin || millerItem.latin_std,
         modern:         millerItem.modern,
         type:           millerItem.type,
         province:       millerItem.province,
@@ -2647,9 +2819,9 @@ function setupInteraction() {
       return;
     }
 
-    // Nothing hit — close info panel if open
+    // Nothing hit — close info panel only after the 4s grace period
     const panel = document.getElementById("info-panel");
-    if (panel && !panel.classList.contains("hidden")) hideInfoPanel();
+    if (panel && !panel.classList.contains("hidden") && Date.now() - infoPanelOpenedAt >= 4000) hideInfoPanel();
   });
 }
 
@@ -3501,14 +3673,57 @@ async function init() {
 
   console.log(`Tabula Peutingeriana loaded: ${S.places.length} calibrated places, ${S.millerCalib.length} Miller calibrations`);
 
-  // Listen for calibrate saves on the same local server and hot-reload the DB.
-  try {
-    new BroadcastChannel("tp_db_updated").onmessage = async () => {
+  // Hot-reload the DB whenever any tool saves it.
+  // SSE fires for saves from any tool (calibrate, database_viewer, …) via server.py.
+  // BroadcastChannel is a same-browser fallback for when the server isn't running.
+  let _dbReloadPending = false;
+  async function _onDbUpdated() {
+    if (_dbReloadPending) return;
+    _dbReloadPending = true;
+    try {
       await reloadDb();
+      buildCountryColorMap();
+      if (_leafletPlacesLayer) {
+        if (_leafletMap) _leafletMap.removeLayer(_leafletPlacesLayer);
+        _leafletPlacesLayer = null;
+        if (_leafletPlacesOn) { _leafletPlacesOn = false; toggleLeafletPlaces(); }
+      }
       renderMarkers();
-      console.log("[TP] DB hot-reloaded from calibrate save");
+      console.log("[TP] DB hot-reloaded");
+    } finally {
+      _dbReloadPending = false;
+    }
+  }
+  // SSE — works across any tabs/windows on the same server origin
+  let _sseOpened = false;
+  try {
+    const _dbEvents = new EventSource('/api/db-events');
+    _dbEvents.onmessage = _onDbUpdated;
+    // On reconnect (not initial open), reload in case events were missed during downtime
+    _dbEvents.onopen = () => {
+      if (_sseOpened) _onDbUpdated();
+      _sseOpened = true;
     };
   } catch {}
+  // BroadcastChannel — works within the same browser (fallback / supplement)
+  try {
+    const _dbChannel = new BroadcastChannel("tp_db_updated");
+    _dbChannel.onmessage = _onDbUpdated;
+  } catch {}
+  // Polling fallback: catch any saves missed by SSE (e.g. network blip, cross-origin)
+  let _lastDbTag = null;
+  async function _pollDb() {
+    try {
+      const r = await fetch("data/review_places_db.json", { method: "HEAD", cache: "no-store" });
+      const tag = r.headers.get("Last-Modified") || r.headers.get("ETag");
+      if (tag && tag !== _lastDbTag) {
+        if (_lastDbTag !== null) _onDbUpdated(); // skip first check (just established baseline)
+        _lastDbTag = tag;
+      }
+    } catch {}
+  }
+  _pollDb(); // set baseline
+  setInterval(_pollDb, 15000);
 }
 
 async function reloadDb() {

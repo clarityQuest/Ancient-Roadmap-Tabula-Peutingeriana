@@ -77,7 +77,8 @@ def load_db_coords(db_path):
             continue
         uri = f"https://omnesviae.org/#TPPlace{did}"
         label = rec.get("latin_std") or rec.get("latin") or ""
-        db_coords[uri] = {"lat": float(lat), "lng": float(lng), "label": label}
+        gc = int(rec.get("geocoding_confidence") or 0)
+        db_coords[uri] = {"lat": float(lat), "lng": float(lng), "label": label, "gc": gc}
     return db_coords
 
 
@@ -188,17 +189,24 @@ def main():
         fp_db = db_coords.get(fid)
         tp_db = db_coords.get(tid)
 
-        fp = fp_ov or fp_db
-        tp = tp_ov or tp_db
+        # Prefer our DB coord when it's high-confidence (gc≥2), even if OV has coords.
+        # This ensures re-geocoded places update the road network.
+        fp = (fp_db if (fp_db and fp_db.get("gc", 0) >= 2) else fp_ov) or fp_db
+        tp = (tp_db if (tp_db and tp_db.get("gc", 0) >= 2) else tp_ov) or tp_db
 
         if fp and tp:
             # ── Direct connection ────────────────────────────────────────
-            used_db = (fp_ov is None) or (tp_ov is None)
-            if used_db:
+            # Apply distance cap only for low-confidence DB fallbacks (gc<2).
+            # High-confidence DB coords (gc≥2) and pure OV coords are trusted at any distance.
+            fp_low_gc_fallback = (fp_ov is None) and fp is fp_db and fp_db.get("gc", 0) < 2
+            tp_low_gc_fallback = (tp_ov is None) and tp is tp_db and tp_db.get("gc", 0) < 2
+            if fp_low_gc_fallback or tp_low_gc_fallback:
                 km = haversine_km(fp["lat"], fp["lng"], tp["lat"], tp["lng"])
                 if km > MAX_DB_FALLBACK_KM:
                     n_skipped_long += 1
                     continue
+                n_direct_db += 1
+            elif (fp_ov is None) or (tp_ov is None):
                 n_direct_db += 1
             else:
                 n_direct_ov += 1
@@ -210,10 +218,14 @@ def main():
                 "tl": tp["label"],
             }
 
-        elif fp_ov and not tp:
-            # ── Extrapolation: from has OV coords, to is totally unlocated ──
+        elif fp and not tp:
+            # ── Extrapolation: from has coords, to is totally unlocated ──
             # Walk forward along the linear road to the next OV-located place,
             # mirroring OmnesViae GeoFeatures.php / Roads.php logic.
+            if not fp_ov:
+                # Can only walk the OV graph if OV knows the from-place
+                n_skipped_nocoord += 1
+                continue
             next_id = next_ov_located_place_on_road(fid, tid)
             if not next_id:
                 n_skipped_nocoord += 1
@@ -223,9 +235,9 @@ def main():
             np = places[next_id]
             n_extrapolated += 1
             road = {
-                "f":  [fp_ov["lat"], fp_ov["lng"]],
-                "t":  [np["lat"],    np["lng"]],
-                "fl": fp_ov["label"],
+                "f":  [fp["lat"],  fp["lng"]],
+                "t":  [np["lat"],  np["lng"]],
+                "fl": fp["label"],
                 "tl": np["label"],
                 "x":  True,
             }
