@@ -334,12 +334,18 @@ function latinDescription(latinText) {
 
 // Returns true if the Latin text looks like a descriptive inscription worth translating:
 // 4+ meaningful words, no bracket / slash / pipe markers
+// Strip parenthetical alternatives like "(Fossa Facta Per Servos Scutarum)" before translation
+function cleanLatinForTranslation(text) {
+  return text.replace(/\s*\([^)]*\)/g, "").replace(/[·̇˙~\[\]]/g, "").replace(/\s+/g, " ").trim();
+}
+
 function isTranslatableLatin(text) {
   if (!text) return false;
-  if (/[\(\[\|\/]/.test(text)) return false;
-  const words = text.replace(/[·̇˙~\[\]]/g, "").split(/\s+/)
-    .filter(w => w.length > 1 && !/^\d+$/.test(w) && !/^[IVXLCDM]+$/.test(w));
-  return words.length >= 4;
+  const clean = cleanLatinForTranslation(text);
+  if (/[\|\/]/.test(clean)) return false; // skip pipe/slash (multi-name fields)
+  const words = clean.split(/\s+/)
+    .filter(w => w.length > 1 && !/^\d+$/.test(w) && !/^[IVXLCDM]+\.?$/.test(w));
+  return words.length >= 2; // 2+ meaningful Latin words
 }
 
 const _latinTranslCache = {};
@@ -352,7 +358,7 @@ async function getLatinTranslation(text) {
   const cacheKey = `${lang}::${text}`;
   if (_latinTranslCache[cacheKey] !== undefined) return _latinTranslCache[cacheKey];
   try {
-    const clean = text.replace(/[·̇˙~\[\]]/g, "").replace(/\s+/g, " ").trim();
+    const clean = cleanLatinForTranslation(text);
     const resp = await fetch(
       `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=la|${lang}`,
       { cache: "default" }
@@ -656,6 +662,8 @@ function loadMillerCalib(allRecords) {
         type:      r.type || "road_station",
         latin:     r.latin || "",
         latin_std: r.latin_std || r.latin || "",
+        latin_en:  r.latin_en  || "",
+        latin_de:  r.latin_de  || "",
         modern:    r.modern_preferred || r.modern_tabula || r.modern_omnesviae || "",
         province:  r.province || r.region || "",
         country:   r.country || guessCountryFromLatLng(r.lat, r.lng) || "",
@@ -1393,17 +1401,18 @@ function showInfoPanel(place) {
   delete latinEl.dataset.translation;
   document.getElementById("latin-tip").style.display = "none";
   const modernEl = document.getElementById("panel-modern");
-  // Immediate render using built-in lookup
-  const immTransl = latinDescription(panelLatin);
+  // Translation priority: 1) manual curated table, 2) DB pre-computed (latin_en/latin_de), 3) MyMemory API
+  const dbTransl = getLang() === "de" ? (place.latin_de || "") : (place.latin_en || "");
+  const immTransl = latinDescription(panelLatin) || dbTransl || null;
   _renderModernField(modernEl, immTransl, stripQ(place.modern));
   if (immTransl) latinEl.dataset.translation = immTransl;
-  // Async: fetch translation for long Latin inscriptions and update hover tooltip + panel
-  if (isTranslatableLatin(panelLatin) && !immTransl) {
+  // Async MyMemory fallback only when no translation yet
+  if (!immTransl && isTranslatableLatin(panelLatin)) {
     const placeId = place.data_id;
     getLatinTranslation(panelLatin).then(t => {
       if (!t || S.selectedPlace?.data_id !== placeId) return;
       latinEl.dataset.translation = t;
-      _renderModernField(modernEl, t, stripQ(place.modern));
+      if (!place.modern) _renderModernField(modernEl, t, null);
     });
   }
 
@@ -2147,6 +2156,8 @@ function setCountryFilter(iso2) {
   document.getElementById("country-filter-bar")?.classList.remove("hidden");
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = iso2;
+  // Close the locate popup so it doesn't cover the zoomed Tabula view
+  if (iso2) setTimeout(closeLocatePopup, 300);
 }
 
 function exitCountryFilter() {
