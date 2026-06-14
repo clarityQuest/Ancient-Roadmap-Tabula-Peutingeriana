@@ -276,7 +276,7 @@ body, html {
   border-color: #c8a050;
   color: #ffd080;
 }
-.toggle-btn-sm { padding: 6px 8px; font-size: 11px; }
+.toggle-btn-sm { padding: 6px 10px; font-size: 13px; }
 .toggle-btn.active { border-color: var(--accent); color: var(--accent); }
 
 /* Search */
@@ -437,6 +437,27 @@ body, html {
 #region-solo-btn { align-self: flex-start; margin-top: 4px; border-style: dashed !important; color: #a78bfa !important; }
 #region-solo-btn:hover { border-style: dashed !important; }
 #region-solo-btn.active { border-style: solid !important; border-color: #7c3aed !important; color: #c4b5fd !important; background: rgba(124,58,237,0.22) !important; }
+
+/* Latin-name hover translation tooltip */
+#latin-tip {
+  position: fixed;
+  background: rgba(14,11,6,0.96);
+  border: 1px solid rgba(200,160,80,0.45);
+  color: #e8dfc8;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 5px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 9999;
+  max-width: 240px;
+  white-space: pre-wrap;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+#panel-latin[data-translation] { cursor: help; }
+
+/* Country mode: suppress all Leaflet tooltips on the locate map */
+#locate-leaflet-map.country-mode-active .leaflet-tooltip { display: none !important; }
 
 /* About modal backdrop */
 #about-modal-backdrop {

@@ -420,6 +420,7 @@
       <button class="filter-btn prop-btn" id="btn-modern-only" title="Only places with a modern name">With Modern</button>
       <button class="filter-btn prop-btn" id="btn-vignette-only" title="Only places with a vignette symbol">With Vignette</button>
       <button class="filter-btn prop-btn" id="btn-new-only" title="Recently added ULM entries without calibration">New / Uncalibrated</button>
+      <button class="filter-btn prop-btn" id="btn-seg-mismatch" title="Only places where the calibrated x-position falls in a different segment than the DB segment field">Seg. Mismatch</button>
     </div>
     <div class="filter-divider"></div>
     <span class="filter-label">Vignette</span>
@@ -843,6 +844,7 @@ let showBackgroundRegion = true;    // region shown by default; toggle hides it
 let filterModernOnly   = false;     // only places with a modern name
 let filterNewOnly      = false;     // only ulm_only entries without miller calibration
 let filterVignetteOnly = false;     // only places with a vignette
+let filterSegMismatch  = false;     // only places where calibrated x falls in a different segment
 let activeVignette = "";            // "" = All; otherwise exact vignette string
 let activeCountry  = "";            // "" = All; otherwise exact country string
 
@@ -1303,6 +1305,20 @@ async function init() {
 }
 
 /* ── Filtering ── */
+function hasSegMismatch(p) {
+  const x = Number(p.miller_rect_x1);
+  if (!Number.isFinite(x) || !p.tabula_segment) return false;
+  const dbSeg = Number(p.tabula_segment);
+  const dbSegStart = (dbSeg - SEGMENT_FIRST) * SEG_W;
+  const dbSegEnd   = dbSegStart + SEG_W;
+  if (x >= dbSegStart && x < dbSegEnd) return false; // within segment — no mismatch
+  // How far outside the expected segment is the calibrated point?
+  const dist = x < dbSegStart ? dbSegStart - x : x - dbSegEnd;
+  // Threshold: more than 2 column-widths (use segMaxCol for this segment, default 8)
+  const maxCols = segMaxCol[dbSeg] || 8;
+  return dist > 2 * (SEG_W / maxCols);
+}
+
 function applyFilters() {
   const q = searchQuery.toLowerCase();
   cities = allPlaces.filter((p) => {
@@ -1314,6 +1330,7 @@ function applyFilters() {
     if (filterModernOnly   && !p.modern)   return false;
     if (filterVignetteOnly && !p.vignette) return false;
     if (filterNewOnly && !(p.match_status === 'ulm_only' && !results[p.data_id])) return false;
+    if (filterSegMismatch && !hasSegMismatch(p)) return false;
     if (activeVignette && (p.vignette || "") !== activeVignette) return false;
     if (activeCountry  && (p.country  || "") !== activeCountry)  return false;
     if (q && !((p.latin_std || "").toLowerCase().includes(q) ||
@@ -2220,16 +2237,7 @@ document.getElementById("btn-clear-rect").addEventListener("click", () => {
     delete rp.miller_rect_x1; delete rp.miller_rect_y1;
     delete rp.miller_rect_x2; delete rp.miller_rect_y2;
   }
-  // Save full reviewDb directly
-  setServerSaveStatus("saving");
-  fetch("/api/save-calibration", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(reviewDb, null, 2),
-  }).then(r => r.json()).then(result => {
-    if (!result.ok) throw new Error(result.error);
-    setServerSaveStatus("ok", result.records);
-    try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
-  }).catch(e => setServerSaveStatus("error", 0, e.message));
+  saveMergedDb();
   // Reset newPx so panel shows "not set"
   newPx = null; newPy = null; newX1 = null; newY1 = null; newX2 = null; newY2 = null;
   selectionRect = null;
@@ -2306,16 +2314,7 @@ function saveEditDirectly() {
   closeEditModal();
   updatePanel();
   buildCityList();
-  // Save full DB directly
-  setServerSaveStatus("saving");
-  fetch("/api/save-calibration", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(reviewDb, null, 2),
-  }).then(r => r.json()).then(result => {
-    if (!result.ok) throw new Error(result.error);
-    setServerSaveStatus("ok", result.records);
-    try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
-  }).catch(e => setServerSaveStatus("error", 0, e.message));
+  saveMergedDb();
 }
 
 function deleteEntryFromDb() {
@@ -2336,16 +2335,7 @@ function deleteEntryFromDb() {
   if (idx >= cities.length) idx = Math.max(0, cities.length - 1);
   if (cities.length) loadCity(idx);
   else clearPanel();
-  // Save
-  setServerSaveStatus("saving");
-  fetch("/api/save-calibration", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(reviewDb, null, 2),
-  }).then(r => r.json()).then(result => {
-    if (!result.ok) throw new Error(result.error);
-    setServerSaveStatus("ok", result.records);
-    try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
-  }).catch(e => setServerSaveStatus("error", 0, e.message));
+  saveMergedDb();
 }
 
 document.getElementById("btn-edit-entry").addEventListener("click", openEditModal);
@@ -2495,6 +2485,12 @@ document.getElementById("btn-new-only").addEventListener("click", function () {
   applyFilters();
 });
 
+document.getElementById("btn-seg-mismatch").addEventListener("click", function () {
+  filterSegMismatch = !filterSegMismatch;
+  this.classList.toggle("active", filterSegMismatch);
+  applyFilters();
+});
+
 document.getElementById("btn-hide-done").addEventListener("click", () => {
   hideDone = !hideDone;
   const btn = document.getElementById("btn-hide-done");
@@ -2539,6 +2535,23 @@ function normalizeName(s) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "")
     .trim();
+}
+
+// Always merges the current session's draft calibrations before saving, so a
+// clear/edit/delete operation never silently drops work done earlier this session.
+function saveMergedDb() {
+  const cal = buildSetCalibrations();
+  const applied = applyCalibrationsToArray(Array.isArray(reviewDb.records) ? reviewDb.records : [], cal);
+  const payload = { ...reviewDb, records: applied.out };
+  setServerSaveStatus("saving");
+  fetch("/api/save-calibration", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload, null, 2),
+  }).then(r => r.json()).then(result => {
+    if (!result.ok) throw new Error(result.error);
+    setServerSaveStatus("ok", result.records);
+    try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
+  }).catch(e => setServerSaveStatus("error", 0, e.message));
 }
 
 function buildSetCalibrations() {

@@ -312,11 +312,13 @@ const LATIN_DESCRIPTIONS = {
     "Desertum ubi quadraginta annis erraverunt filii Israelis ducente Moyse": "Desert of the 40-year Exodus of Israel under Moses",
     "In his locis scorpiones nascuntur": "In these places scorpions are born",
     "In his locis elephanti nascuntur": "In these places elephants are born",
+    "Fines exercitus syriaticae et conmertium Barbarorum": "Border of the Syrian Army and trade with the Barbarians",
   },
   de: {
     "Desertum ubi quadraginta annis erraverunt filii Israelis ducente Moyse": "Wüste des 40-jährigen Exodus Israels unter Mose",
     "In his locis scorpiones nascuntur": "An diesen Orten entstehen Skorpione",
     "In his locis elephanti nascuntur": "An diesen Orten entstehen Elefanten",
+    "Fines exercitus syriaticae et conmertium Barbarorum": "Grenzgebiet der syrischen Armee und Handel mit den Barbaren",
   },
 };
 function latinDescription(latinText) {
@@ -328,6 +330,53 @@ function latinDescription(latinText) {
     if (clean.toLowerCase().includes(key.toLowerCase().substring(0, 20))) return val;
   }
   return null;
+}
+
+// Returns true if the Latin text looks like a descriptive inscription worth translating:
+// 4+ meaningful words, no bracket / slash / pipe markers
+function isTranslatableLatin(text) {
+  if (!text) return false;
+  if (/[\(\[\|\/]/.test(text)) return false;
+  const words = text.replace(/[·̇˙~\[\]]/g, "").split(/\s+/)
+    .filter(w => w.length > 1 && !/^\d+$/.test(w) && !/^[IVXLCDM]+$/.test(w));
+  return words.length >= 4;
+}
+
+const _latinTranslCache = {};
+async function getLatinTranslation(text) {
+  if (!text) return null;
+  const manual = latinDescription(text);
+  if (manual) return manual;
+  if (!isTranslatableLatin(text)) return null;
+  const lang = getLang() === "de" ? "de" : "en";
+  const cacheKey = `${lang}::${text}`;
+  if (_latinTranslCache[cacheKey] !== undefined) return _latinTranslCache[cacheKey];
+  try {
+    const clean = text.replace(/[·̇˙~\[\]]/g, "").replace(/\s+/g, " ").trim();
+    const resp = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=la|${lang}`,
+      { cache: "default" }
+    );
+    const j = await resp.json();
+    const t = j?.responseData?.translatedText;
+    if (t && t.toLowerCase() !== clean.toLowerCase() && !t.includes("MYMEMORY WARNING")) {
+      _latinTranslCache[cacheKey] = t;
+      return t;
+    }
+  } catch {}
+  _latinTranslCache[cacheKey] = null;
+  return null;
+}
+
+function _renderModernField(el, translation, modernName) {
+  el.style.fontStyle = "";
+  if (translation && modernName) {
+    el.innerHTML = `<em>${escHtml(translation)}</em><br><span style="opacity:0.8">${escHtml(modernName)}</span>`;
+  } else if (translation) {
+    el.innerHTML = `<em>${escHtml(translation)}</em>`;
+  } else {
+    el.textContent = modernName || getText("unknown_modern");
+  }
 }
 
 function setLang(lang) {
@@ -835,9 +884,23 @@ function renderMillerOverlay(ctx) {
     }
 
     if (S.labelsOn) {
-      const txt2 = item.latin || item.latin_std || "";
-      const txt1 = truncWords(item.modern, 4) || "";
+      const txt2 = stripQ(item.latin || item.latin_std || "");
+      const txt1 = truncWords(stripQ(item.modern), 4) || "";
       if (txt1 || txt2) mLabelCandidates.push({ item, x, y, w, h, txt1, txt2, isCountryMatch });
+    }
+
+    // Country mode (no filter selected): draw country-colored rect border per place
+    if (S.countrySelectMode && !S.countryFilter && item.country) {
+      const iso2 = dbCodesToIso2(item.country)[0];
+      const cc = iso2 ? (_countryColorMap[iso2] || null) : null;
+      if (cc) {
+        ctx.save();
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = cc;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+        ctx.restore();
+      }
     }
   }
   if (S.countryFilter && cBoxX1 < Infinity) {
@@ -1015,8 +1078,8 @@ function renderMarkers() {
     }
 
     if (S.labelsOn) {
-      const latin  = p.latin_std || p.latin || null;
-      const modern = truncWords(p.modern, 4) || null;
+      const latin  = stripQ(p.latin_std || p.latin || null);
+      const modern = truncWords(stripQ(p.modern), 4) || null;
       if (latin || modern) labelCandidates.push({ p, x, y, w: rw, h: rh, cx, cy, color, isRegion, latin, modern, isCountryMatch });
     }
     rendered++;
@@ -1185,7 +1248,7 @@ function showTooltip(place, x, y) {
   const color = TYPE_COLORS[place.type] || "#92400E";
   const typeLabel = TYPE_LABELS[place.type] || place.type;
   const typeIcon = TYPE_ICONS[place.type] || "📍";
-  const displayLatin = place.latin_std || place.latin;
+  const displayLatin = stripQ(place.latin_std || place.latin);
   const flagHtml = countryFlagHtml(place.country);
   const segNum = Number(place.tabula_segment ?? place.segment);
   const segMeta = Number.isFinite(segNum) ? S.segments.find(s => Number(s.number) === segNum) : null;
@@ -1193,7 +1256,7 @@ function showTooltip(place, x, y) {
   const provLine = place.province ? `<div class="tt-detail">Province: <span>${escHtml(place.province)}</span></div>` : "";
   tt.innerHTML = `
     <div class="tt-latin">${escHtml(displayLatin)}</div>
-    ${place.modern ? `<div class="tt-modern">${escHtml(place.modern)}</div>` : ""}
+    ${place.modern ? `<div class="tt-modern">${escHtml(stripQ(place.modern))}</div>` : ""}
     ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(countryName(place.country) || place.country || "")}</span></div>` : ""}
     <div class="tt-type"><span class="dot" style="background:${color}"></span><span class="tt-type-icon">${typeIcon}</span>${typeLabel}</div>
     ${provLine}${segLine}
@@ -1261,8 +1324,8 @@ function showMillerTooltip(item, x, y) {
   const flagHtml = countryFlagHtml(item.country);
 
   tt.innerHTML = `
-    <div class="tt-latin">${escHtml(item.latin || item.latin_std || String(item.data_id))}</div>
-    ${item.modern   ? `<div class="tt-modern">${escHtml(item.modern)}</div>` : ""}
+    <div class="tt-latin">${escHtml(stripQ(item.latin || item.latin_std || String(item.data_id)))}</div>
+    ${item.modern   ? `<div class="tt-modern">${escHtml(stripQ(item.modern))}</div>` : ""}
     ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(countryName(item.country) || item.country || "")}</span></div>` : ""}
     <div class="tt-type"><span class="dot" style="background:${color}"></span><span class="tt-type-icon">${typeIcon}</span>${typeLabel}</div>
     ${item.province ? `<div class="tt-detail">Province: <span>${escHtml(item.province)}</span></div>` : ""}
@@ -1324,10 +1387,25 @@ function showInfoPanel(place) {
   }
 
   const panel = document.getElementById("info-panel");
-  const panelLatin = place.latin || place.latin_std;
-  document.getElementById("panel-latin").textContent = panelLatin;
-  const modernText = place.modern || latinDescription(panelLatin) || getText("unknown_modern");
-  document.getElementById("panel-modern").textContent = modernText;
+  const panelLatin = stripQ(place.latin || place.latin_std);
+  const latinEl = document.getElementById("panel-latin");
+  latinEl.textContent = panelLatin;
+  delete latinEl.dataset.translation;
+  document.getElementById("latin-tip").style.display = "none";
+  const modernEl = document.getElementById("panel-modern");
+  // Immediate render using built-in lookup
+  const immTransl = latinDescription(panelLatin);
+  _renderModernField(modernEl, immTransl, stripQ(place.modern));
+  if (immTransl) latinEl.dataset.translation = immTransl;
+  // Async: fetch translation for long Latin inscriptions and update hover tooltip + panel
+  if (isTranslatableLatin(panelLatin) && !immTransl) {
+    const placeId = place.data_id;
+    getLatinTranslation(panelLatin).then(t => {
+      if (!t || S.selectedPlace?.data_id !== placeId) return;
+      latinEl.dataset.translation = t;
+      _renderModernField(modernEl, t, stripQ(place.modern));
+    });
+  }
 
   const color = TYPE_COLORS[place.type] || "#92400E";
   const typeLabel = getText(place.type) || TYPE_LABELS[place.type] || place.type;
@@ -2003,14 +2081,13 @@ function renderCountryLayer() {
 
 function placeMatchesIso2(p, iso2) {
   if (!iso2) return true;
-  // Check explicit country code using both lookup tables for maximum coverage
   if (p.country) {
-    const matches = p.country.split("|").map(c => c.trim()).some(c =>
+    // Country is explicitly coded — only match on that, never fall through to lat/lng
+    return p.country.split("|").map(c => c.trim()).some(c =>
       (COUNTRY_TO_ISO2[c] || DB_TO_ISO2[c] || (c.length === 2 ? c : null)) === iso2
     );
-    if (matches) return true;
   }
-  // Fallback: guess from coordinates
+  // No country code set — guess from coordinates
   if (p.lat && p.lng) {
     return guessCountryFromLatLng(p.lat, p.lng) === iso2;
   }
@@ -2097,11 +2174,9 @@ function populateCountryDropdown() {
 }
 
 function fitLeafletToCountries() {
-  if (!_countriesGeoJSON || !_leafletMap) return;
-  const relevant = _countriesGeoJSON.features.filter(f => _countryColorMap[f.properties.ISO_A2]);
-  if (!relevant.length) return;
-  const layer = _leafletL.geoJSON({ type: "FeatureCollection", features: relevant });
-  _leafletMap.fitBounds(layer.getBounds().pad(0.05));
+  if (!_leafletMap) return;
+  // Zoom to the Tabula Peutingeriana coverage: Portugal to India
+  _leafletMap.fitBounds([[18, -12], [55, 82]], { animate: false });
 }
 
 function pointInRing(pt, ring) {
@@ -2152,12 +2227,20 @@ async function toggleCountryMode() {
       populateCountryDropdown();
       fitLeafletToCountries();
     }
-    // Dim and disable interaction on roads/places so only country polygons are active
+    // Dim, disable interaction, and hide tooltips on roads/places panes
+    const mapEl = document.getElementById("locate-leaflet-map");
+    if (mapEl) mapEl.classList.add("country-mode-active");
     if (_leafletMap) {
       const pane = _leafletMap.getPane("overlayPane");
-      if (pane) { pane.style.opacity = "0.35"; pane.style.pointerEvents = "none"; }
+      if (pane) {
+        pane.style.opacity = "0.35"; pane.style.pointerEvents = "none";
+        pane.querySelectorAll("svg, canvas").forEach(el => el.style.pointerEvents = "none");
+      }
       const mPane = _leafletMap.getPane("markerPane");
-      if (mPane) { mPane.style.opacity = "0.35"; mPane.style.pointerEvents = "none"; }
+      if (mPane) {
+        mPane.style.opacity = "0.35"; mPane.style.pointerEvents = "none";
+        mPane.querySelectorAll("svg, canvas, img").forEach(el => el.style.pointerEvents = "none");
+      }
     }
     document.getElementById("country-select-bar")?.classList.remove("hidden");
   } else {
@@ -2166,12 +2249,19 @@ async function toggleCountryMode() {
       _leafletMap.removeLayer(_leafletCountriesLayer);
       _leafletCountriesLayer = null;
     }
+    document.getElementById("locate-leaflet-map")?.classList.remove("country-mode-active");
     // Restore pane opacity and interactivity
     if (_leafletMap) {
       const pane = _leafletMap.getPane("overlayPane");
-      if (pane) { pane.style.opacity = ""; pane.style.pointerEvents = ""; }
+      if (pane) {
+        pane.style.opacity = ""; pane.style.pointerEvents = "";
+        pane.querySelectorAll("svg, canvas").forEach(el => el.style.pointerEvents = "");
+      }
       const mPane = _leafletMap.getPane("markerPane");
-      if (mPane) { mPane.style.opacity = ""; mPane.style.pointerEvents = ""; }
+      if (mPane) {
+        mPane.style.opacity = ""; mPane.style.pointerEvents = "";
+        mPane.querySelectorAll("svg, canvas, img").forEach(el => el.style.pointerEvents = "");
+      }
     }
     document.getElementById("country-select-bar")?.classList.add("hidden");
   }
@@ -2213,6 +2303,7 @@ async function openLocatePopup() {
     });
     document.getElementById("locate-places-btn").addEventListener("click", toggleLeafletPlaces);
     document.getElementById("locate-roads-btn").addEventListener("click", toggleLeafletRoads);
+    _leafletMap.on("zoomend", updateLeafletZoomStyles);
     // Default: roads on (behind), then places on top
     toggleLeafletRoads().then(() => toggleLeafletPlaces());
   } else {
@@ -2224,6 +2315,19 @@ async function openLocatePopup() {
 
 function closeLocatePopup() {
   document.getElementById("locate-map-popup").classList.add("hidden");
+}
+
+function updateLeafletZoomStyles() {
+  if (!_leafletMap) return;
+  const z = _leafletMap.getZoom();
+  const dotR  = z <= 3 ? 2.0 : z <= 5 ? 3.2 : z <= 7 ? 4.8 : 6.0;
+  const roadW = z <= 3 ? 0.7 : z <= 5 ? 1.2 : z <= 7 ? 1.8 : 2.5;
+  if (_leafletPlacesLayer) {
+    _leafletPlacesLayer.getLayers().forEach(m => { if (m.setRadius) m.setRadius(dotR); });
+  }
+  if (_leafletRoadsLayer) {
+    _leafletRoadsLayer.getLayers().forEach(l => { if (l.setStyle) l.setStyle({ weight: roadW }); });
+  }
 }
 
 async function toggleLeafletRoads() {
@@ -2291,6 +2395,7 @@ async function toggleLeafletRoads() {
       _leafletRoadsLayer = _leafletL.layerGroup(lines);
     }
     _leafletRoadsLayer.addTo(_leafletMap);
+    updateLeafletZoomStyles();
   } else if (_leafletRoadsLayer) {
     _leafletMap.removeLayer(_leafletRoadsLayer);
   }
@@ -2334,6 +2439,7 @@ function toggleLeafletPlaces() {
       _leafletPlacesLayer = _leafletL.layerGroup(markers);
     }
     _leafletPlacesLayer.addTo(_leafletMap);
+    updateLeafletZoomStyles();
   } else if (_leafletPlacesLayer) {
     _leafletMap.removeLayer(_leafletPlacesLayer);
   }
@@ -2364,6 +2470,23 @@ function locateMe() {
 /* ============================================================
    Controls
    ============================================================ */
+
+function setupLatinTooltip() {
+  const latinEl = document.getElementById("panel-latin");
+  const tip = document.getElementById("latin-tip");
+  if (!latinEl || !tip) return;
+  latinEl.addEventListener("mouseenter", () => {
+    const t = latinEl.dataset.translation;
+    if (!t) return;
+    tip.textContent = t;
+    tip.style.display = "block";
+  });
+  latinEl.addEventListener("mousemove", e => {
+    tip.style.left = (e.clientX + 14) + "px";
+    tip.style.top  = (e.clientY + 10) + "px";
+  });
+  latinEl.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+}
 
 function setupControls() {
   document.getElementById("control-zoom-in").addEventListener("click", () => {
@@ -3142,6 +3265,11 @@ function escHtml(s) {
   return d.innerHTML;
 }
 
+// Strip uncertainty markers (?) from displayed names — they are internal notation only
+function stripQ(s) {
+  return s ? s.replace(/\s*\?\s*/g, " ").trim() : s;
+}
+
 function tabulaSectionHref(place) {
   const segment = Number(place.tabula_segment ?? place.segment);
   const row = String(place.tabula_row ?? place.grid_row ?? "").trim().toLowerCase();
@@ -3665,6 +3793,7 @@ async function init() {
   setupSegmentSelector();
   setupTypeFilters();
   setupControls();
+  setupLatinTooltip();
   setupSearch();
   setupInteraction();
   initSettingsPanel();
