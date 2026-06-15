@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Primary SEO -->
-  <title>Tabula Peutingeriana — Interactive Ancient Roman Road Map</title>
-  <meta name="description" content="Explore the Tabula Peutingeriana — the world's most complete surviving Roman road map (4th–5th c. AD). Interactive viewer with 3,900+ annotated places (road stations, cities, rivers, provinces). GPS locate: find your nearest ancient Roman station, city or province anywhere on Earth." />
-  <meta name="keywords" content="Tabula Peutingeriana, Roman road map, ancient Rome, Roman cartography, medieval map, Roman roads, via romana, ancient geography, Roman Empire map, Peutinger map, Peutingersche Tafel, antique map viewer, OmnesViae, Roman places, ancient cities, GPS location, locate me on map, ancient Roman GPS" />
+  <title>Tabula Peutingeriana — See Your Country on the Ancient Roman Road Map</title>
+  <meta name="description" content="Explore the Tabula Peutingeriana — the Roman road map from 300 AD. Discover 3,900+ ancient places across the Roman world. Filter by modern country to see YOUR country in antiquity, use GPS to find your nearest Roman road station, and read AI-translated Latin inscriptions." />
+  <meta name="keywords" content="Tabula Peutingeriana, Roman road map, ancient Rome, see your country in antiquity, Roman cartography, medieval map, Roman roads, via romana, ancient geography, Roman Empire map, Peutinger map, Peutingersche Tafel, antique map viewer, OmnesViae, Roman places, ancient cities, GPS location, locate me on map, ancient Roman GPS, Latin translations, country filter" />
   <meta name="author" content="three-mills.com" />
   <link rel="canonical" href="https://tabula-peutingeriana.com/" />
   <meta name="robots" content="index, follow" />
@@ -15,8 +15,8 @@
   <!-- Open Graph (Facebook, LinkedIn, WhatsApp, AI crawlers) -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://tabula-peutingeriana.com/" />
-  <meta property="og:title" content="Tabula Peutingeriana — Interactive Ancient Roman Road Map" />
-  <meta property="og:description" content="Explore the Tabula Peutingeriana — the world's most complete surviving Roman road map (4th–5th c. AD). Zoomable viewer with 3,900+ annotated ancient places across the Roman world, from Britain to India. Use GPS to find your nearest ancient Roman location!" />
+  <meta property="og:title" content="Tabula Peutingeriana — See Your Country on the Ancient Roman Road Map" />
+  <meta property="og:description" content="Discover where YOUR country appeared in the ancient Roman world! Filter the 4th-century Tabula Peutingeriana by modern country, find 3,900+ annotated ancient places, and read AI-translated Latin inscriptions. The ancient Roman road map — reimagined." />
   <meta property="og:image" content="https://tabula-peutingeriana.com/og-image.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -26,8 +26,8 @@
 
   <!-- Twitter / X Cards -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Tabula Peutingeriana — Interactive Ancient Roman Road Map" />
-  <meta name="twitter:description" content="Zoomable viewer of the 4th-century Roman road map with 3,900+ annotated places: cities, road stations, rivers, provinces. Use GPS to find your ancient Roman equivalent location!" />
+  <meta name="twitter:title" content="Tabula Peutingeriana — See Your Country on the Ancient Roman Road Map" />
+  <meta name="twitter:description" content="Discover YOUR country in the ancient Roman world! Filter the 4th-century Tabula Peutingeriana by modern country, read AI-translated Latin inscriptions, and GPS-locate your nearest Roman road station." />
   <meta name="twitter:image" content="https://tabula-peutingeriana.com/og-image.jpg" />
 
   <!-- Structured data — WebApplication -->
@@ -183,7 +183,7 @@
 
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260614c" />
+  <link rel="stylesheet" href="styles.css?v=20260615b" />
 </head>
 <body>
   <div id="app">
@@ -251,6 +251,7 @@
         <div id="category-popup" class="hidden">
           <div class="cat-popup-top-row">
             <button id="toggle-all-types" class="ctrl-btn toggle-btn toggle-btn-sm" title="Show / hide all categories">All</button>
+            <button id="toggle-labels" class="ctrl-btn toggle-btn toggle-btn-sm active" title="Toggle place name labels on the map">Labels</button>
           </div>
           <div id="type-filter-buttons" class="type-filter-group" role="group" aria-label="Filter by place type"></div>
           <div class="cat-popup-solo-row">
@@ -284,6 +285,7 @@
       </div>
       <div id="panel-names">
         <div id="panel-latin"></div>
+        <div id="panel-latin-transl" class="hidden"></div>
         <div id="panel-modern"></div>
       </div>
       <div id="panel-country" class="hidden"></div>
@@ -366,8 +368,14 @@
       </section>
 
       <section class="about-section">
-        <h3>Locate Yourself on the Map</h3>
-        <p>Press the crosshair button (&#9678;) to place yourself on the ancient Roman world. The viewer uses your GPS position — or lets you pick a location manually on the interactive map — and navigates to the nearest Roman road station, city, or province, with a Wikipedia preview. If you are outside the Tabula's coverage area (e.g. in the Americas, Australia, or East Asia), a direction marker appears at the corresponding edge of the map, so you can always see where you stand relative to the Roman world.</p>
+        <h3>See Your Country on the Ancient Map!</h3>
+        <p>Press the crosshair button (&#9678;) to open the location map, then click <strong>Countries</strong> to activate the country filter. The interactive map shows all Roman-era countries as coloured polygons — click your country to instantly highlight all its ancient Roman places on the Tabula Peutingeriana. Where was France? Germany? Italy? Iran? Find out where YOUR country stood in the Roman world.</p>
+        <p>Use <strong>GPS</strong> to place yourself on the ancient map, navigate to your nearest Roman road station, city, or province with a Wikipedia preview. Outside the Tabula's coverage area (Americas, Australia, East Asia)? A direction marker shows where you stand relative to the Roman world.</p>
+      </section>
+
+      <section class="about-section">
+        <h3>Latin Inscriptions — AI Translated</h3>
+        <p>The Tabula is rich with Latin inscriptions: region labels, river names, curiosities like <em>"In his locis scorpiones nascuntur"</em> (In these places scorpions are born) or the famous <em>"Hic Alexander responsum accepit: usque quo Alexander?"</em> (Here Alexander received the answer: How far, Alexander?). Over 1,100 multi-word Latin place names are translated into English and German by Claude AI, visible in the place tooltip and info panel.</p>
       </section>
 
       <section class="about-section about-links-section">
@@ -484,6 +492,9 @@
       <p id="locate-map-attr">Road data: <a href="https://omnesviae.org" target="_blank" rel="noopener">OmnesViae</a> · Map: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>
     </div>
 
+    <!-- Mobile layout toggle — dev tool, visible on mobile only -->
+    <button id="mobile-layout-toggle" title="Toggle mobile panel layout (compact/full)" aria-label="Toggle mobile panel layout">⊞</button>
+
     <!-- Attribution -->
     <div id="attribution">
       Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber)
@@ -529,6 +540,6 @@
 
   <div id="latin-tip" style="display:none"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260614e"></script>
+  <script src="main.js?v=20260615d"></script>
 </body>
 </html>

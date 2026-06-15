@@ -357,7 +357,9 @@ body, html {
 #about-lang-row { display: flex; gap: 6px; margin: 10px 0 16px; }
 /* Names: Latin and modern same weight/size */
 #panel-names { margin-bottom: 8px; }
-#panel-latin { font-size: 20px; font-weight: 700; line-height: 1.25; margin-bottom: 3px; }
+#panel-latin { font-size: 20px; font-weight: 700; line-height: 1.25; margin-bottom: 2px; }
+#panel-latin-transl { font-style: italic; font-size: 14px; color: var(--text-muted); line-height: 1.35; margin-bottom: 4px; }
+#panel-latin-transl.hidden { display: none; }
 #panel-modern { font-size: 20px; font-weight: 600; color: var(--text-muted); line-height: 1.25; }
 /* Wiki section: summary full-width, then links+image row below */
 #panel-wiki-section { margin-top: 10px; }
@@ -424,7 +426,8 @@ body, html {
 }
 #tooltip.tt-rich { max-width: 380px; padding: 14px 18px; }
 .tt-latin { font-weight: 700; font-size: 20px; margin-bottom: 4px; }
-.tt-modern { color: #ddd; margin-bottom: 6px; font-size: 15px; font-weight: 500; }
+.tt-modern { color: #ddd; margin-bottom: 2px; font-size: 15px; font-weight: 500; }
+.tt-transl { color: #b0a890; font-style: italic; font-size: 13px; margin-bottom: 5px; }
 .tt-type { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #bbb; margin-bottom: 4px; margin-top: 6px; }
 .tt-type-icon { font-size: 1.5em; line-height: 1; }
 .tt-country { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #fff; margin-bottom: 2px; }
@@ -624,7 +627,8 @@ body, html {
     #panel-map:not(.hidden) iframe { height: 240px; }
   }
   /* Slightly smaller fonts for narrow panel */
-  #info-panel #panel-latin  { font-size: 14px; margin-bottom: 3px; }
+  #info-panel #panel-latin  { font-size: 14px; margin-bottom: 2px; }
+  #info-panel #panel-latin-transl { font-size: 11px; }
   #info-panel #panel-modern { font-size: 12px; margin-bottom: 8px; }
   #info-panel #panel-wiki-summary { font-size: 12px; margin-top: 5px; }
   #info-panel #panel-type   { font-size: 16px; }
@@ -902,4 +906,33 @@ body, html {
     border-radius: 16px 16px 0 0;
   }
   .sp-desc { display: none; }
+}
+
+/* Mobile layout toggle button — visible on touch screens only */
+#mobile-layout-toggle {
+  display: none;
+  position: fixed;
+  bottom: 14px; right: 14px;
+  z-index: 300;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(30,27,22,0.9);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 17px; line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+@media (pointer: coarse), (max-width: 600px) {
+  #mobile-layout-toggle { display: flex; align-items: center; justify-content: center; }
+}
+
+/* Compact panel mode — overrides portrait full-width to keep map visible */
+@media (pointer: coarse) and (orientation: portrait) {
+  body.mobile-compact #info-panel {
+    left: 0 !important; right: auto !important;
+    width: min(300px, 72vw) !important;
+    border-radius: 0 12px 12px 0 !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.6) !important;
+  }
 }

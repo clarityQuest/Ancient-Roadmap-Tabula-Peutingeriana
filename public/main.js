@@ -100,6 +100,7 @@ const DB_TO_ISO2 = {
   AF:"AF", AFG:"AF", LK:"LK", KZ:"KZ", TM:"TM", KG:"KG",
   SD:"SD", CN:"CN", AM:"AM", AT:"AT", DE:"DE", IT:"IT",
   FR:"FR", ES:"ES", PT:"PT", MD:"MD", YU:"RS", V:"VA", VA:"VA",
+  NE:"NE", ML:"ML",
 };
 function dbCodesToIso2(dbCode) {
   if (!dbCode) return [];
@@ -897,6 +898,16 @@ function renderMillerOverlay(ctx) {
       if (txt1 || txt2) mLabelCandidates.push({ item, x, y, w, h, txt1, txt2, isCountryMatch });
     }
 
+    // When country filter active: draw country color outline on matching places
+    if (S.countryFilter && isCountryMatch) {
+      const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
+      ctx.save();
+      ctx.strokeStyle = fColor;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.9;
+      ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
+      ctx.restore();
+    }
     // Country mode (no filter selected): draw country-colored rect border per place
     if (S.countrySelectMode && !S.countryFilter && item.country) {
       const iso2 = dbCodesToIso2(item.country)[0];
@@ -905,7 +916,7 @@ function renderMillerOverlay(ctx) {
         ctx.save();
         ctx.globalAlpha = 0.6;
         ctx.strokeStyle = cc;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 4;
         ctx.strokeRect(x, y, w, h);
         ctx.restore();
       }
@@ -1262,8 +1273,11 @@ function showTooltip(place, x, y) {
   const segMeta = Number.isFinite(segNum) ? S.segments.find(s => Number(s.number) === segNum) : null;
   const segLine = segMeta ? `<div class="tt-detail">Segment: <span>${escHtml(segMeta.roman + " – " + segMeta.label)}</span></div>` : "";
   const provLine = place.province ? `<div class="tt-detail">Province: <span>${escHtml(place.province)}</span></div>` : "";
+  const transl = getLang() === "de" ? (place.latin_de || "") : (place.latin_en || "");
+  const translLine = transl ? `<div class="tt-transl">${escHtml(transl)}</div>` : "";
   tt.innerHTML = `
     <div class="tt-latin">${escHtml(displayLatin)}</div>
+    ${translLine}
     ${place.modern ? `<div class="tt-modern">${escHtml(stripQ(place.modern))}</div>` : ""}
     ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(countryName(place.country) || place.country || "")}</span></div>` : ""}
     <div class="tt-type"><span class="dot" style="background:${color}"></span><span class="tt-type-icon">${typeIcon}</span>${typeLabel}</div>
@@ -1330,9 +1344,12 @@ function showMillerTooltip(item, x, y) {
   const typeLabel = TYPE_LABELS[item.type] || item.type;
   const typeIcon = TYPE_ICONS[item.type] || "📍";
   const flagHtml = countryFlagHtml(item.country);
+  const transl = getLang() === "de" ? (item.latin_de || "") : (item.latin_en || "");
+  const translLine = transl ? `<div class="tt-transl">${escHtml(transl)}</div>` : "";
 
   tt.innerHTML = `
     <div class="tt-latin">${escHtml(stripQ(item.latin || item.latin_std || String(item.data_id)))}</div>
+    ${translLine}
     ${item.modern   ? `<div class="tt-modern">${escHtml(stripQ(item.modern))}</div>` : ""}
     ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(countryName(item.country) || item.country || "")}</span></div>` : ""}
     <div class="tt-type"><span class="dot" style="background:${color}"></span><span class="tt-type-icon">${typeIcon}</span>${typeLabel}</div>
@@ -1401,18 +1418,31 @@ function showInfoPanel(place) {
   delete latinEl.dataset.translation;
   document.getElementById("latin-tip").style.display = "none";
   const modernEl = document.getElementById("panel-modern");
+  const translEl = document.getElementById("panel-latin-transl");
   // Translation priority: 1) manual curated table, 2) DB pre-computed (latin_en/latin_de), 3) MyMemory API
   const dbTransl = getLang() === "de" ? (place.latin_de || "") : (place.latin_en || "");
   const immTransl = latinDescription(panelLatin) || dbTransl || null;
-  _renderModernField(modernEl, immTransl, stripQ(place.modern));
-  if (immTransl) latinEl.dataset.translation = immTransl;
+  // Show translation below Latin name (small italic) if available and 2+ words
+  if (immTransl && isTranslatableLatin(panelLatin)) {
+    translEl.textContent = immTransl;
+    translEl.classList.remove("hidden");
+    latinEl.dataset.translation = immTransl;
+  } else {
+    translEl.textContent = "";
+    translEl.classList.add("hidden");
+    delete latinEl.dataset.translation;
+  }
+  // Modern name shown separately (no translation mixed in)
+  modernEl.style.fontStyle = "";
+  modernEl.textContent = stripQ(place.modern) || getText("unknown_modern");
   // Async MyMemory fallback only when no translation yet
   if (!immTransl && isTranslatableLatin(panelLatin)) {
     const placeId = place.data_id;
     getLatinTranslation(panelLatin).then(t => {
       if (!t || S.selectedPlace?.data_id !== placeId) return;
       latinEl.dataset.translation = t;
-      if (!place.modern) _renderModernField(modernEl, t, null);
+      translEl.textContent = t;
+      translEl.classList.remove("hidden");
     });
   }
 
@@ -2113,7 +2143,7 @@ function zoomToCountryPlaces(iso2) {
     const ry1 = Math.min(...items.map(i => i.rect_y1)) / MILLER_W;
     const ry2 = Math.max(...items.map(i => i.rect_y2)) / MILLER_W;
     const pad = 0.02;
-    const cx = (rx1 + rx2) / 2;
+    let cx = (rx1 + rx2) / 2;
     const cy = (ry1 + ry2) / 2;
     // Clamp width to 3 segment widths so large countries (Russia, China) don't zoom out too far
     const MAX_W = 3 / SEGMENT_COUNT;
@@ -2121,6 +2151,19 @@ function zoomToCountryPlaces(iso2) {
     const rawH = (ry2 - ry1) + pad * 2;
     const w = Math.min(rawW, MAX_W);
     const h = Math.min(rawH, MAX_W * 0.35); // keep aspect roughly readable
+    // Shift the rect center LEFT so the country appears in the visible area
+    // (right of the locate popup). fitBounds is animated so we bake the shift
+    // into the rect itself rather than doing a post-hoc panTo.
+    const locPopupEl = document.getElementById("locate-map-popup");
+    if (locPopupEl && !locPopupEl.classList.contains("hidden")) {
+      const popW = locPopupEl.offsetWidth + 16;
+      const viewW = S.viewer.element.clientWidth;
+      if (viewW > popW * 2) {
+        // shift in viewport units: moving center left makes the country
+        // appear that much to the right of screen center, into the visible area
+        cx -= (popW / 2 / viewW) * w;
+      }
+    }
     S.viewer.viewport.fitBounds(
       new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), false
     );
@@ -2156,8 +2199,7 @@ function setCountryFilter(iso2) {
   document.getElementById("country-filter-bar")?.classList.remove("hidden");
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = iso2;
-  // Close the locate popup so it doesn't cover the zoomed Tabula view
-  if (iso2) setTimeout(closeLocatePopup, 300);
+  // Tabula zooms to country places in background; locate popup stays open
 }
 
 function exitCountryFilter() {
@@ -2187,7 +2229,7 @@ function populateCountryDropdown() {
 function fitLeafletToCountries() {
   if (!_leafletMap) return;
   // Zoom to the Tabula Peutingeriana coverage: Portugal to India
-  _leafletMap.fitBounds([[18, -12], [55, 82]], { animate: false });
+  _leafletMap.fitBounds([[10, -15], [58, 85]], { animate: false });
 }
 
 function pointInRing(pt, ring) {
@@ -2683,6 +2725,18 @@ function setupTypeFilters() {
     });
   }
 
+  // Labels toggle (desktop — in category popup)
+  const labelsBtn = document.getElementById("toggle-labels");
+  if (labelsBtn) {
+    labelsBtn.classList.toggle("active", S.labelsOn);
+    labelsBtn.addEventListener("click", () => {
+      S.labelsOn = !S.labelsOn;
+      labelsBtn.classList.toggle("active", S.labelsOn);
+      document.getElementById("mobile-toggle-labels")?.classList.toggle("active", S.labelsOn);
+      renderMarkers();
+    });
+  }
+
   // Category popup open/close — wrapper is the hover zone (covers button + popup)
   const catWrapper = document.getElementById("cat-popup-wrapper");
   const catBtn     = document.getElementById("cat-popup-btn");
@@ -2694,6 +2748,21 @@ function setupTypeFilters() {
     catWrapper.addEventListener("mouseenter", openCat);
     catWrapper.addEventListener("mouseleave", closeCat);
     catBtn?.addEventListener("click", () => catPopup.classList.toggle("hidden"));
+  }
+
+  // Mobile layout toggle — switches portrait info panel between full-width and compact
+  const mobileLayoutToggle = document.getElementById("mobile-layout-toggle");
+  if (mobileLayoutToggle) {
+    const compact = (() => { try { return localStorage.getItem("tp_mobile_compact") === "1"; } catch { return false; } })();
+    if (compact) document.body.classList.add("mobile-compact");
+    mobileLayoutToggle.textContent = compact ? "⊡" : "⊞";
+    mobileLayoutToggle.title = compact ? "Switch to full-width panel" : "Switch to compact panel";
+    mobileLayoutToggle.addEventListener("click", () => {
+      const isCompact = document.body.classList.toggle("mobile-compact");
+      mobileLayoutToggle.textContent = isCompact ? "⊡" : "⊞";
+      mobileLayoutToggle.title = isCompact ? "Switch to full-width panel" : "Switch to compact panel";
+      try { localStorage.setItem("tp_mobile_compact", isCompact ? "1" : "0"); } catch {}
+    });
   }
 
   // About panel
@@ -2968,12 +3037,12 @@ const COUNTRY_TO_ISO2 = {
   AL:"AL",MK:"MK",MNE:"ME",BIH:"BA",YU:"RS",SLO:"SI",RKS:"XK",V:"VA",
   TN:"TN",DZ:"DZ",MA:"MA",LAR:"LY",IL:"IL",RL:"LB",SYR:"SY",IRQ:"IQ",
   IR:"IR",JOR:"JO",GE:"GE",ARM:"AM",AZ:"AZ",RUS:"RU",UA:"UA",TM:"TM",
-  PAK:"PK",AFG:"AF",IND:"IN",ET:"EG",IRE:"IE",
+  PAK:"PK",AFG:"AF",IND:"IN",ET:"EG",IRE:"IE",NE:"NE",ML:"ML",
 };
 
 const ISO2_COUNTRY_NAME = {
-  en: { DE:"Germany",AT:"Austria",IT:"Italy",FR:"France",ES:"Spain",PT:"Portugal",HU:"Hungary",BE:"Belgium",NL:"Netherlands",CH:"Switzerland",CY:"Cyprus",GB:"United Kingdom",GR:"Greece",TR:"Turkey",BG:"Bulgaria",RO:"Romania",HR:"Croatia",AL:"Albania",MK:"North Macedonia",ME:"Montenegro",BA:"Bosnia & Herzegovina",RS:"Serbia",SI:"Slovenia",XK:"Kosovo",VA:"Vatican",TN:"Tunisia",DZ:"Algeria",MA:"Morocco",LY:"Libya",IL:"Israel",LB:"Lebanon",SY:"Syria",IQ:"Iraq",IR:"Iran",JO:"Jordan",GE:"Georgia",AM:"Armenia",AZ:"Azerbaijan",RU:"Russia",UA:"Ukraine",TM:"Turkmenistan",PK:"Pakistan",AF:"Afghanistan",IN:"India",EG:"Egypt",IE:"Ireland" },
-  de: { DE:"Deutschland",AT:"Österreich",IT:"Italien",FR:"Frankreich",ES:"Spanien",PT:"Portugal",HU:"Ungarn",BE:"Belgien",NL:"Niederlande",CH:"Schweiz",CY:"Zypern",GB:"Großbritannien",GR:"Griechenland",TR:"Türkei",BG:"Bulgarien",RO:"Rumänien",HR:"Kroatien",AL:"Albanien",MK:"Nordmazedonien",ME:"Montenegro",BA:"Bosnien-Herzegowina",RS:"Serbien",SI:"Slowenien",XK:"Kosovo",VA:"Vatikan",TN:"Tunesien",DZ:"Algerien",MA:"Marokko",LY:"Libyen",IL:"Israel",LB:"Libanon",SY:"Syrien",IQ:"Irak",IR:"Iran",JO:"Jordanien",GE:"Georgien",AM:"Armenien",AZ:"Aserbaidschan",RU:"Russland",UA:"Ukraine",TM:"Turkmenistan",PK:"Pakistan",AF:"Afghanistan",IN:"Indien",EG:"Ägypten",IE:"Irland" },
+  en: { DE:"Germany",AT:"Austria",IT:"Italy",FR:"France",ES:"Spain",PT:"Portugal",HU:"Hungary",BE:"Belgium",NL:"Netherlands",CH:"Switzerland",CY:"Cyprus",GB:"United Kingdom",GR:"Greece",TR:"Turkey",BG:"Bulgaria",RO:"Romania",HR:"Croatia",AL:"Albania",MK:"North Macedonia",ME:"Montenegro",BA:"Bosnia & Herzegovina",RS:"Serbia",SI:"Slovenia",XK:"Kosovo",VA:"Vatican",TN:"Tunisia",DZ:"Algeria",MA:"Morocco",LY:"Libya",IL:"Israel",LB:"Lebanon",SY:"Syria",IQ:"Iraq",IR:"Iran",JO:"Jordan",GE:"Georgia",AM:"Armenia",AZ:"Azerbaijan",RU:"Russia",UA:"Ukraine",TM:"Turkmenistan",PK:"Pakistan",AF:"Afghanistan",IN:"India",EG:"Egypt",IE:"Ireland",NE:"Niger",ML:"Mali" },
+  de: { DE:"Deutschland",AT:"Österreich",IT:"Italien",FR:"Frankreich",ES:"Spanien",PT:"Portugal",HU:"Ungarn",BE:"Belgien",NL:"Niederlande",CH:"Schweiz",CY:"Zypern",GB:"Großbritannien",GR:"Griechenland",TR:"Türkei",BG:"Bulgarien",RO:"Rumänien",HR:"Kroatien",AL:"Albanien",MK:"Nordmazedonien",ME:"Montenegro",BA:"Bosnien-Herzegowina",RS:"Serbien",SI:"Slowenien",XK:"Kosovo",VA:"Vatikan",TN:"Tunesien",DZ:"Algerien",MA:"Marokko",LY:"Libyen",IL:"Israel",LB:"Libanon",SY:"Syrien",IQ:"Irak",IR:"Iran",JO:"Jordanien",GE:"Georgien",AM:"Armenien",AZ:"Aserbaidschan",RU:"Russland",UA:"Ukraine",TM:"Turkmenistan",PK:"Pakistan",AF:"Afghanistan",IN:"Indien",EG:"Ägypten",IE:"Irland",NE:"Niger",ML:"Mali" },
 };
 
 function normalizeLatinV(s) {
