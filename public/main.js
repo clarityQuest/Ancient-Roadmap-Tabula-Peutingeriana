@@ -1387,8 +1387,8 @@ function syncLeafletSelectedMarker(place) {
   const hint = document.getElementById("locate-map-hint");
   if (hint) { hint.textContent = "Click map or drag marker to set location"; hint.style.color = ""; }
   _leafletSelectedMarker = _leafletL.circleMarker([lat, lng], {
-    radius: 11, color: "#FFD700", weight: 3,
-    fillColor: "#FFD700", fillOpacity: 0.25, interactive: false,
+    radius: 14, color: "#ffffff", weight: 4,
+    fillColor: "#FFD700", fillOpacity: 0.55, interactive: false,
   }).addTo(_leafletMap);
   _leafletMap.panTo([lat, lng]);
 }
@@ -1700,14 +1700,15 @@ function placeVp(place) {
 function panToPlace(place, hw = null) {
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
-    const targetZoom = 15;
     const mc = S.millerCalib.find(m => m.data_id === place.data_id);
     if (mc) {
       const cx = (mc.rect_x1 + mc.rect_x2) / 2 / MILLER_W;
       const cy = (mc.rect_y1 + mc.rect_y2) / 2 / MILLER_W;
       S.highlightVp = { vx: cx, vy: cy };
-      S.viewer.viewport.zoomTo(targetZoom, new OpenSeadragon.Point(cx, cy));
-      S.viewer.viewport.panTo(new OpenSeadragon.Point(cx, cy));
+      const hw2 = 0.028; // ~1/36 of map width — reasonable zoom for a single place
+      S.viewer.viewport.fitBounds(
+        new OpenSeadragon.Rect(cx - hw2, cy - hw2 * millerAspect, hw2 * 2, hw2 * 2 * millerAspect), false
+      );
     } else {
       // Estimate from tabula segment/row when no calibration exists
       const seg = Number(place.tabula_segment);
@@ -1716,8 +1717,10 @@ function panToPlace(place, hw = null) {
       const rowMap = { a: 1 / 6, b: 1 / 2, c: 5 / 6 };
       const estVy = (rowMap[place.tabula_row] ?? 0.5) * millerAspect;
       S.highlightVp = { vx: estVx, vy: estVy };
-      S.viewer.viewport.zoomTo(targetZoom, new OpenSeadragon.Point(estVx, estVy));
-      S.viewer.viewport.panTo(new OpenSeadragon.Point(estVx, estVy));
+      const hw2 = 0.028;
+      S.viewer.viewport.fitBounds(
+        new OpenSeadragon.Rect(estVx - hw2, estVy - hw2 * millerAspect, hw2 * 2, hw2 * 2 * millerAspect), false
+      );
     }
     return;
   }
@@ -2164,29 +2167,25 @@ function zoomToCountryPlaces(iso2) {
     const pad = 0.02;
     let cx = (rx1 + rx2) / 2;
     const cy = (ry1 + ry2) / 2;
-    // Clamp width to 3 segment widths so large countries (Russia, China) don't zoom out too far
-    const MAX_W = 3 / SEGMENT_COUNT;
+    // Clamp width to 4 segment widths so very large countries (Russia) don't zoom out too far
+    const MAX_W = 4 / SEGMENT_COUNT;
     const rawW = (rx2 - rx1) + pad * 2;
     const rawH = (ry2 - ry1) + pad * 2;
     const w = Math.min(rawW, MAX_W);
-    const h = Math.min(rawH, MAX_W * 0.35); // keep aspect roughly readable
-    // Step 1: fit immediately (true) so getBounds() returns the real post-fit state
-    S.viewer.viewport.fitBounds(
-      new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), true
-    );
-    // Step 2: now read actual displayed bounds and animate a pan to offset for the popup
+    const h = Math.min(rawH, MAX_W * 0.4);
+    // Pre-adjust center so the country appears in the visible area (right of popup)
     const locPopupEl = document.getElementById("locate-map-popup");
     if (locPopupEl && !locPopupEl.classList.contains("hidden")) {
       const popW = locPopupEl.offsetWidth + 16;
       const viewW = S.viewer.element.clientWidth;
       if (viewW > popW * 2) {
-        const vp = S.viewer.viewport;
-        const bounds = vp.getBounds(); // correct post-fit bounds (immediate above)
-        const shift = (popW / 2 / viewW) * bounds.width;
-        const center = vp.getCenter();
-        vp.panTo(new OpenSeadragon.Point(center.x - shift, center.y), false); // animate pan
+        cx -= (popW / 2 / viewW) * w;
       }
     }
+    // Single animated fitBounds — no two-step race condition
+    S.viewer.viewport.fitBounds(
+      new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), false
+    );
     return;
   }
   const filtered = S.places.filter(p => placeMatchesIso2(p, iso2));
@@ -2584,9 +2583,6 @@ function setupControls() {
   document.getElementById("control-zoom-out").addEventListener("click", () => {
     S.viewer.viewport.zoomBy(0.7);
     S.viewer.viewport.applyConstraints();
-  });
-  document.getElementById("control-home").addEventListener("click", () => {
-    focusStartup();
   });
   document.getElementById("control-fullpage").addEventListener("click", () => {
     if (document.fullscreenElement) {
