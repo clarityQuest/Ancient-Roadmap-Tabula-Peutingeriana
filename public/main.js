@@ -2111,19 +2111,7 @@ function renderCountryLayer() {
       layer.bindTooltip(name, { sticky: true, className: "country-tooltip" });
       layer.on("click", e => {
         _leafletL.DomEvent.stopPropagation(e);  // prevent map click from firing
-        setCountryFilter(iso2);
-        // Zoom to the country, bounded by the Tabula coverage rectangle
-        try {
-          const tabulaBounds = _leafletL.latLngBounds([[20, -15], [58, 105]]);
-          const countryBounds = layer.getBounds();
-          const bounded = tabulaBounds.intersects(countryBounds)
-            ? _leafletL.latLngBounds(
-                [Math.max(countryBounds.getSouth(), 20), Math.max(countryBounds.getWest(), -15)],
-                [Math.min(countryBounds.getNorth(), 58), Math.min(countryBounds.getEast(), 105)]
-              )
-            : tabulaBounds;
-          _leafletMap.fitBounds(bounded.pad(0.08), { maxZoom: 8 });
-        } catch {}
+        setCountryFilter(iso2);  // zoomLeafletToCountry is called inside setCountryFilter
       });
       layer.on("mouseover", e => { if (S.countryFilter !== iso2) e.target.setStyle({ fillOpacity: 0.55, weight: 2 }); });
       layer.on("mouseout", () => {
@@ -2223,9 +2211,6 @@ function setCountryFilter(iso2) {
   renderMarkers();
   zoomToCountryPlaces(iso2);
   const name = _countryNameMap[iso2] || iso2;
-  const chip = document.getElementById("country-filter-chip");
-  if (chip) chip.textContent = "× " + name;
-  document.getElementById("country-filter-bar")?.classList.remove("hidden");
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = iso2;
   // Floating mode bar
@@ -2244,7 +2229,6 @@ function exitCountryFilter() {
   S.countryFilter = null;
   S.countryPlaces = null;
   renderMarkers();
-  document.getElementById("country-filter-bar")?.classList.add("hidden");
   document.getElementById("country-mode-bar")?.classList.add("hidden");
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = "";
@@ -2605,9 +2589,6 @@ function setupControls() {
   document.getElementById("locate-map-close").addEventListener("click", closeLocatePopup);
   document.getElementById("locate-gps-btn").addEventListener("click", acquireGps);
   document.getElementById("locate-my-country-btn")?.addEventListener("click", locateMyCountry);
-  document.getElementById("country-filter-chip")?.addEventListener("click", () => {
-    exitCountryFilter();
-  });
   document.getElementById("country-mode-exit")?.addEventListener("click", () => {
     exitCountryFilter();
   });
@@ -3027,7 +3008,6 @@ function setupInteraction() {
 
   S.viewer.addHandler("canvas-click", (e) => {
     if (!e.quick) return;  // ignore pans and long-press (applies to all devices)
-    if (S.countrySelectMode) return;  // in country mode, only Leaflet map handles interaction
     e.preventDefaultAction = true;
     const pos = e.position;
     const elRect = S.viewer.element.getBoundingClientRect();

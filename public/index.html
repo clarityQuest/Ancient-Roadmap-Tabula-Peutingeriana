@@ -183,7 +183,7 @@
 
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260616g" />
+  <link rel="stylesheet" href="styles.css?v=20260616h" />
 </head>
 <body>
   <div id="app">
@@ -267,8 +267,10 @@
           </div>
         </div>
       </div>
-      <div id="country-filter-bar" class="hidden">
-        <button id="country-filter-chip" class="filter-chip" title="Clear country filter">× —</button>
+      <!-- Country mode bar — appears inline below category button when a country filter is active -->
+      <div id="country-mode-bar" class="hidden">
+        <span id="country-mode-label"></span>
+        <button id="country-mode-exit" aria-label="Exit country mode">× Exit</button>
       </div>
     </div>
 
@@ -431,11 +433,6 @@
       </div>
     </aside>
 
-    <!-- Country mode floating bar — shown when a country filter is active -->
-    <div id="country-mode-bar" class="hidden">
-      <span id="country-mode-label"></span>
-      <button id="country-mode-exit" aria-label="Exit country mode">× Exit</button>
-    </div>
 
     <!-- Developer settings button — fixed bottom-right -->
     <button id="settings-btn" aria-label="Developer settings" title="Developer settings">
@@ -476,13 +473,13 @@
         <span>Your Location</span>
         <div style="display:flex;gap:6px;align-items:center">
           <button id="locate-gps-btn" class="ctrl-btn" title="Re-acquire GPS position">
-            <svg width="20" height="20" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="3.5"/><line x1="9" y1="1" x2="9" y2="5.5"/><line x1="9" y1="12.5" x2="9" y2="17"/><line x1="1" y1="9" x2="5.5" y2="9"/><line x1="12.5" y1="9" x2="17" y2="9"/></svg>
+            <svg width="26" height="26" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="3.5"/><line x1="9" y1="1" x2="9" y2="5.5"/><line x1="9" y1="12.5" x2="9" y2="17"/><line x1="1" y1="9" x2="5.5" y2="9"/><line x1="12.5" y1="9" x2="17" y2="9"/></svg>
           </button>
           <button id="locate-places-btn" class="ctrl-btn toggle-btn" title="Show / hide ancient place locations on map">
-            <svg width="20" height="20" viewBox="0 0 18 18" fill="currentColor" stroke="none"><path d="M9 1.5C6.52 1.5 4.5 3.52 4.5 6c0 3.57 4.5 9.5 4.5 9.5s4.5-5.93 4.5-9.5c0-2.48-2.02-4.5-4.5-4.5zm0 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
+            <svg width="26" height="26" viewBox="0 0 18 18" fill="currentColor" stroke="none"><path d="M9 1.5C6.52 1.5 4.5 3.52 4.5 6c0 3.57 4.5 9.5 4.5 9.5s4.5-5.93 4.5-9.5c0-2.48-2.02-4.5-4.5-4.5zm0 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
           </button>
           <button id="locate-roads-btn" class="ctrl-btn toggle-btn" title="Show / hide Roman road network (OmnesViae)">
-            <svg width="20" height="20" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2" y1="14" x2="9" y2="4"/><line x1="9" y1="4" x2="16" y2="14"/><line x1="4" y1="10" x2="14" y2="10"/></svg>
+            <svg width="26" height="26" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2" y1="14" x2="9" y2="4"/><line x1="9" y1="4" x2="16" y2="14"/><line x1="4" y1="10" x2="14" y2="10"/></svg>
           </button>
           <button id="modern-state-solo-btn" class="ctrl-btn toggle-btn" title="Activate country mode — click a country to filter Tabula places">
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="2" x2="4" y2="16"/><path d="M4 3h10v7H4z" fill="currentColor" fill-opacity="0.25"/></svg>
@@ -495,7 +492,7 @@
       <div id="country-select-bar" class="hidden">
         <select id="country-filter-select" title="Select country to filter Tabula places"></select>
         <button id="locate-my-country-btn" class="ctrl-btn" title="Auto-select my country from GPS location">
-          <svg width="20" height="20" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="9" r="3.5"/><line x1="9" y1="1" x2="9" y2="5.5"/><line x1="9" y1="12.5" x2="9" y2="17"/><line x1="1" y1="9" x2="5.5" y2="9"/><line x1="12.5" y1="9" x2="17" y2="9"/></svg>
+          <svg width="26" height="26" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="9" r="3.5"/><line x1="9" y1="1" x2="9" y2="5.5"/><line x1="9" y1="12.5" x2="9" y2="17"/><line x1="1" y1="9" x2="5.5" y2="9"/><line x1="12.5" y1="9" x2="17" y2="9"/></svg>
         </button>
       </div>
       <div id="locate-leaflet-map"></div>
@@ -551,6 +548,6 @@
 
   <div id="latin-tip" style="display:none"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260616g"></script>
+  <script src="main.js?v=20260616h"></script>
 </body>
 </html>
