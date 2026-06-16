@@ -2153,15 +2153,20 @@ function zoomToCountryPlaces(iso2) {
     const ry1 = Math.min(...items.map(i => i.rect_y1)) / MILLER_W;
     const ry2 = Math.max(...items.map(i => i.rect_y2)) / MILLER_W;
     const pad = 0.02;
-    let cx = (rx1 + rx2) / 2;
     const cy = (ry1 + ry2) / 2;
-    // Clamp width to 4 segment widths so very large countries (Russia) don't zoom out too far
-    const MAX_W = 4 / SEGMENT_COUNT;
+    const MAX_W = 8 / SEGMENT_COUNT;
     const rawW = (rx2 - rx1) + pad * 2;
     const rawH = (ry2 - ry1) + pad * 2;
     const w = Math.min(rawW, MAX_W);
     const h = Math.min(rawH, MAX_W * 0.4);
-    // Single animated fitBounds — no two-step race condition
+    // Shift OSD viewport left so the country's left edge appears just right of the locate popup
+    let popFrac = 0;
+    const locPopupEl = document.getElementById("locate-map-popup");
+    if (locPopupEl && !locPopupEl.classList.contains("hidden")) {
+      const vw = S.viewer.element.clientWidth;
+      if (vw > 0) popFrac = Math.min(locPopupEl.offsetWidth / vw, 0.5);
+    }
+    const cx = rx1 + w * (0.5 - popFrac) - pad;
     S.viewer.viewport.fitBounds(
       new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), false
     );
@@ -2416,19 +2421,18 @@ async function toggleLeafletRoads() {
     if (!_leafletRoadsLayer) {
       // Load once, cache in _omnesViaeData
       if (!_omnesViaeData) {
-        if (btn) btn.textContent = "Loading…";
+        if (btn) btn.title = "Loading Roman road network…";
         try {
           const resp = await fetch("data/omnesviae_roads.json");
           _omnesViaeData = await resp.json();
         } catch (e) {
           console.error("Failed to load OmnesViae roads:", e);
-          if (btn) btn.textContent = "Roman Roads";
+          if (btn) btn.title = "Failed to load Roman roads — click to retry";
           _leafletRoadsOn = false;
           if (btn) btn.classList.remove("active");
           return;
         }
-        if (btn) btn.innerHTML =
-          `<svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2" y1="14" x2="9" y2="4"/><line x1="9" y1="4" x2="16" y2="14"/><line x1="4" y1="10" x2="14" y2="10"/></svg> Roman Roads`;
+        if (btn) btn.title = "Show / hide Roman road network (OmnesViae)";
       }
 
       const lines = [];

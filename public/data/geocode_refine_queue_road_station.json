@@ -1,0 +1,850 @@
+[
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace1332",
+    "data_id": 1332,
+    "modern_preferred": "bei Campolieto [3]",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 49.077075,
+    "suggested_lng": -118.6876404,
+    "confidence": 0.194,
+    "display_name": "Campolieto Lane, Anaconda, Area E (Beaverdell/West Boundary), Regional District of Kootenay Boundary, British Columbia, V0H 1J0, Canada",
+    "query": "bei Campolieto",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=49.077075&mlon=-118.6876404#map=11/49.077075/-118.6876404",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.194,
+        "display_name": "Campolieto Lane, Anaconda, Area E (Beaverdell/West Boundary), Regional District of Kootenay Boundary, British Columbia, V0H 1J0, Canada",
+        "provider_url": "https://www.openstreetmap.org/?mlat=49.077075&mlon=-118.6876404#map=11/49.077075/-118.6876404"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace160",
+    "data_id": 160,
+    "modern_preferred": "(bei El Abid, oder H. Tassa oder Titeluine) (Miller)",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 47.5179832,
+    "suggested_lng": 19.1838177,
+    "confidence": 0.203,
+    "display_name": "Centenárium lakótelep, Mátyásföld, 16th district, Budapest, Central Hungary, 1165, Hungary",
+    "query": "Ad centenarium·",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=47.5179832&mlon=19.1838177#map=11/47.5179832/19.1838177",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "no_candidate",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.203,
+        "display_name": "Centenárium lakótelep, Mátyásföld, 16th district, Budapest, Central Hungary, 1165, Hungary",
+        "provider_url": "https://www.openstreetmap.org/?mlat=47.5179832&mlon=19.1838177#map=11/47.5179832/19.1838177"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2641",
+    "data_id": 2641,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 53.0557345,
+    "suggested_lng": 8.8850217,
+    "confidence": 0.469,
+    "display_name": "Aladin, Hannoversche Straße, Hemelingen, Bremen-Ost, Bremen, 28309, Germany",
+    "query": "Aladin",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=53.0557345&mlon=8.8850217#map=11/53.0557345/8.8850217",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.469,
+        "display_name": "Aladin, Hannoversche Straße, Hemelingen, Bremen-Ost, Bremen, 28309, Germany",
+        "provider_url": "https://www.openstreetmap.org/?mlat=53.0557345&mlon=8.8850217#map=11/53.0557345/8.8850217"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace1271",
+    "data_id": 1271,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 40.4815772,
+    "suggested_lng": -3.7148412,
+    "confidence": 0.4,
+    "display_name": "Annu, Plaza de la Carolina, Peñagrande, Fuencarral, Fuencarral-El Pardo, Madrid, Community of Madrid, 28035, Spain",
+    "query": "Annū·",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=40.4815772&mlon=-3.7148412#map=11/40.4815772/-3.7148412",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.4,
+        "display_name": "Annu, Plaza de la Carolina, Peñagrande, Fuencarral, Fuencarral-El Pardo, Madrid, Community of Madrid, 28035, Spain",
+        "provider_url": "https://www.openstreetmap.org/?mlat=40.4815772&mlon=-3.7148412#map=11/40.4815772/-3.7148412"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2499",
+    "data_id": 2499,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 1.2822,
+    "suggested_lng": 121.1164,
+    "confidence": 0.456,
+    "display_name": "Bukii Anteba, Kecamatan Tolitoli Utara, Tolitoli, Central Sulawesi, Sulawesi, Indonesia",
+    "query": "Anteba",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=1.2822&mlon=121.1164#map=11/1.2822/121.1164",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.456,
+        "display_name": "Bukii Anteba, Kecamatan Tolitoli Utara, Tolitoli, Central Sulawesi, Sulawesi, Indonesia",
+        "provider_url": "https://www.openstreetmap.org/?mlat=1.2822&mlon=121.1164#map=11/1.2822/121.1164"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2504",
+    "data_id": 2504,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 1.2822,
+    "suggested_lng": 121.1164,
+    "confidence": 0.456,
+    "display_name": "Bukii Anteba, Kecamatan Tolitoli Utara, Tolitoli, Central Sulawesi, Sulawesi, Indonesia",
+    "query": "Anteba",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=1.2822&mlon=121.1164#map=11/1.2822/121.1164",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.456,
+        "display_name": "Bukii Anteba, Kecamatan Tolitoli Utara, Tolitoli, Central Sulawesi, Sulawesi, Indonesia",
+        "provider_url": "https://www.openstreetmap.org/?mlat=1.2822&mlon=121.1164#map=11/1.2822/121.1164"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace358",
+    "data_id": 358,
+    "modern_preferred": "(between Paraetonium and Catabathmus) (Barrington)d",
+    "country": "EG",
+    "type": "road_station",
+    "suggested_lat": 26.0,
+    "suggested_lng": 30.0,
+    "confidence": 0.0,
+    "display_name": "Egypt",
+    "query": "d",
+    "provider": "wikipedia",
+    "provider_url": "https://en.wikipedia.org/wiki/Egypt",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "needs_refinement",
+        "provider": "wikipedia",
+        "confidence": 0.0,
+        "display_name": "Egypt",
+        "provider_url": "https://en.wikipedia.org/wiki/Egypt"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2734",
+    "data_id": 2734,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 30.0354103,
+    "suggested_lng": 30.9669666,
+    "confidence": 0.0,
+    "display_name": "Plaza Espana Mall, Side Al Amal Street, El Moustasmer El Saghir, Ash Sheikh Zayed, Giza, 12588, Egypt",
+    "query": "Asbana",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=30.0354103&mlon=30.9669666#map=11/30.0354103/30.9669666",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.0,
+        "display_name": "Plaza Espana Mall, Side Al Amal Street, El Moustasmer El Saghir, Ash Sheikh Zayed, Giza, 12588, Egypt",
+        "provider_url": "https://www.openstreetmap.org/?mlat=30.0354103&mlon=30.9669666#map=11/30.0354103/30.9669666"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2626",
+    "data_id": 2626,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 46.5020501,
+    "suggested_lng": 22.963223,
+    "confidence": 0.761,
+    "display_name": "Baba, Măncești, Horea, Alba, 517341, Romania",
+    "query": "Baba",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=46.5020501&mlon=22.963223#map=11/46.5020501/22.963223",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.761,
+        "display_name": "Baba, Măncești, Horea, Alba, 517341, Romania",
+        "provider_url": "https://www.openstreetmap.org/?mlat=46.5020501&mlon=22.963223#map=11/46.5020501/22.963223"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2033",
+    "data_id": 2033,
+    "modern_preferred": "Macedonia, s. Kommentar",
+    "country": "GR",
+    "type": "road_station",
+    "suggested_lat": 40.8899865,
+    "suggested_lng": 22.7693631,
+    "confidence": 0.76,
+    "display_name": "Central Macedonia, Macedonia and Thrace, Greece",
+    "query": "Macedonia",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=40.8899865&mlon=22.7693631#map=11/40.8899865/22.7693631",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.76,
+        "display_name": "Central Macedonia, Macedonia and Thrace, Greece",
+        "provider_url": "https://www.openstreetmap.org/?mlat=40.8899865&mlon=22.7693631#map=11/40.8899865/22.7693631"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2444",
+    "data_id": 2444,
+    "modern_preferred": "",
+    "country": "SYR",
+    "type": "road_station",
+    "suggested_lat": 49.0707684,
+    "suggested_lng": 3.7131678,
+    "confidence": 0.423,
+    "display_name": "Les Bannis, Troissy, Épernay, Marne, Grand Est, Metropolitan France, 51700, France",
+    "query": "Bannis",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=49.0707684&mlon=3.7131678#map=11/49.0707684/3.7131678",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.423,
+        "display_name": "Les Bannis, Troissy, Épernay, Marne, Grand Est, Metropolitan France, 51700, France",
+        "provider_url": "https://www.openstreetmap.org/?mlat=49.0707684&mlon=3.7131678#map=11/49.0707684/3.7131678"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2436",
+    "data_id": 2436,
+    "modern_preferred": "",
+    "country": "SYR",
+    "type": "road_station",
+    "suggested_lat": 44.0037682,
+    "suggested_lng": 7.5608763,
+    "confidence": 0.423,
+    "display_name": "Bersera, Fontan, Nice, Maritime Alps, Provence-Alpes-Côte d'Azur, Metropolitan France, 06540, France",
+    "query": "Bersera",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=44.0037682&mlon=7.5608763#map=11/44.0037682/7.5608763",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.423,
+        "display_name": "Bersera, Fontan, Nice, Maritime Alps, Provence-Alpes-Côte d'Azur, Metropolitan France, 06540, France",
+        "provider_url": "https://www.openstreetmap.org/?mlat=44.0037682&mlon=7.5608763#map=11/44.0037682/7.5608763"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2647",
+    "data_id": 2647,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": -37.6247868,
+    "suggested_lng": 145.068798,
+    "confidence": 0.419,
+    "display_name": "Birrali Way, Waterstone Hill Estate, South Morang, Melbourne, Victoria, 3752, Australia",
+    "query": "Birrali",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=-37.6247868&mlon=145.068798#map=11/-37.6247868/145.068798",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.419,
+        "display_name": "Birrali Way, Waterstone Hill Estate, South Morang, Melbourne, Victoria, 3752, Australia",
+        "provider_url": "https://www.openstreetmap.org/?mlat=-37.6247868&mlon=145.068798#map=11/-37.6247868/145.068798"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2543",
+    "data_id": 2543,
+    "modern_preferred": "? Babsu",
+    "country": "TR",
+    "type": "road_station",
+    "suggested_lat": 39.7708673,
+    "suggested_lng": 38.305952,
+    "confidence": 0.406,
+    "display_name": "Uyanık, İmranlı, Sivas, Central Anatolia Region, Turkey",
+    "query": "Babsu",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=39.7708673&mlon=38.305952#map=11/39.7708673/38.305952",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.406,
+        "display_name": "Uyanık, İmranlı, Sivas, Central Anatolia Region, Turkey",
+        "provider_url": "https://www.openstreetmap.org/?mlat=39.7708673&mlon=38.305952#map=11/39.7708673/38.305952"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2312",
+    "data_id": 2312,
+    "modern_preferred": "??? Bozhüyük, Göksun/Kahramanmaraş ???",
+    "country": "TR",
+    "type": "road_station",
+    "suggested_lat": 37.626488,
+    "suggested_lng": 38.294773,
+    "confidence": 0.887,
+    "display_name": "Bozhüyük, Adıyaman, Southeastern Anatolia Region, Turkey",
+    "query": "Bozhüyük",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=37.626488&mlon=38.294773#map=11/37.626488/38.294773",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.887,
+        "display_name": "Bozhüyük, Adıyaman, Southeastern Anatolia Region, Turkey",
+        "provider_url": "https://www.openstreetmap.org/?mlat=37.626488&mlon=38.294773#map=11/37.626488/38.294773"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2755",
+    "data_id": 2755,
+    "modern_preferred": "Chabis (Miller)",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 47.0657599,
+    "suggested_lng": 7.999012,
+    "confidence": 0.437,
+    "display_name": "Chabis, Willisau, Lucerne, 6130, Switzerland",
+    "query": "Chabis",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=47.0657599&mlon=7.999012#map=11/47.0657599/7.999012",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.437,
+        "display_name": "Chabis, Willisau, Lucerne, 6130, Switzerland",
+        "provider_url": "https://www.openstreetmap.org/?mlat=47.0657599&mlon=7.999012#map=11/47.0657599/7.999012"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2685",
+    "data_id": 2685,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": -2.133333,
+    "suggested_lng": -78.883333,
+    "confidence": 0.456,
+    "display_name": "Danas, Sibambe, Alausí, Chimborazo, Ecuador",
+    "query": "Danas",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=-2.133333&mlon=-78.883333#map=11/-2.133333/-78.883333",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.456,
+        "display_name": "Danas, Sibambe, Alausí, Chimborazo, Ecuador",
+        "provider_url": "https://www.openstreetmap.org/?mlat=-2.133333&mlon=-78.883333#map=11/-2.133333/-78.883333"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2730",
+    "data_id": 2730,
+    "modern_preferred": "(bei Riabat) (Miller)",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 42.5768932,
+    "suggested_lng": 12.3289313,
+    "confidence": 0.419,
+    "display_name": "Strada della Fociana, Collesecco, Lugnano in Teverina, Terni, Umbria, 05020, Italy",
+    "query": "Fociana",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=42.5768932&mlon=12.3289313#map=11/42.5768932/12.3289313",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.419,
+        "display_name": "Strada della Fociana, Collesecco, Lugnano in Teverina, Terni, Umbria, 05020, Italy",
+        "provider_url": "https://www.openstreetmap.org/?mlat=42.5768932&mlon=12.3289313#map=11/42.5768932/12.3289313"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2660",
+    "data_id": 2660,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 18.947641,
+    "suggested_lng": 82.5242757,
+    "confidence": 0.651,
+    "display_name": "Hadia, Jeypore, Koraput, Odisha, 764055, India",
+    "query": "Hadia",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=18.947641&mlon=82.5242757#map=11/18.947641/82.5242757",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.651,
+        "display_name": "Hadia, Jeypore, Koraput, Odisha, 764055, India",
+        "provider_url": "https://www.openstreetmap.org/?mlat=18.947641&mlon=82.5242757#map=11/18.947641/82.5242757"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2337",
+    "data_id": 2337,
+    "modern_preferred": "??? Namrun Kalesi / Çamlıyayla?",
+    "country": "TR",
+    "type": "road_station",
+    "suggested_lat": 37.1667361,
+    "suggested_lng": 34.602231,
+    "confidence": 0.483,
+    "display_name": "Lampron, Köyiçi Sokak, Kale, Çamlıyayla, Mersin, Mediterranean Region, 33580, Turkey",
+    "query": "Namrun Kalesi Çamlıyayla",
+    "provider": "nominatim",
+    "provider_url": "https://www.openstreetmap.org/?mlat=37.1667361&mlon=34.602231#map=11/37.1667361/34.602231",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "needs_refinement",
+        "provider": "nominatim",
+        "confidence": 0.483,
+        "display_name": "Lampron, Köyiçi Sokak, Kale, Çamlıyayla, Mersin, Mediterranean Region, 33580, Turkey",
+        "provider_url": "https://www.openstreetmap.org/?mlat=37.1667361&mlon=34.602231#map=11/37.1667361/34.602231"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2505",
+    "data_id": 2505,
+    "modern_preferred": "",
+    "country": "",
+    "type": "road_station",
+    "suggested_lat": 36.84556,
+    "suggested_lng": 49.50194,
+    "confidence": 0.14,
+    "display_name": "Nesfi",
+    "query": "Nasabi",
+    "provider": "wikipedia",
+    "provider_url": "https://en.wikipedia.org/wiki/Nasabi",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "needs_refinement",
+        "provider": "wikipedia",
+        "confidence": 0.14,
+        "display_name": "Nesfi",
+        "provider_url": "https://en.wikipedia.org/wiki/Nasabi"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace2749",
+    "data_id": 2749,
+    "modern_preferred": "Ardistan (Miller)",
+    "country": "IR",
+    "type": "road_station",
+    "suggested_lat": 33.37306,
+    "suggested_lng": 52.36889,
+    "confidence": 0.3,
+    "display_name": "Ardestan",
+    "query": "Ardistan",
+    "provider": "wikipedia",
+    "provider_url": "https://en.wikipedia.org/wiki/Ardistan",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "needs_refinement",
+        "provider": "wikipedia",
+        "confidence": 0.3,
+        "display_name": "Ardestan",
+        "provider_url": "https://en.wikipedia.org/wiki/Ardistan"
+      }
+    ]
+  },
+  {
+    "record_id": "OV:https://omnesviae.org/#TPPlace238",
+    "data_id": 238,
+    "modern_preferred": "S Djebel Tebaga (Barrington)",
+    "country": "TN",
+    "type": "road_station",
+    "suggested_lat": null,
+    "suggested_lng": null,
+    "confidence": null,
+    "display_name": "",
+    "query": "S Djebel Tebaga",
+    "provider": "none",
+    "provider_url": "",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "no_candidate",
+        "provider": "nominatim",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      }
+    ]
+  },
+  {
+    "record_id": "ULM:30001960",
+    "data_id": 3001960,
+    "modern_preferred": "Feodosiya",
+    "country": null,
+    "type": "road_station",
+    "suggested_lat": 45.03417,
+    "suggested_lng": 35.37917,
+    "confidence": 0.3,
+    "display_name": "Feodosia",
+    "query": "Feodosiya",
+    "provider": "wikipedia",
+    "provider_url": "https://en.wikipedia.org/wiki/Feodosiya",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "needs_refinement",
+        "provider": "wikipedia",
+        "confidence": 0.3,
+        "display_name": "Feodosia",
+        "provider_url": "https://en.wikipedia.org/wiki/Feodosiya"
+      }
+    ]
+  },
+  {
+    "record_id": "ULM:30002467",
+    "data_id": 3002467,
+    "modern_preferred": "Matratin?",
+    "country": null,
+    "type": "road_station",
+    "suggested_lat": 30.58666667,
+    "suggested_lng": 18.41194444,
+    "confidence": 0.36,
+    "display_name": "Ras Lanuf",
+    "query": "Matratin",
+    "provider": "wikipedia",
+    "provider_url": "https://en.wikipedia.org/wiki/Ras_Lanuf",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "needs_refinement",
+        "provider": "wikipedia",
+        "confidence": 0.36,
+        "display_name": "Ras Lanuf",
+        "provider_url": "https://en.wikipedia.org/wiki/Ras_Lanuf"
+      }
+    ]
+  },
+  {
+    "record_id": "ULM:30002763",
+    "data_id": 3002763,
+    "modern_preferred": "(between Catabathmus Maior and Antipyrgos) (Barrington)",
+    "country": null,
+    "type": "road_station",
+    "suggested_lat": 37.36944444,
+    "suggested_lng": 42.34416667,
+    "confidence": 0.1,
+    "display_name": "Mount Judi",
+    "query": "Cardu o·",
+    "provider": "wikipedia",
+    "provider_url": "https://en.wikipedia.org/wiki/Mount_Judi",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "needs_refinement",
+        "provider": "wikipedia",
+        "confidence": 0.1,
+        "display_name": "Mount Judi",
+        "provider_url": "https://en.wikipedia.org/wiki/Mount_Judi"
+      }
+    ]
+  },
+  {
+    "record_id": "ULM:30002768",
+    "data_id": 3002768,
+    "modern_preferred": "",
+    "country": null,
+    "type": "road_station",
+    "suggested_lat": null,
+    "suggested_lng": null,
+    "confidence": null,
+    "display_name": "",
+    "query": "Serapev̅·",
+    "provider": "none",
+    "provider_url": "",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "error",
+        "provider": "nominatim",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      }
+    ]
+  },
+  {
+    "record_id": "ULM:30002770",
+    "data_id": 3002770,
+    "modern_preferred": "",
+    "country": null,
+    "type": "road_station",
+    "suggested_lat": null,
+    "suggested_lng": null,
+    "confidence": null,
+    "display_name": "",
+    "query": "Iseum·",
+    "provider": "none",
+    "provider_url": "",
+    "history": [
+      {
+        "step": "wikipedia",
+        "status": "error",
+        "provider": "wikipedia",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      },
+      {
+        "step": "nominatim",
+        "status": "error",
+        "provider": "nominatim",
+        "confidence": null,
+        "display_name": "",
+        "provider_url": ""
+      }
+    ]
+  }
+]
