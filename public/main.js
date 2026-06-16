@@ -1387,8 +1387,8 @@ function syncLeafletSelectedMarker(place) {
   const hint = document.getElementById("locate-map-hint");
   if (hint) { hint.textContent = "Click map or drag marker to set location"; hint.style.color = ""; }
   _leafletSelectedMarker = _leafletL.circleMarker([lat, lng], {
-    radius: 14, color: "#ffffff", weight: 4,
-    fillColor: "#FFD700", fillOpacity: 0.55, interactive: false,
+    radius: 15, color: "#FFD700", weight: 5,
+    fillColor: "#FFD700", fillOpacity: 0.8, interactive: false,
   }).addTo(_leafletMap);
   _leafletMap.panTo([lat, lng]);
 }
@@ -2173,15 +2173,6 @@ function zoomToCountryPlaces(iso2) {
     const rawH = (ry2 - ry1) + pad * 2;
     const w = Math.min(rawW, MAX_W);
     const h = Math.min(rawH, MAX_W * 0.4);
-    // Pre-adjust center so the country appears in the visible area (right of popup)
-    const locPopupEl = document.getElementById("locate-map-popup");
-    if (locPopupEl && !locPopupEl.classList.contains("hidden")) {
-      const popW = locPopupEl.offsetWidth + 16;
-      const viewW = S.viewer.element.clientWidth;
-      if (viewW > popW * 2) {
-        cx -= (popW / 2 / viewW) * w;
-      }
-    }
     // Single animated fitBounds — no two-step race condition
     S.viewer.viewport.fitBounds(
       new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), false
@@ -2201,6 +2192,24 @@ function zoomToCountryPlaces(iso2) {
   );
 }
 
+function zoomLeafletToCountry(iso2) {
+  if (!_leafletCountriesLayer || !_leafletMap || !_leafletL) return;
+  _leafletCountriesLayer.eachLayer(layer => {
+    if (layer.feature?.properties?.ISO_A2 !== iso2) return;
+    try {
+      const tabulaBounds = _leafletL.latLngBounds([[20, -15], [58, 105]]);
+      const cb = layer.getBounds();
+      const bounded = tabulaBounds.intersects(cb)
+        ? _leafletL.latLngBounds(
+            [Math.max(cb.getSouth(), 20), Math.max(cb.getWest(), -15)],
+            [Math.min(cb.getNorth(), 58), Math.min(cb.getEast(), 105)]
+          )
+        : tabulaBounds;
+      _leafletMap.fitBounds(bounded.pad(0.08), { maxZoom: 8 });
+    } catch {}
+  });
+}
+
 function setCountryFilter(iso2) {
   S.countryFilter = iso2;
   S.countryPlaces = iso2
@@ -2210,6 +2219,7 @@ function setCountryFilter(iso2) {
   S.highlightDataId = null;
   S.highlightLocate = false;
   renderCountryLayer();
+  zoomLeafletToCountry(iso2);
   renderMarkers();
   zoomToCountryPlaces(iso2);
   const name = _countryNameMap[iso2] || iso2;
@@ -3017,6 +3027,7 @@ function setupInteraction() {
 
   S.viewer.addHandler("canvas-click", (e) => {
     if (!e.quick) return;  // ignore pans and long-press (applies to all devices)
+    if (S.countrySelectMode) return;  // in country mode, only Leaflet map handles interaction
     e.preventDefaultAction = true;
     const pos = e.position;
     const elRect = S.viewer.element.getBoundingClientRect();

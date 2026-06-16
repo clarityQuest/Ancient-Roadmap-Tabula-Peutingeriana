@@ -292,7 +292,7 @@ body, html {
 #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
   width: 34px;
   height: 34px;
-  padding: 7px;
+  padding: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
