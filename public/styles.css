@@ -80,11 +80,14 @@ body, html {
   height: 28px;
   border-radius: 5px;
 }
-.nav-sq-btn {
-  padding: 5px;
-  width: 28px;
-  height: 59px;
-  border-radius: 5px;
+#control-fullpage {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #top-bar {
@@ -247,6 +250,17 @@ body, html {
 }
 .ctrl-btn:hover { background: rgba(50, 50, 60, 0.95); }
 .toggle-btn { padding: 8px 12px; font-weight: 600; font-size: 13px; }
+
+/* Feedback email button */
+#feedback-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  text-decoration: none;
+}
+#feedback-btn:hover { color: #ffd080; border-color: #c8a050; background: rgba(55,42,10,0.9); }
 
 /* About button — prominent on large screens */
 .about-btn-label { display: none; }
@@ -528,6 +542,66 @@ body, html {
 .about-settings-btn { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-size: 11px; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
 .about-settings-btn:hover { color: var(--text-main); border-color: rgba(255,255,255,0.3); }
 
+/* Country mode floating bar */
+#country-mode-bar {
+  position: fixed;
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(18, 14, 8, 0.93);
+  border: 1px solid rgba(200, 160, 80, 0.35);
+  border-radius: 20px;
+  padding: 7px 8px 7px 16px;
+  color: #e8dfc8;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: auto;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+}
+#country-mode-bar.hidden { display: none; }
+#country-mode-bar::before { content: "🗺"; margin-right: 2px; font-size: 13px; }
+#country-mode-exit {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #e8dfc8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  transition: background 0.15s, color 0.15s;
+}
+#country-mode-exit:hover { background: rgba(255,255,255,0.16); color: #fff; }
+
+/* Developer settings button — fixed bottom-right */
+#settings-btn {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  z-index: 25;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  background: rgba(15,12,6,0.75);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+#settings-btn:hover { opacity: 1; color: var(--text-main); }
+
 /* Footer Elements */
 #attribution { position: absolute; bottom: 10px; right: 10px; z-index: 10; font-size: 12px; color: var(--text-muted); background: rgba(15, 17, 23, 0.8); padding: 4px 8px; border-radius: 4px; pointer-events: auto; }
 #attribution a { color: var(--accent); text-decoration: none; }
@@ -802,8 +876,8 @@ body, html {
 
 /* ── Developer settings panel ───────────────────────────────── */
 #settings-panel {
-  position: absolute;
-  right: 10px; top: 60px;
+  position: fixed;
+  right: 10px; bottom: 48px;
   width: 290px;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);

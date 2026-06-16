@@ -232,7 +232,7 @@ function fontFromZoom(zoom) {
 
 function computeFont(zoom) {
   const raw = fontFromZoom(zoom);
-  if (!S.isMobile) return raw;
+  if (!S.isMobile) return Math.min(raw, LP.maxFontDesktop);
   // Scale the curve's full range [zfF1..zfF4] → [minFontMobile..maxFontMobile]
   const rawMin = LP.zfF1;
   const rawMax = Math.max(LP.zfF1 + 1, LP.zfF4);
@@ -1226,6 +1226,7 @@ function renderMarkers() {
 
 function _drawUserCrosshair(ctx) {
   if (!S.userLocVp) return;
+  if (S.countryFilter) return; // hide crosshair in country mode
   const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
   let outsideAngle = null;
   if (S.userLocOutside && S.userLocCentVp) {
@@ -1929,13 +1930,13 @@ function setUserLocation(lat, lng, isDefault = false) {
     const distRound = Math.round(distKm);
 
     if (distKm <= LOCATE_SNAP_KM) {
-      // Snap: crosshair at place position + rect drawn on top
+      // Snap: place is close enough — highlight the rect, no separate crosshair needed
       const snapVp = placeVp(best);
-      S.userLocVp = snapVp;
+      S.userLocVp = null; // suppress crosshair; highlighted rect is sufficient
       S.userLocLabel = "";
       S.userLocOutside = false; S.userLocCentVp = null;
       startHighlight(best, true);
-      if (snapVp) panToLocVp(snapVp.vx, snapVp.vy);
+      if (snapVp) panToLocVp(snapVp.vx, snapVp.vy); // pan using snapVp even though crosshair is hidden
       if (!S.isMobile) showInfoPanel(best);
       if (statusEl) { statusEl.textContent = `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
@@ -2151,22 +2152,23 @@ function zoomToCountryPlaces(iso2) {
     const rawH = (ry2 - ry1) + pad * 2;
     const w = Math.min(rawW, MAX_W);
     const h = Math.min(rawH, MAX_W * 0.35); // keep aspect roughly readable
-    // Shift the rect center LEFT so the country appears in the visible area
-    // (right of the locate popup). fitBounds is animated so we bake the shift
-    // into the rect itself rather than doing a post-hoc panTo.
+    // Step 1: fit immediately (true) so getBounds() returns the real post-fit state
+    S.viewer.viewport.fitBounds(
+      new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), true
+    );
+    // Step 2: now read actual displayed bounds and animate a pan to offset for the popup
     const locPopupEl = document.getElementById("locate-map-popup");
     if (locPopupEl && !locPopupEl.classList.contains("hidden")) {
       const popW = locPopupEl.offsetWidth + 16;
       const viewW = S.viewer.element.clientWidth;
       if (viewW > popW * 2) {
-        // shift in viewport units: moving center left makes the country
-        // appear that much to the right of screen center, into the visible area
-        cx -= (popW / 2 / viewW) * w;
+        const vp = S.viewer.viewport;
+        const bounds = vp.getBounds(); // correct post-fit bounds (immediate above)
+        const shift = (popW / 2 / viewW) * bounds.width;
+        const center = vp.getCenter();
+        vp.panTo(new OpenSeadragon.Point(center.x - shift, center.y), false); // animate pan
       }
     }
-    S.viewer.viewport.fitBounds(
-      new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), false
-    );
     return;
   }
   const filtered = S.places.filter(p => placeMatchesIso2(p, iso2));
@@ -2199,7 +2201,16 @@ function setCountryFilter(iso2) {
   document.getElementById("country-filter-bar")?.classList.remove("hidden");
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = iso2;
-  // Tabula zooms to country places in background; locate popup stays open
+  // Floating mode bar
+  const modeBar = document.getElementById("country-mode-bar");
+  const modeLabel = document.getElementById("country-mode-label");
+  if (modeBar && modeLabel) {
+    modeLabel.textContent = name;
+    const color = _countryColorMap[iso2] || "#2196f3";
+    modeBar.style.borderColor = color + "88";
+    modeBar.style.setProperty("--country-color", color);
+    modeBar.classList.remove("hidden");
+  }
 }
 
 function exitCountryFilter() {
@@ -2207,6 +2218,7 @@ function exitCountryFilter() {
   S.countryPlaces = null;
   renderMarkers();
   document.getElementById("country-filter-bar")?.classList.add("hidden");
+  document.getElementById("country-mode-bar")?.classList.add("hidden");
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = "";
   if (_leafletCountriesLayer) renderCountryLayer();
@@ -2565,6 +2577,9 @@ function setupControls() {
   document.getElementById("locate-gps-btn").addEventListener("click", acquireGps);
   document.getElementById("locate-my-country-btn")?.addEventListener("click", locateMyCountry);
   document.getElementById("country-filter-chip")?.addEventListener("click", () => {
+    exitCountryFilter();
+  });
+  document.getElementById("country-mode-exit")?.addEventListener("click", () => {
     exitCountryFilter();
   });
   document.addEventListener("fullscreenchange", () => {
@@ -3413,27 +3428,30 @@ const SP_DEFS = [
   { section: "Markers",       label: "Marker opacity",           key: "markerAlpha",
     min: 0,   max: 1,    step: 0.05, fmt: v => Math.round(v * 100) + "%",
     desc: "Transparency of marker rectangles. 100% = fully opaque, 0% = invisible." },
-  { section: "Label Density",  label: "Label spacing",          key: "labelPad",
+  { section: "Label Density",  label: "Label spacing (px)",     key: "labelPad",
     min: -10, max: 20,   step: 1,   fmt: v => v + "px",
-    desc: "Padding around each label's collision box. Negative values allow labels to overlap, increasing density. 0 = labels touch edge-to-edge." },
-  { section: "Label Density",  label: "Show all above zoom",    key: "labelPadZoomThresh",
+    desc: "Padding around each label's collision box. Negative = labels may overlap; 0 = touch edge-to-edge; positive = more space between labels." },
+  { section: "Label Density",  label: "Show all labels above zoom — desktop", key: "labelPadZoomThresh",
     min: 0,   max: 50,   step: 0.25, fmt: v => v >= 50 ? "never" : "z " + v.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""),
-    desc: "Above this zoom level, overlap detection is disabled and all labels are shown regardless of spacing." },
-  { section: "Label Limits",   label: "Max font — mobile",      key: "maxFontMobile",
-    min: 4,   max: 100,  step: 1,   fmt: v => v + "px",
-    desc: "Hard ceiling on label font size on mobile screens. Keeps labels readable even when the zoom curve would produce larger text." },
-  { section: "Label Limits",   label: "Max labels — desktop",   key: "maxLabelsDesktop",
+    desc: "Above this zoom level, overlap detection is skipped and all labels are shown regardless of spacing." },
+  { section: "Label Limits",   label: "Max labels on screen — desktop", key: "maxLabelsDesktop",
     min: 5,   max: 500,  step: 5,   fmt: v => v >= 500 ? "∞" : String(v),
-    desc: "Maximum labels drawn at once on desktop. Overlap detection may reduce the actual count further." },
-  { section: "Label Limits",   label: "Max labels — mobile",    key: "maxLabelsMobile",
+    desc: "Hard cap on simultaneous labels on desktop. Overlap detection may reduce the count further." },
+  { section: "Label Limits",   label: "Max font size — desktop (px)", key: "maxFontDesktop",
+    min: 4,   max: 60,   step: 1,   fmt: v => v >= 60 ? "∞" : v + "px",
+    desc: "Ceiling on label font size on desktop. At ∞ (60) the zoom curve drives the size with no cap." },
+  { section: "Label Limits",   label: "Max labels on screen — mobile", key: "maxLabelsMobile",
     min: 1,   max: 100,  step: 1,   fmt: v => String(v),
-    desc: "Maximum labels drawn at once on mobile." },
-  { section: "Label Limits",   label: "Show all above zoom — mobile", key: "labelPadZoomThreshMobile",
-    min: 0,   max: 50,   step: 0.25, fmt: v => v >= 50 ? "never" : "z " + v.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""),
-    desc: "Above this zoom level on mobile, overlap detection is disabled and all labels are shown." },
-  { section: "Label Limits",   label: "Min font — mobile",      key: "minFontMobile",
+    desc: "Hard cap on simultaneous labels on mobile." },
+  { section: "Label Limits",   label: "Max font size — mobile (px)",  key: "maxFontMobile",
+    min: 4,   max: 60,   step: 1,   fmt: v => v >= 60 ? "∞" : v + "px",
+    desc: "Ceiling on label font size on mobile." },
+  { section: "Label Limits",   label: "Min font size — mobile (px)",  key: "minFontMobile",
     min: 0,   max: 20,   step: 0.5, fmt: v => v + "px",
-    desc: "Sets the floor of the mobile font curve. The curve range [Point1..Point4] is rescaled to [min..max font mobile], so labels never shrink below this size." },
+    desc: "Floor of the mobile font curve — labels never shrink below this size." },
+  { section: "Label Limits",   label: "Show all labels above zoom — mobile", key: "labelPadZoomThreshMobile",
+    min: 0,   max: 50,   step: 0.25, fmt: v => v >= 50 ? "never" : "z " + v.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""),
+    desc: "Above this zoom level on mobile, overlap detection is skipped and all labels are shown." },
   // Zoom → font curve (4 control points, piecewise linear)
   { section: "Zoom → Font Curve", type: "curve-point", pointLabel: "Point 1 (low zoom)",
     keyZ: "zfZ1", keyF: "zfF1",
