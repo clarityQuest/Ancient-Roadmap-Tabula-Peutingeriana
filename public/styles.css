@@ -62,7 +62,13 @@ body, html {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-items: flex-start;
   pointer-events: auto;
+}
+#zoom-top-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 #nav-btns-row {
   display: flex;
@@ -92,7 +98,7 @@ body, html {
 
 #top-bar {
   position: absolute;
-  top: 10px; left: 110px; right: 10px;
+  top: 10px; left: 120px; right: 10px;
   display: flex;
   justify-content: space-between;
   z-index: 10;
@@ -266,9 +272,10 @@ body, html {
 .about-btn-label { display: none; }
 @media (min-width: 700px) {
   #about-btn {
-    padding: 8px 16px;
+    padding: 0 14px;
+    height: 34px;
     gap: 7px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     border-color: rgba(160, 130, 90, 0.5);
     color: #d4b483;
@@ -279,6 +286,16 @@ body, html {
     color: #ffd080;
   }
   .about-btn-label { display: inline; }
+}
+
+/* Locate popup header — icon-only square buttons */
+#locate-gps-btn, #locate-places-btn, #locate-roads-btn, #modern-state-solo-btn, #locate-my-country-btn {
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 #control-locate {
   border-color: rgba(200, 160, 80, 0.55);

@@ -1598,47 +1598,44 @@ function setupSearch() {
   const results = document.getElementById("search-results");
   let debounce = null;
 
+  function runSearch(q) {
+    if (q.length < 2) { results.classList.add("hidden"); return; }
+    const pool = S.allRecords.length ? S.allRecords : S.places;
+    const calibIds = new Set(S.millerCalib.map(m => m.data_id));
+    const scored = [];
+    for (const p of pool) {
+      const lat = (p.latin_std || p.latin || "").toLowerCase();
+      const mod = (p.modern || p.modern_preferred || "").toLowerCase();
+      // Score: lower = better. Field priority (latin=0, modern=10) + match type (exact=0, prefix=1, substr=2)
+      let s = Infinity;
+      if (lat === q)           s = Math.min(s, 0);
+      if (lat.startsWith(q))   s = Math.min(s, 1);
+      if (lat.includes(q))     s = Math.min(s, 2);
+      if (mod === q)           s = Math.min(s, 10);
+      if (mod.startsWith(q))   s = Math.min(s, 11);
+      if (mod.includes(q))     s = Math.min(s, 12);
+      if (s === Infinity) continue;
+      // Prefer calibrated places within same score tier
+      if (!calibIds.has(p.data_id)) s += 0.5;
+      scored.push({ p, s });
+    }
+    scored.sort((a, b) => a.s - b.s);
+    const matches = scored.slice(0, 30).map(x => x.p);
+    if (!matches.length) { results.classList.add("hidden"); return; }
+    results.innerHTML = matches.map(p => {
+      const color = TYPE_COLORS[p.type] || "#92400E";
+      return `<div class="search-item" data-id="${p.data_id}">
+        <span class="dot" style="background:${color}"></span>
+        <span class="si-latin">${escHtml(p.latin_std || p.latin)}</span>
+        <span class="si-modern">${escHtml(p.modern || p.modern_preferred || "")}</span>
+      </div>`;
+    }).join("");
+    results.classList.remove("hidden");
+  }
+
   input.addEventListener("input", () => {
     clearTimeout(debounce);
-    debounce = setTimeout(() => {
-      const q = input.value.trim().toLowerCase();
-      if (q.length < 2) { results.classList.add("hidden"); return; }
-
-      const pool = S.allRecords.length ? S.allRecords : S.places;
-      const calibIds = new Set(S.millerCalib.map(m => m.data_id));
-
-      const scored = [];
-      for (const p of pool) {
-        const lat = (p.latin_std || p.latin || "").toLowerCase();
-        const mod = (p.modern || p.modern_preferred || "").toLowerCase();
-        // Score: lower = better. Field priority (latin=0, modern=10) + match type (exact=0, prefix=1, substr=2)
-        let s = Infinity;
-        if (lat === q)           s = Math.min(s, 0);
-        if (lat.startsWith(q))   s = Math.min(s, 1);
-        if (lat.includes(q))     s = Math.min(s, 2);
-        if (mod === q)           s = Math.min(s, 10);
-        if (mod.startsWith(q))   s = Math.min(s, 11);
-        if (mod.includes(q))     s = Math.min(s, 12);
-        if (s === Infinity) continue;
-        // Prefer calibrated places within same score tier
-        if (!calibIds.has(p.data_id)) s += 0.5;
-        scored.push({ p, s });
-      }
-      scored.sort((a, b) => a.s - b.s);
-      const matches = scored.slice(0, 30).map(x => x.p);
-
-      if (!matches.length) { results.classList.add("hidden"); return; }
-
-      results.innerHTML = matches.map(p => {
-        const color = TYPE_COLORS[p.type] || "#92400E";
-        return `<div class="search-item" data-id="${p.data_id}">
-          <span class="dot" style="background:${color}"></span>
-          <span class="si-latin">${escHtml(p.latin_std || p.latin)}</span>
-          <span class="si-modern">${escHtml(p.modern || p.modern_preferred || "")}</span>
-        </div>`;
-      }).join("");
-      results.classList.remove("hidden");
-    }, 200);
+    debounce = setTimeout(() => runSearch(input.value.trim().toLowerCase()), 200);
   });
 
   function selectResult(id) {
@@ -1661,8 +1658,20 @@ function setupSearch() {
 
   input.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
+    e.preventDefault();
+    clearTimeout(debounce);
+    // If results are already visible, pick top immediately
     const first = results.querySelector(".search-item");
-    if (first) { selectResult(first.dataset.id); e.preventDefault(); }
+    if (first && !results.classList.contains("hidden")) {
+      selectResult(first.dataset.id);
+      return;
+    }
+    // Otherwise run search now (without waiting for debounce) and pick top
+    const q = input.value.trim().toLowerCase();
+    if (q.length < 2) return;
+    runSearch(q);
+    const top = results.querySelector(".search-item");
+    if (top) selectResult(top.dataset.id);
   });
 
   document.addEventListener("click", (e) => {
@@ -2114,7 +2123,16 @@ function renderCountryLayer() {
         } catch {}
       });
       layer.on("mouseover", e => { if (S.countryFilter !== iso2) e.target.setStyle({ fillOpacity: 0.55, weight: 2 }); });
-      layer.on("mouseout", () => { if (_leafletCountriesLayer) _leafletCountriesLayer.resetStyle(layer); });
+      layer.on("mouseout", () => {
+        if (!_leafletCountriesLayer) return;
+        if (S.countryFilter === iso2) {
+          // Re-assert selected style explicitly — adding markers above can trigger spurious mouseouts
+          const c = _countryColorMap[iso2] || "#888888";
+          layer.setStyle({ fillColor: c, color: "#ffffff", weight: 4, fillOpacity: 0.72, opacity: 1 });
+        } else {
+          _leafletCountriesLayer.resetStyle(layer);
+        }
+      });
     },
   }).addTo(_leafletMap);
 }
@@ -2492,7 +2510,12 @@ function toggleLeafletPlaces() {
         if (tooltip) m.bindTooltip(tooltip, { direction: "top", offset: [0, -4] });
         // Click a place dot → navigate Tabula to it and open info panel (blocked in country mode)
         m.on("click", () => {
-          if (S.countrySelectMode) return;
+          if (S.countrySelectMode) {
+            // In country mode: click on a place selects its country
+            const iso2 = guessCountryFromLatLng(r.lat, r.lng);
+            if (iso2) setCountryFilter(iso2);
+            return;
+          }
           const full = S.allRecords.find(a => a.data_id === r.data_id) || r;
           panToPlace(full);
           startHighlight(full);
