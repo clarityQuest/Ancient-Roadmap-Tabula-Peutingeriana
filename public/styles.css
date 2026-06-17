@@ -604,6 +604,7 @@ body, html {
 
 /* Developer settings button — fixed bottom-right */
 #settings-btn {
+  display: none !important;
   position: fixed;
   bottom: 10px;
   right: 10px;
@@ -733,6 +734,9 @@ body, html {
   /* Larger tap targets for controls */
   .ctrl-btn { min-width: 38px; min-height: 38px; }
 
+  /* Zoom +/- buttons smaller on mobile */
+  #nav-square .ctrl-btn { width: 22px !important; height: 22px !important; min-width: 22px !important; min-height: 22px !important; padding: 3px !important; }
+
   /* Resize handles and drag bar are not touch-friendly */
   .resize-handle { display: none; }
   #panel-drag-bar { display: none; }
@@ -752,13 +756,19 @@ body, html {
   }
 }
 
-/* Portrait mode: info panel full-screen width */
+/* Portrait mode overrides */
 @media (pointer: coarse) and (orientation: portrait) {
+  /* Info panel: right side */
   #info-panel {
-    left: 0 !important; right: 0 !important;
-    width: 100% !important;
-    border-radius: 0 !important;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.6) !important;
+    left: auto !important; right: 0 !important;
+    width: min(280px, 55vw) !important;
+    border-radius: 12px 0 0 12px !important;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.6) !important;
+  }
+  /* Category popup: max 70% screen height, scrollable */
+  #category-popup {
+    max-height: 70svh;
+    overflow-y: auto;
   }
 }
 
@@ -850,21 +860,17 @@ body, html {
   white-space: nowrap;
 }
 #country-isolate-btn.hidden { display: none !important; }
-/* Mobile portrait: anchored below top row, not fullscreen */
+/* Mobile portrait: locate map 40%×40% at top-left */
 @media (pointer: coarse) and (orientation: portrait) {
   #locate-map-popup {
     position: fixed !important;
-    top: 73px !important; left: 8px !important; right: 8px !important; bottom: 60px !important;
-    width: auto !important; height: auto !important;
-    border-radius: 8px !important;
+    top: 0 !important; left: 0 !important; right: auto !important; bottom: auto !important;
+    width: 40vw !important; height: 40vh !important;
+    border-radius: 0 0 8px 0 !important;
     z-index: 200;
   }
-  #category-popup {
-    transform: scale(0.7);
-    transform-origin: bottom left;
-  }
 }
-/* Mobile landscape: full height, hide title text and shrink header buttons */
+/* Mobile landscape: full height, info panel bottom third, hide title, shrink header */
 @media (pointer: coarse) and (orientation: landscape) {
   #locate-map-popup {
     top: 0 !important;
@@ -882,6 +888,15 @@ body, html {
     height: 18px !important;
   }
   #modern-state-solo-btn { font-size: 11px; padding: 3px 5px; }
+  /* Info panel: bottom third, full width */
+  #info-panel {
+    left: 0 !important; right: 0 !important;
+    bottom: 0 !important; top: auto !important;
+    width: 100% !important; height: 33vh !important;
+    max-height: none !important;
+    border-radius: 8px 8px 0 0 !important;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.6) !important;
+  }
 }
 /* Custom resize handles */
 .resize-handle { position: absolute; bottom: 0; width: 20px; height: 20px; z-index: 10; }

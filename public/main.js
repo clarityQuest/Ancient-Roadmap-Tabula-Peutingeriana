@@ -251,9 +251,9 @@ const S = {
   mapMode:      "old",       // "old" | "new"
   selectedSegment: DEFAULT_SEGMENT,
   markersOn:       true,
-  latinLabelsOn:   false,
-  modernLabelsOn:  false,
-  countryIsolate:  (() => { try { return localStorage.getItem("tp_country_isolate") !== "0"; } catch {} return true; })(),
+  latinLabelsOn:   (() => { try { return localStorage.getItem("tp_latin_labels") === "1"; } catch {} return false; })(),
+  modernLabelsOn:  (() => { try { return localStorage.getItem("tp_modern_labels") === "1"; } catch {} return false; })(),
+  countryIsolate:  (() => { try { return localStorage.getItem("tp_country_isolate") === "1"; } catch {} return false; })(),
   activeTypes:    new Set(),
   regionSolo:     false,
   savedActiveTypes: null,
@@ -1451,6 +1451,7 @@ function showInfoPanel(place) {
   syncLeafletSelectedMarker(place);
   renderMarkers();
   infoPanelOpenedAt = Date.now();
+  if (S.isMobile) closeLocatePopup();
 
   // Enrich with allRecords data (places.json lacks ulm_img_url / ulm_id)
   if (S.allRecords.length && (!place.ulm_img_url || !place.ulm_id)) {
@@ -2290,6 +2291,7 @@ function setCountryFilter(iso2) {
     locatePopup.style.boxShadow = `0 8px 24px rgba(0,0,0,0.5), 0 0 0 2px ${color}55`;
   }
   document.getElementById("country-isolate-btn")?.classList.remove("hidden");
+  if (S.isMobile) closeLocatePopup();
 }
 
 function exitCountryFilter() {
@@ -2421,11 +2423,11 @@ async function toggleCountryMode() {
       }
     }
     document.getElementById("country-select-bar")?.classList.add("hidden");
-    // Turn labels off and redraw
-    S.latinLabelsOn = false;
-    S.modernLabelsOn = false;
-    document.getElementById("toggle-names")?.classList.remove("active");
-    document.getElementById("toggle-modern")?.classList.remove("active");
+    // Restore persisted label settings
+    try { S.latinLabelsOn = localStorage.getItem("tp_latin_labels") === "1"; } catch { S.latinLabelsOn = false; }
+    try { S.modernLabelsOn = localStorage.getItem("tp_modern_labels") === "1"; } catch { S.modernLabelsOn = false; }
+    document.getElementById("toggle-names")?.classList.toggle("active", S.latinLabelsOn);
+    document.getElementById("toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
     renderMarkers();
   }
 }
@@ -2845,6 +2847,7 @@ function setupTypeFilters() {
     namesBtn.classList.toggle("active", S.latinLabelsOn);
     namesBtn.addEventListener("click", () => {
       S.latinLabelsOn = !S.latinLabelsOn;
+      try { localStorage.setItem("tp_latin_labels", S.latinLabelsOn ? "1" : "0"); } catch {}
       namesBtn.classList.toggle("active", S.latinLabelsOn);
       document.getElementById("mobile-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
       renderMarkers();
@@ -2856,6 +2859,7 @@ function setupTypeFilters() {
     modernBtn.classList.toggle("active", S.modernLabelsOn);
     modernBtn.addEventListener("click", () => {
       S.modernLabelsOn = !S.modernLabelsOn;
+      try { localStorage.setItem("tp_modern_labels", S.modernLabelsOn ? "1" : "0"); } catch {}
       modernBtn.classList.toggle("active", S.modernLabelsOn);
       document.getElementById("mobile-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
       renderMarkers();
@@ -2886,16 +2890,25 @@ function setupTypeFilters() {
   if (catWrapper && catPopup) {
     let catTimer = null;
     let catAutoClose = null;
+    const resetCatTimer = () => {
+      clearTimeout(catAutoClose);
+      catAutoClose = setTimeout(() => catPopup.classList.add("hidden"), 2000);
+    };
     const openCat  = () => { clearTimeout(catTimer); catPopup.classList.remove("hidden"); };
     const closeCat = () => { catTimer = setTimeout(() => catPopup.classList.add("hidden"), 250); };
     catWrapper.addEventListener("mouseenter", openCat);
     catWrapper.addEventListener("mouseleave", closeCat);
     catBtn?.addEventListener("click", () => {
-      const isNowOpen = catPopup.classList.toggle("hidden") === false || !catPopup.classList.contains("hidden");
-      if (isNowOpen && S.isMobile) {
+      catPopup.classList.toggle("hidden");
+      if (!catPopup.classList.contains("hidden") && S.isMobile) {
+        resetCatTimer();
+      } else {
         clearTimeout(catAutoClose);
-        catAutoClose = setTimeout(() => catPopup.classList.add("hidden"), 1000);
       }
+    });
+    // Any interaction inside popup resets the 2s close timer
+    catPopup?.addEventListener("click", () => {
+      if (S.isMobile && !catPopup.classList.contains("hidden")) resetCatTimer();
     });
     // Click outside to close on mobile
     document.addEventListener("click", (e) => {
@@ -3026,12 +3039,14 @@ function setupMobileMenu() {
     });
     dispContainer.querySelector("#mobile-toggle-names").addEventListener("click", (e) => {
       S.latinLabelsOn = !S.latinLabelsOn;
+      try { localStorage.setItem("tp_latin_labels", S.latinLabelsOn ? "1" : "0"); } catch {}
       e.currentTarget.classList.toggle("active", S.latinLabelsOn);
       document.getElementById("toggle-names")?.classList.toggle("active", S.latinLabelsOn);
       renderMarkers();
     });
     dispContainer.querySelector("#mobile-toggle-modern").addEventListener("click", (e) => {
       S.modernLabelsOn = !S.modernLabelsOn;
+      try { localStorage.setItem("tp_modern_labels", S.modernLabelsOn ? "1" : "0"); } catch {}
       e.currentTarget.classList.toggle("active", S.modernLabelsOn);
       document.getElementById("toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
       renderMarkers();
