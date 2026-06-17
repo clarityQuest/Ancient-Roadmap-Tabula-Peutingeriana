@@ -126,7 +126,7 @@ body, html {
   position: absolute;
   bottom: 10px;
   left: 10px;
-  z-index: 30;
+  z-index: 36;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
@@ -602,9 +602,9 @@ body, html {
 }
 #country-mode-exit:hover { background: rgba(255,255,255,0.16); color: #fff; }
 
-/* Developer settings button — fixed bottom-right */
+/* Developer settings button — fixed bottom-right, very transparent on desktop */
 #settings-btn {
-  display: none !important;
+  display: flex;
   position: fixed;
   bottom: 10px;
   right: 10px;
@@ -617,14 +617,13 @@ body, html {
   border-radius: 6px;
   color: var(--text-muted);
   cursor: pointer;
-  display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: auto;
-  opacity: 0.6;
-  transition: opacity 0.15s;
+  opacity: 0.12;
+  transition: opacity 0.2s;
 }
-#settings-btn:hover { opacity: 1; color: var(--text-main); }
+#settings-btn:hover { opacity: 0.8; color: var(--text-main); }
 
 /* Footer Elements */
 #attribution { position: absolute; bottom: 10px; right: 10px; z-index: 10; font-size: 12px; color: var(--text-muted); background: rgba(15, 17, 23, 0.8); padding: 4px 8px; border-radius: 4px; pointer-events: auto; }
@@ -689,6 +688,7 @@ body, html {
   /* Category popup still accessible via cat-popup-btn on mobile */
   #bottom-left-controls { bottom: 10px; flex-direction: row; gap: 6px; align-items: center; }
   #attribution { display: none; }
+  #settings-btn { display: none !important; }
 
   /* Search shrinks to ~1/4 of viewport on mobile */
   #search-container { flex: 0 0 auto; width: min(22vw, 110px); min-width: 0; margin: 0 4px; }
@@ -884,14 +884,16 @@ body, html {
 /* On mobile: hide country-mode-exit button (redundant, deactivate is via locate map button) */
 @media (pointer: coarse) {
   #country-mode-exit { display: none !important; }
-  /* Locate header buttons smaller, close button still tappable */
+  /* Locate header buttons: tight around icon, override ctrl-btn min-size */
   #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
-    width: 26px !important; height: 26px !important;
+    width: 22px !important; height: 22px !important;
+    min-width: auto !important; min-height: auto !important;
+    padding: 3px !important;
   }
   #locate-gps-btn svg, #locate-places-btn svg, #locate-roads-btn svg, #locate-my-country-btn svg {
     width: 16px !important; height: 16px !important;
   }
-  #locate-map-close { width: 30px !important; height: 30px !important; font-size: 20px !important; }
+  #locate-map-close { width: 30px !important; height: 30px !important; min-width: auto !important; min-height: auto !important; font-size: 20px !important; }
   /* Category popup: smaller fonts + icons on mobile */
   #category-popup { font-size: 11px; }
   #category-popup .toggle-btn-sm { font-size: 11px !important; padding: 5px 9px !important; min-height: 32px !important; gap: 4px !important; }
@@ -921,6 +923,8 @@ body, html {
   #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
     width: 24px !important;
     height: 24px !important;
+    min-width: auto !important; min-height: auto !important;
+    padding: 3px !important;
   }
   #locate-gps-btn svg, #locate-places-btn svg, #locate-roads-btn svg,
   #locate-my-country-btn svg, #modern-state-solo-btn svg {
@@ -928,12 +932,12 @@ body, html {
     height: 18px !important;
   }
   #modern-state-solo-btn { font-size: 11px; padding: 3px 5px; }
-  #locate-map-close { width: 28px !important; height: 28px !important; font-size: 20px !important; }
-  /* Info panel: right side, 1/4 width, full height */
+  #locate-map-close { width: 28px !important; height: 28px !important; min-width: auto !important; min-height: auto !important; font-size: 20px !important; }
+  /* Info panel: right side, 30vw, full height */
   #info-panel {
     left: auto !important; right: 0 !important;
     top: 0 !important; bottom: 0 !important;
-    width: 25vw !important; height: auto !important;
+    width: 30vw !important; height: auto !important;
     max-height: none !important;
     border-radius: 12px 0 0 12px !important;
     box-shadow: -4px 0 24px rgba(0,0,0,0.6) !important;
@@ -1130,7 +1134,7 @@ body, html {
   box-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 @media (pointer: coarse), (max-width: 600px) {
-  #mobile-layout-toggle { display: flex; align-items: center; justify-content: center; }
+  #mobile-layout-toggle { display: none !important; }
 }
 
 /* Compact panel mode — overrides portrait full-width to keep map visible */

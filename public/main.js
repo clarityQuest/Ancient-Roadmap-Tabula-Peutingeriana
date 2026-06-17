@@ -4330,15 +4330,34 @@ function runStartupDemo() {
   const showLocate = () => {
     setTimeout(() => {
       locPopup.classList.add("demo-panel-in");
-      // Demo: activate country mode to show the feature, then deactivate after 3s
       if (!S.countrySelectMode) {
-        toggleCountryMode().catch(() => {});
-        setTimeout(() => { if (S.countrySelectMode) toggleCountryMode().catch(() => {}); }, 3000);
+        // 1) pulse the country button so user notices it
+        setTimeout(() => {
+          const countryBtn = document.getElementById("modern-state-solo-btn");
+          if (countryBtn) {
+            countryBtn.classList.add("demo-btn-pulse");
+            setTimeout(() => countryBtn.classList.remove("demo-btn-pulse"), 600);
+          }
+          // 2) activate country mode to show the effect
+          setTimeout(() => {
+            toggleCountryMode().catch(() => {});
+            // 3) let user see the country layer for 2.5s, then deactivate
+            setTimeout(() => {
+              if (S.countrySelectMode) toggleCountryMode().catch(() => {});
+              // 4) close locate popup
+              setTimeout(() => {
+                locPopup.classList.remove("demo-panel-in");
+                demoFlyToButton(locPopup, "control-locate", 420, () => {});
+              }, 700);
+            }, 2500);
+          }, 700);
+        }, 900);
+      } else {
+        setTimeout(() => {
+          locPopup.classList.remove("demo-panel-in");
+          demoFlyToButton(locPopup, "control-locate", 420, () => {});
+        }, 980);
       }
-      setTimeout(() => {
-        locPopup.classList.remove("demo-panel-in");
-        demoFlyToButton(locPopup, "control-locate", 420, () => {});
-      }, 980);
     }, 300);
   };
 
