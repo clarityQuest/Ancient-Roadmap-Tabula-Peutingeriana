@@ -837,7 +837,7 @@ function renderMillerOverlay(ctx) {
     const isHighlightedItem = item.data_id === S.highlightDataId && Date.now() < S.highlightUntil;
     const isSelectedItem    = item.data_id === S.selectedDataId;
     const isCountryMatch = S.countryFilter ? placeMatchesIso2(item, S.countryFilter) : false;
-    if (!isHighlightedItem && !isSelectedItem && !isCountryMatch && !S.activeTypes.has(item.type)) continue;
+    if (!S.countrySelectMode && !isHighlightedItem && !isSelectedItem && !isCountryMatch && !S.activeTypes.has(item.type)) continue;
     if (S.countryFilter && S.countryIsolate && !isHighlightedItem && !isSelectedItem && !isCountryMatch) continue;
     const vx1 = item.rect_x1 / MILLER_W;
     const vx2 = item.rect_x2 / MILLER_W;
@@ -1071,7 +1071,7 @@ function renderMarkers() {
     const isCountryMatch = S.countryFilter
       ? (S.countryPlaces !== null && S.countryPlaces.has(p.data_id))
       : false;
-    if (!isHighlighted && !isCountryMatch && !S.activeTypes.has(p.type)) continue;
+    if (!S.countrySelectMode && !isHighlighted && !isCountryMatch && !S.activeTypes.has(p.type)) continue;
     if (S.countryFilter && S.countryIsolate && !isHighlighted && !isCountryMatch) continue;
     if (p.vx < bx0 || p.vx > bx1 || p.vy < by0 || p.vy > by1) continue;
     // Country-matched places always visible regardless of zoom (like highlighted places)
@@ -2386,6 +2386,12 @@ async function toggleCountryMode() {
       }
     }
     document.getElementById("country-select-bar")?.classList.remove("hidden");
+    // Activate all labels and redraw immediately
+    S.latinLabelsOn = true;
+    S.modernLabelsOn = true;
+    document.getElementById("toggle-names")?.classList.add("active");
+    document.getElementById("toggle-modern")?.classList.add("active");
+    renderMarkers();
   } else {
     exitCountryFilter();
     if (_leafletMap && _leafletCountriesLayer) {
@@ -2407,6 +2413,12 @@ async function toggleCountryMode() {
       }
     }
     document.getElementById("country-select-bar")?.classList.add("hidden");
+    // Turn labels off and redraw
+    S.latinLabelsOn = false;
+    S.modernLabelsOn = false;
+    document.getElementById("toggle-names")?.classList.remove("active");
+    document.getElementById("toggle-modern")?.classList.remove("active");
+    renderMarkers();
   }
 }
 
