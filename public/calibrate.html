@@ -1182,12 +1182,16 @@ async function loadUlmImage(modernName, latinName, targetDataId) {
 let serverSaveTimer = null;
 
 async function saveToServer() {
-  const cal = buildSetCalibrations();
-  const reviewRecords = Array.isArray(reviewDb.records) ? reviewDb.records : [];
-  const applied = applyCalibrationsToArray(reviewRecords, cal);
-  const payload = { ...reviewDb, records: applied.out };
   setServerSaveStatus("saving");
   try {
+    // Re-read fresh DB before applying calibrations so concurrent edits from other tools are preserved
+    const freshRes = await fetch("data/review_places_db.json?" + Date.now(), { cache: "no-store" });
+    const freshDb = await freshRes.json();
+    if (freshDb && typeof freshDb === "object") reviewDb = freshDb;
+    const cal = buildSetCalibrations();
+    const reviewRecords = Array.isArray(reviewDb.records) ? reviewDb.records : [];
+    const applied = applyCalibrationsToArray(reviewRecords, cal);
+    const payload = { ...reviewDb, records: applied.out };
     const res = await fetch("/api/save-calibration", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2599,19 +2603,26 @@ function normalizeName(s) {
 // Always merges the current session's draft calibrations before saving, so a
 // clear/edit/delete operation never silently drops work done earlier this session.
 function saveMergedDb() {
-  const cal = buildSetCalibrations();
-  const applied = applyCalibrationsToArray(Array.isArray(reviewDb.records) ? reviewDb.records : [], cal);
-  const payload = { ...reviewDb, records: applied.out };
   setServerSaveStatus("saving");
-  fetch("/api/save-calibration", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload, null, 2),
-  }).then(r => r.json()).then(result => {
-    if (!result.ok) throw new Error(result.error);
-    setServerSaveStatus("ok", result.records);
-    clearFieldEdits();
-    try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
-  }).catch(e => setServerSaveStatus("error", 0, e.message));
+  // Re-read fresh DB before applying calibrations so concurrent edits from other tools are preserved
+  fetch("data/review_places_db.json?" + Date.now(), { cache: "no-store" })
+    .then(r => r.json())
+    .then(freshDb => {
+      reviewDb = (freshDb && typeof freshDb === "object") ? freshDb : reviewDb;
+      const cal = buildSetCalibrations();
+      const applied = applyCalibrationsToArray(Array.isArray(reviewDb.records) ? reviewDb.records : [], cal);
+      const payload = { ...reviewDb, records: applied.out };
+      return fetch("/api/save-calibration", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload, null, 2),
+      });
+    })
+    .then(r => r.json()).then(result => {
+      if (!result.ok) throw new Error(result.error);
+      setServerSaveStatus("ok", result.records);
+      clearFieldEdits();
+      try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
+    }).catch(e => setServerSaveStatus("error", 0, e.message));
 }
 
 function buildSetCalibrations() {
