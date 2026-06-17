@@ -310,6 +310,7 @@ body, html {
   border-color: rgba(200, 160, 80, 0.55);
   color: #c8a050;
   padding: 9px;
+  width: 100%; /* stretch to match #zoom-top-row width */
 }
 #control-locate:hover {
   background: rgba(55, 42, 10, 0.95);

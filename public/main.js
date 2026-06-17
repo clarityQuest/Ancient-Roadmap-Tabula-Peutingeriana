@@ -254,7 +254,7 @@ const S = {
   latinLabelsOn:   false,
   modernLabelsOn:  false,
   countryIsolate:  (() => { try { return localStorage.getItem("tp_country_isolate") !== "0"; } catch {} return true; })(),
-  activeTypes:    (() => { try { const r = localStorage.getItem("tp_active_types"); if (r) { const a = JSON.parse(r); if (Array.isArray(a) && a.length) return new Set(a); } } catch {} return new Set(["city", "temple", "spa", "road_station", "region"]); })(),
+  activeTypes:    new Set(),
   regionSolo:     false,
   savedActiveTypes: null,
   countrySelectMode: false,
@@ -900,10 +900,13 @@ function renderMillerOverlay(ctx) {
       if (txt1 || txt2) mLabelCandidates.push({ item, x, y, w, h, txt1, txt2, isCountryMatch });
     }
 
-    // Country filter active: highlight matching places with white + country-color frame
+    // Country filter active: fill + highlight matching places
     if (S.countryFilter && isCountryMatch) {
       const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
       ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = fColor;
+      ctx.fillRect(x, y, w, h);
       ctx.globalAlpha = 0.85;
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2.5;
@@ -913,12 +916,15 @@ function renderMillerOverlay(ctx) {
       ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
       ctx.restore();
     }
-    // Non-isolated country mode: draw every place in its country color
+    // Non-isolated country mode: draw every place filled + outlined in its country color
     if (S.countrySelectMode && !S.countryIsolate && item.country) {
       const iso2 = dbCodesToIso2(item.country)[0];
       const cc = iso2 ? (_countryColorMap[iso2] || null) : null;
       if (cc && !isCountryMatch) {
         ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = cc;
+        ctx.fillRect(x, y, w, h);
         ctx.globalAlpha = 0.5;
         ctx.strokeStyle = cc;
         ctx.lineWidth = 2;
@@ -926,12 +932,15 @@ function renderMillerOverlay(ctx) {
         ctx.restore();
       }
     }
-    // Country mode (no filter selected): draw country-colored rect border per place
+    // Country mode (no filter selected): fill + outline per country color
     if (S.countrySelectMode && !S.countryFilter && item.country) {
       const iso2 = dbCodesToIso2(item.country)[0];
       const cc = iso2 ? (_countryColorMap[iso2] || null) : null;
       if (cc) {
         ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = cc;
+        ctx.fillRect(x, y, w, h);
         ctx.globalAlpha = 0.6;
         ctx.strokeStyle = cc;
         ctx.lineWidth = 4;
@@ -1390,6 +1399,9 @@ function showMillerTooltip(item, x, y) {
    ============================================================ */
 function syncLeafletSelectedMarker(place) {
   if (_leafletSelectedMarker && _leafletMap) {
+    if (_leafletSelectedMarker._onZoomEnd) {
+      _leafletMap.off("zoomend", _leafletSelectedMarker._onZoomEnd);
+    }
     _leafletMap.removeLayer(_leafletSelectedMarker);
     _leafletSelectedMarker = null;
   }
@@ -1404,11 +1416,26 @@ function syncLeafletSelectedMarker(place) {
   }
   const hint = document.getElementById("locate-map-hint");
   if (hint) { hint.textContent = "Click map or drag marker to set location"; hint.style.color = ""; }
+  // Use a dedicated pane above overlayPane (400) so country-mode opacity=0.35 never dims this marker
+  if (!_leafletMap.getPane("selectedPane")) {
+    _leafletMap.createPane("selectedPane");
+    _leafletMap.getPane("selectedPane").style.zIndex = "450";
+    _leafletMap.getPane("selectedPane").style.pointerEvents = "none";
+  }
+  const zoom = _leafletMap.getZoom();
+  const markerRadius = zoom >= 6 ? 15 : 9;
   _leafletSelectedMarker = _leafletL.circleMarker([lat, lng], {
-    radius: 15, color: "#FFD700", weight: 5,
+    radius: markerRadius, color: "#FFD700", weight: 5,
     fillColor: "#FFD700", fillOpacity: 1, interactive: false,
+    pane: "selectedPane",
   }).addTo(_leafletMap);
-  _leafletSelectedMarker.bringToFront();
+  // Update radius on Leaflet zoom change
+  _leafletSelectedMarker._onZoomEnd = () => {
+    if (!_leafletSelectedMarker) return;
+    const z = _leafletMap.getZoom();
+    _leafletSelectedMarker.setRadius(z >= 6 ? 15 : 9);
+  };
+  _leafletMap.on("zoomend", _leafletSelectedMarker._onZoomEnd);
   _leafletMap.panTo([lat, lng]);
 }
 
