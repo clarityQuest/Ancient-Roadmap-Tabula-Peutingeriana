@@ -645,7 +645,8 @@ const TYPE_LABELS = {
   people:         "People",
 };
 
-const DRAFT_STORAGE_KEY = "tp_calibrate_miller_v1";
+const DRAFT_STORAGE_KEY  = "tp_calibrate_miller_v1";
+const FIELD_EDITS_KEY    = "tp_calibrate_field_edits_v1";
 
 // ── Country bbox lookup ────────────────────────────────────────────────────
 const COUNTRY_BBOX = [
@@ -982,6 +983,27 @@ function saveDraftResults() {
   }
 }
 
+function loadFieldEdits() {
+  try {
+    const raw = localStorage.getItem(FIELD_EDITS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch { return {}; }
+}
+
+function saveFieldEdit(did, fields) {
+  try {
+    const edits = loadFieldEdits();
+    edits[did] = { ...(edits[did] || {}), ...fields };
+    localStorage.setItem(FIELD_EDITS_KEY, JSON.stringify(edits));
+  } catch (e) { console.warn("Could not save field edit:", e); }
+}
+
+function clearFieldEdits() {
+  try { localStorage.removeItem(FIELD_EDITS_KEY); } catch {}
+}
+
 function toRuntimeRecord(row, fallbackId) {
   return {
     ...row,
@@ -1174,6 +1196,7 @@ async function saveToServer() {
     const result = await res.json();
     if (!res.ok || !result.ok) throw new Error(result.error || `HTTP ${res.status}`);
     setServerSaveStatus("ok", result.records);
+    clearFieldEdits();
     try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
   } catch (e) {
     setServerSaveStatus("error", 0, e.message);
@@ -1298,6 +1321,28 @@ async function init() {
       rect_user_set: true,
       status: "preloaded",
     };
+  }
+
+  // Re-apply field edits (segment, country, type, etc.) that were saved locally
+  // but not yet confirmed by the server — survives server restarts.
+  const fieldEdits = loadFieldEdits();
+  for (const [did, edits] of Object.entries(fieldEdits)) {
+    const numDid = Number(did);
+    const rec = (Array.isArray(reviewDb.records) ? reviewDb.records : []).find(r => Number(r.data_id) === numDid);
+    const rp  = allPlaces.find(p => Number(p.data_id) === numDid);
+    if (!rec) continue;
+    Object.assign(rec, edits);
+    if (rp) {
+      if (edits.latin_std  !== undefined) { rp.latin_std = edits.latin_std; rp.latin = edits.latin; }
+      if (edits.modern_preferred !== undefined) rp.modern = edits.modern_preferred;
+      if (edits.type       !== undefined) rp.type = edits.type;
+      if (edits.tabula_segment !== undefined) rp.tabula_segment = edits.tabula_segment;
+      if (edits.tabula_row !== undefined) { rp.tabula_row = edits.tabula_row; rp.grid_row = edits.grid_row; }
+      if (edits.tabula_col !== undefined) { rp.tabula_col = edits.tabula_col; rp.grid_col = edits.grid_col; }
+      if (edits.country    !== undefined) rp.country = edits.country;
+      if (edits.lat        !== undefined) rp.lat = edits.lat;
+      if (edits.lng        !== undefined) rp.lng = edits.lng;
+    }
   }
 
   applyFilters();
@@ -2219,8 +2264,8 @@ document.getElementById("btn-clear-rect").addEventListener("click", () => {
   const city = cities[idx];
   if (!confirm(`Remove the calibration marker for "${city.latin_std || city.latin}"?`)) return;
   const did = city.data_id;
-  // Remove from results
-  delete results[did];
+  // Mark as deleted in localStorage (not removed) so the deletion survives server restarts
+  results[did] = { status: "deleted" };
   saveDraftResults();
   // Remove miller_rect_* fields from reviewDb record and save
   const rec = (Array.isArray(reviewDb.records) ? reviewDb.records : []).find(r => Number(r.data_id) === Number(did));
@@ -2310,6 +2355,20 @@ function saveEditDirectly() {
       tabula_col: rec.tabula_col, country: rec.country,
       lat: rec.lat, lng: rec.lng });
   }
+
+  // Persist field edits to localStorage so they survive server restarts
+  saveFieldEdit(city.data_id, {
+    type: rec.type,
+    latin_std: rec.latin_std, latin: rec.latin,
+    modern_preferred: rec.modern_preferred,
+    tabula_segment: rec.tabula_segment,
+    tabula_row: rec.tabula_row,   grid_row: rec.grid_row,
+    tabula_col: rec.tabula_col,   grid_col: rec.grid_col,
+    tabula_location: rec.tabula_location,
+    country: rec.country,
+    lat: rec.lat, lng: rec.lng,
+    wiki_url: rec.wiki_url ?? null,
+  });
 
   closeEditModal();
   updatePanel();
@@ -2550,6 +2609,7 @@ function saveMergedDb() {
   }).then(r => r.json()).then(result => {
     if (!result.ok) throw new Error(result.error);
     setServerSaveStatus("ok", result.records);
+    clearFieldEdits();
     try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
   }).catch(e => setServerSaveStatus("error", 0, e.message));
 }
@@ -2557,9 +2617,12 @@ function saveMergedDb() {
 function buildSetCalibrations() {
   const byDid = new Map();
   const byName = new Map();
+  const deletedDids = new Set();
   for (const city of allPlaces) {
     const r = results[city.data_id];
-    if (!r || r.status !== "set") continue;
+    if (!r) continue;
+    if (r.status === "deleted") { deletedDids.add(Number(city.data_id)); continue; }
+    if (r.status !== "set") continue;
     const nr = normalizeRect({ x1: r.rect_x1, y1: r.rect_y1, x2: r.rect_x2, y2: r.rect_y2 });
     const entry = {
       px: round1((nr.minX + nr.maxX) / 2),
@@ -2574,16 +2637,26 @@ function buildSetCalibrations() {
     const key = normalizeName(city.latin_std || city.latin);
     if (key) byName.set(key, entry);
   }
-  return { byDid, byName };
+  return { byDid, byName, deletedDids };
 }
 
 // Saves Miller calibration as miller_* prefixed fields so they don't
 // conflict with existing seg4 coordinates in the database.
 function applyCalibrationsToArray(arr, cal) {
+  const deletedDids = cal.deletedDids || new Set();
   let updated = 0;
   const out = arr.map((p) => {
     const q = { ...p };
     const did = Number(q.data_id);
+    // Strip calibration for records explicitly deleted in this session
+    if (deletedDids.has(did)) {
+      delete q.miller_px; delete q.miller_py;
+      delete q.miller_rect_x1; delete q.miller_rect_y1;
+      delete q.miller_rect_x2; delete q.miller_rect_y2;
+      delete q.miller_rect_w;  delete q.miller_rect_h;
+      delete q.miller_rect_user_set;
+      return q;
+    }
     let c = Number.isFinite(did) ? cal.byDid.get(did) : null;
     if (!c) {
       const key = normalizeName(q.latin_std || q.latin);
