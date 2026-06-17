@@ -839,7 +839,16 @@ body, html {
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   pointer-events: auto;
   overflow: hidden;
+  transition: border-color 0.4s, box-shadow 0.4s;
 }
+#country-isolate-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 4px 8px;
+  gap: 4px;
+  white-space: nowrap;
+}
+#country-isolate-btn.hidden { display: none !important; }
 /* Mobile portrait: full screen */
 @media (pointer: coarse) and (orientation: portrait) {
   #locate-map-popup {

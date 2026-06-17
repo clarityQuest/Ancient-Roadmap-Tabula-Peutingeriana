@@ -250,8 +250,10 @@ const S = {
   segments:     [],
   mapMode:      "old",       // "old" | "new"
   selectedSegment: DEFAULT_SEGMENT,
-  markersOn:      true,
-  labelsOn:       true,
+  markersOn:       true,
+  latinLabelsOn:   false,
+  modernLabelsOn:  false,
+  countryIsolate:  (() => { try { return localStorage.getItem("tp_country_isolate") !== "0"; } catch {} return true; })(),
   activeTypes:    (() => { try { const r = localStorage.getItem("tp_active_types"); if (r) { const a = JSON.parse(r); if (Array.isArray(a) && a.length) return new Set(a); } } catch {} return new Set(["city", "temple", "spa", "road_station", "region"]); })(),
   regionSolo:     false,
   savedActiveTypes: null,
@@ -836,7 +838,7 @@ function renderMillerOverlay(ctx) {
     const isSelectedItem    = item.data_id === S.selectedDataId;
     const isCountryMatch = S.countryFilter ? placeMatchesIso2(item, S.countryFilter) : false;
     if (!isHighlightedItem && !isSelectedItem && !isCountryMatch && !S.activeTypes.has(item.type)) continue;
-    if (S.countryFilter && !isHighlightedItem && !isSelectedItem && !isCountryMatch) continue;
+    if (S.countryFilter && S.countryIsolate && !isHighlightedItem && !isSelectedItem && !isCountryMatch) continue;
     const vx1 = item.rect_x1 / MILLER_W;
     const vx2 = item.rect_x2 / MILLER_W;
     const vy1 = item.rect_y1 / MILLER_W;
@@ -892,21 +894,37 @@ function renderMillerOverlay(ctx) {
       highlightDrawn = true;
     }
 
-    if (S.labelsOn) {
-      const txt2 = stripQ(item.latin || item.latin_std || "");
-      const txt1 = truncWords(stripQ(item.modern), 4) || "";
+    if (S.latinLabelsOn || S.modernLabelsOn) {
+      const txt2 = S.latinLabelsOn ? stripQ(item.latin || item.latin_std || "") : "";
+      const txt1 = S.modernLabelsOn ? (truncWords(stripQ(item.modern), 4) || "") : "";
       if (txt1 || txt2) mLabelCandidates.push({ item, x, y, w, h, txt1, txt2, isCountryMatch });
     }
 
-    // When country filter active: draw country color outline on matching places
+    // Country filter active: highlight matching places with white + country-color frame
     if (S.countryFilter && isCountryMatch) {
       const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
       ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
       ctx.strokeStyle = fColor;
       ctx.lineWidth = 3;
-      ctx.globalAlpha = 0.9;
       ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
       ctx.restore();
+    }
+    // Non-isolated country mode: draw every place in its country color
+    if (S.countrySelectMode && !S.countryIsolate && item.country) {
+      const iso2 = dbCodesToIso2(item.country)[0];
+      const cc = iso2 ? (_countryColorMap[iso2] || null) : null;
+      if (cc && !isCountryMatch) {
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = cc;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+        ctx.restore();
+      }
     }
     // Country mode (no filter selected): draw country-colored rect border per place
     if (S.countrySelectMode && !S.countryFilter && item.country) {
@@ -937,7 +955,7 @@ function renderMillerOverlay(ctx) {
   ctx.globalAlpha = 1;
 
   // Pass 2: draw labels in priority order (cities/temples/spas first)
-  if (S.labelsOn && mLabelCandidates.length) {
+  if ((S.latinLabelsOn || S.modernLabelsOn) && mLabelCandidates.length) {
     const mfs = computeFont(zoom);
     if (mfs > 0) {
       mLabelCandidates.sort(
@@ -1045,7 +1063,7 @@ function renderMarkers() {
       ? (S.countryPlaces !== null && S.countryPlaces.has(p.data_id))
       : false;
     if (!isHighlighted && !isCountryMatch && !S.activeTypes.has(p.type)) continue;
-    if (S.countryFilter && !isHighlighted && !isCountryMatch) continue;
+    if (S.countryFilter && S.countryIsolate && !isHighlighted && !isCountryMatch) continue;
     if (p.vx < bx0 || p.vx > bx1 || p.vy < by0 || p.vy > by1) continue;
     // Country-matched places always visible regardless of zoom (like highlighted places)
     if (!isHighlighted && !isCountryMatch && !isVisibleAtZoom(p.type, zoom)) continue;
@@ -1096,9 +1114,9 @@ function renderMarkers() {
       highlightDrawn = true;
     }
 
-    if (S.labelsOn) {
-      const latin  = stripQ(p.latin_std || p.latin || null);
-      const modern = truncWords(stripQ(p.modern), 4) || null;
+    if (S.latinLabelsOn || S.modernLabelsOn) {
+      const latin  = S.latinLabelsOn ? stripQ(p.latin_std || p.latin || null) : null;
+      const modern = S.modernLabelsOn ? (truncWords(stripQ(p.modern), 4) || null) : null;
       if (latin || modern) labelCandidates.push({ p, x, y, w: rw, h: rh, cx, cy, color, isRegion, latin, modern, isCountryMatch });
     }
     rendered++;
@@ -1118,7 +1136,7 @@ function renderMarkers() {
   }
 
   // Pass 2: labels — regions inline (no budget), point features in priority order
-  if (S.labelsOn && labelCandidates.length) {
+  if ((S.latinLabelsOn || S.modernLabelsOn) && labelCandidates.length) {
     const fontSize = computeFont(zoom);
     if (fontSize > 0) {
       const regionFs  = Math.max(7, Math.round(fontSize * 1.4));
@@ -1388,8 +1406,9 @@ function syncLeafletSelectedMarker(place) {
   if (hint) { hint.textContent = "Click map or drag marker to set location"; hint.style.color = ""; }
   _leafletSelectedMarker = _leafletL.circleMarker([lat, lng], {
     radius: 15, color: "#FFD700", weight: 5,
-    fillColor: "#FFD700", fillOpacity: 0.8, interactive: false,
+    fillColor: "#FFD700", fillOpacity: 1, interactive: false,
   }).addTo(_leafletMap);
+  _leafletSelectedMarker.bringToFront();
   _leafletMap.panTo([lat, lng]);
 }
 
@@ -2230,6 +2249,14 @@ function setCountryFilter(iso2) {
     modeBar.style.setProperty("--country-color", color);
     modeBar.classList.remove("hidden");
   }
+  // Tint locate popup border with country color
+  const locatePopup = document.getElementById("locate-map-popup");
+  if (locatePopup) {
+    const color = _countryColorMap[iso2] || "#2196f3";
+    locatePopup.style.borderColor = color;
+    locatePopup.style.boxShadow = `0 8px 24px rgba(0,0,0,0.5), 0 0 0 2px ${color}55`;
+  }
+  document.getElementById("country-isolate-btn")?.classList.remove("hidden");
 }
 
 function exitCountryFilter() {
@@ -2237,9 +2264,15 @@ function exitCountryFilter() {
   S.countryPlaces = null;
   renderMarkers();
   document.getElementById("country-mode-bar")?.classList.add("hidden");
+  document.getElementById("country-isolate-btn")?.classList.add("hidden");
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = "";
   if (_leafletCountriesLayer) renderCountryLayer();
+  const locatePopup = document.getElementById("locate-map-popup");
+  if (locatePopup) {
+    locatePopup.style.borderColor = "";
+    locatePopup.style.boxShadow = "";
+  }
 }
 
 function populateCountryDropdown() {
@@ -2759,14 +2792,36 @@ function setupTypeFilters() {
     });
   }
 
-  // Labels toggle (desktop — in category popup)
-  const labelsBtn = document.getElementById("toggle-labels");
-  if (labelsBtn) {
-    labelsBtn.classList.toggle("active", S.labelsOn);
-    labelsBtn.addEventListener("click", () => {
-      S.labelsOn = !S.labelsOn;
-      labelsBtn.classList.toggle("active", S.labelsOn);
-      document.getElementById("mobile-toggle-labels")?.classList.toggle("active", S.labelsOn);
+  // Names (Latin) toggle
+  const namesBtn = document.getElementById("toggle-names");
+  if (namesBtn) {
+    namesBtn.classList.toggle("active", S.latinLabelsOn);
+    namesBtn.addEventListener("click", () => {
+      S.latinLabelsOn = !S.latinLabelsOn;
+      namesBtn.classList.toggle("active", S.latinLabelsOn);
+      document.getElementById("mobile-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
+      renderMarkers();
+    });
+  }
+  // Modern names toggle
+  const modernBtn = document.getElementById("toggle-modern");
+  if (modernBtn) {
+    modernBtn.classList.toggle("active", S.modernLabelsOn);
+    modernBtn.addEventListener("click", () => {
+      S.modernLabelsOn = !S.modernLabelsOn;
+      modernBtn.classList.toggle("active", S.modernLabelsOn);
+      document.getElementById("mobile-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
+      renderMarkers();
+    });
+  }
+  // Country isolate toggle
+  const isolateBtn = document.getElementById("country-isolate-btn");
+  if (isolateBtn) {
+    isolateBtn.classList.toggle("active", S.countryIsolate);
+    isolateBtn.addEventListener("click", () => {
+      S.countryIsolate = !S.countryIsolate;
+      isolateBtn.classList.toggle("active", S.countryIsolate);
+      try { localStorage.setItem("tp_country_isolate", S.countryIsolate ? "1" : "0"); } catch {}
       renderMarkers();
     });
   }
@@ -2891,7 +2946,8 @@ function setupMobileMenu() {
     const dispContainer = document.getElementById("mobile-display-controls");
     dispContainer.innerHTML = `
       <button class="ctrl-btn toggle-btn${S.markersOn ? " active" : ""}" id="mobile-toggle-markers">Markers</button>
-      <button class="ctrl-btn toggle-btn${S.labelsOn ? " active" : ""}" id="mobile-toggle-labels">Labels</button>
+      <button class="ctrl-btn toggle-btn${S.latinLabelsOn ? " active" : ""}" id="mobile-toggle-names">Names</button>
+      <button class="ctrl-btn toggle-btn${S.modernLabelsOn ? " active" : ""}" id="mobile-toggle-modern">Modern</button>
       <button class="ctrl-btn" id="mobile-settings-open">Developer Settings</button>
     `;
     dispContainer.querySelector("#mobile-toggle-markers").addEventListener("click", (e) => {
@@ -2900,10 +2956,16 @@ function setupMobileMenu() {
       document.getElementById("toggle-markers")?.classList.toggle("active", S.markersOn);
       renderMarkers();
     });
-    dispContainer.querySelector("#mobile-toggle-labels").addEventListener("click", (e) => {
-      S.labelsOn = !S.labelsOn;
-      e.currentTarget.classList.toggle("active", S.labelsOn);
-      document.getElementById("toggle-labels")?.classList.toggle("active", S.labelsOn);
+    dispContainer.querySelector("#mobile-toggle-names").addEventListener("click", (e) => {
+      S.latinLabelsOn = !S.latinLabelsOn;
+      e.currentTarget.classList.toggle("active", S.latinLabelsOn);
+      document.getElementById("toggle-names")?.classList.toggle("active", S.latinLabelsOn);
+      renderMarkers();
+    });
+    dispContainer.querySelector("#mobile-toggle-modern").addEventListener("click", (e) => {
+      S.modernLabelsOn = !S.modernLabelsOn;
+      e.currentTarget.classList.toggle("active", S.modernLabelsOn);
+      document.getElementById("toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
       renderMarkers();
     });
     dispContainer.querySelector("#mobile-settings-open").addEventListener("click", () => {
