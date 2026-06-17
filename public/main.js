@@ -92,7 +92,7 @@ const DB_TO_ISO2 = {
   GR:"GR", TR:"TR", BG:"BG", HR:"HR", RS:"RS", HU:"HU", SK:"SK",
   SI:"SI", SLO:"SI", RO:"RO", TN:"TN", DZ:"DZ", MA:"MA", LY:"LY",
   LAR:"LY", EG:"EG", ET:"EG", SY:"SY", SYR:"SY", JO:"JO", JOR:"JO",
-  IL:"IL", IQ:"IQ", IRQ:"IQ", IR:"IR", ARM:"AM", AZ:"AZ", GE:"GE",
+  IL:"IL", PS:"PS", IQ:"IQ", IRQ:"IQ", IR:"IR", ARM:"AM", AZ:"AZ", GE:"GE",
   AL:"AL", MK:"MK", ME:"ME", MNE:"ME", BA:"BA", BIH:"BA", NL:"NL",
   BE:"BE", B:"BE", PL:"PL", UA:"UA", RU:"RU", RUS:"RU", LB:"LB",
   RL:"LB", XK:"XK", RKS:"XK", CY:"CY", LU:"LU", DK:"DK",
@@ -951,12 +951,18 @@ function renderMillerOverlay(ctx) {
   }
   if (S.countryFilter && cBoxX1 < Infinity) {
     const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
-    const pad = 10;
+    const pad = 14;
     ctx.save();
+    ctx.setLineDash([16, 8]);
+    // White outer outline
+    ctx.globalAlpha = 0.8;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 7;
+    ctx.strokeRect(cBoxX1 - pad - 3, cBoxY1 - pad - 3, (cBoxX2 - cBoxX1) + (pad + 3) * 2, (cBoxY2 - cBoxY1) + (pad + 3) * 2);
+    // Country-color inner outline
     ctx.strokeStyle = fColor;
-    ctx.lineWidth = 3;
-    ctx.globalAlpha = 0.85;
-    ctx.setLineDash([14, 7]);
+    ctx.lineWidth = 4;
+    ctx.globalAlpha = 0.95;
     ctx.strokeRect(cBoxX1 - pad, cBoxY1 - pad, (cBoxX2 - cBoxX1) + pad * 2, (cBoxY2 - cBoxY1) + pad * 2);
     ctx.setLineDash([]);
     ctx.restore();
@@ -2369,6 +2375,8 @@ async function toggleCountryMode() {
       renderCountryLayer();
       populateCountryDropdown();
       fitLeafletToCountries();
+      // Auto-select user's GPS country if location is already known
+      if (S.userLocLat != null) locateMyCountry();
     }
     // Dim, disable interaction, and hide tooltips on roads/places panes
     const mapEl = document.getElementById("locate-leaflet-map");
@@ -2861,6 +2869,12 @@ function setupTypeFilters() {
       S.countryIsolate = !S.countryIsolate;
       isolateBtn.classList.toggle("active", S.countryIsolate);
       try { localStorage.setItem("tp_country_isolate", S.countryIsolate ? "1" : "0"); } catch {}
+      if (!S.countryIsolate) {
+        const allTypes = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state");
+        allTypes.forEach(t => S.activeTypes.add(t));
+        document.querySelectorAll("#type-filter-buttons .type-filter-btn").forEach(b => b.classList.add("active"));
+        document.getElementById("toggle-all-types")?.classList.add("active");
+      }
       renderMarkers();
     });
   }
@@ -2871,11 +2885,26 @@ function setupTypeFilters() {
   const catPopup   = document.getElementById("category-popup");
   if (catWrapper && catPopup) {
     let catTimer = null;
+    let catAutoClose = null;
     const openCat  = () => { clearTimeout(catTimer); catPopup.classList.remove("hidden"); };
     const closeCat = () => { catTimer = setTimeout(() => catPopup.classList.add("hidden"), 250); };
     catWrapper.addEventListener("mouseenter", openCat);
     catWrapper.addEventListener("mouseleave", closeCat);
-    catBtn?.addEventListener("click", () => catPopup.classList.toggle("hidden"));
+    catBtn?.addEventListener("click", () => {
+      const isNowOpen = catPopup.classList.toggle("hidden") === false || !catPopup.classList.contains("hidden");
+      if (isNowOpen && S.isMobile) {
+        clearTimeout(catAutoClose);
+        catAutoClose = setTimeout(() => catPopup.classList.add("hidden"), 1000);
+      }
+    });
+    // Click outside to close on mobile
+    document.addEventListener("click", (e) => {
+      if (!S.isMobile) return;
+      if (!catPopup.classList.contains("hidden") && !catWrapper.contains(e.target)) {
+        catPopup.classList.add("hidden");
+        clearTimeout(catAutoClose);
+      }
+    }, { capture: true });
   }
 
   // Mobile layout toggle — switches portrait info panel between full-width and compact
@@ -3170,7 +3199,7 @@ const COUNTRY_TO_ISO2 = {
   D:"DE",A:"AT",I:"IT",IT:"IT",Italy:"IT",F:"FR",E:"ES",P:"PT",H:"HU",B:"BE",
   NL:"NL",CH:"CH",CY:"CY",GB:"GB",GR:"GR",TR:"TR",BG:"BG",RO:"RO",HR:"HR",
   AL:"AL",MK:"MK",MNE:"ME",BIH:"BA",YU:"RS",SLO:"SI",RKS:"XK",V:"VA",
-  TN:"TN",DZ:"DZ",MA:"MA",LAR:"LY",IL:"IL",RL:"LB",SYR:"SY",IRQ:"IQ",
+  TN:"TN",DZ:"DZ",MA:"MA",LAR:"LY",IL:"IL",PS:"PS",RL:"LB",SYR:"SY",IRQ:"IQ",
   IR:"IR",JOR:"JO",GE:"GE",ARM:"AM",AZ:"AZ",RUS:"RU",UA:"UA",TM:"TM",
   PAK:"PK",AFG:"AF",IND:"IN",ET:"EG",IRE:"IE",NE:"NE",ML:"ML",
 };
