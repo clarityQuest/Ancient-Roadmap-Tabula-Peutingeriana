@@ -1,40 +1,50 @@
-# Tabula Peutingeriana — Interactive Map Viewer
+# Tabula Peutingeriana — Ancient Map × Modern Technology
 
-**See your country on the ancient Roman road map!**
+**Experience the 1,700-year-old Roman road map with GPS, AI, and modern interactivity.**
 
-The [Tabula Peutingeriana](https://en.wikipedia.org/wiki/Tabula_Peutingeriana) is a medieval copy of an ancient Roman road map (*cursus publicus*), charting the entire known world from Britain to India as it appeared around 300–400 AD. This project provides an interactive web viewer with a georeferenced place database of 3,900+ annotated locations.
+The [Tabula Peutingeriana](https://en.wikipedia.org/wiki/Tabula_Peutingeriana) is a medieval copy of a late-Roman road map (*cursus publicus*) showing the entire known world — from Britain to India — as it appeared around 300–400 AD. This viewer brings it into the present with GPS location, country-mode overlays, AI-translated Latin inscriptions, and a searchable database of 3,900+ annotated ancient places.
 
-## Live Viewer
+**Live:** [tabula-peutingeriana.com](https://tabula-peutingeriana.com/)
 
-- **[Map Viewer](https://clarityquest.github.io/Ancient-Roadmap-Tabula-Peutingeriana/public/index.html)**
-- **[Database Viewer](https://clarityquest.github.io/Ancient-Roadmap-Tabula-Peutingeriana/public/database_viewer.html)**
-- **[Calibration Tool](https://clarityquest.github.io/Ancient-Roadmap-Tabula-Peutingeriana/public/calibrate.html)** *(requires local server for saving)*
+---
 
-## Features
+## What You Can Do
 
-### Explore the Ancient World
-- **3,900+ place database** sourced from [tabula-peutingeriana.de](https://www.tabula-peutingeriana.de/) (M. Weber) and the Ulm tp-online database
-- **Category filters** — Major City, City, Port, Road Station, River, Lake, Island, Spa/Bath, Mountain, People/Tribes, Region, Roman Province, and more
-- **Place labels** — modern name and Latin name rendered on the map; toggle on/off via the category popup
-- **Search** by Latin or modern place name
-- **Info panel** — click any place for details: Wikipedia summary + thumbnail, Latin translation, modern equivalent, and a link to the Ulm database entry
+### Find Yourself in Antiquity
+Press the crosshair button to open the location panel. The viewer uses your GPS (or lets you click any point on an interactive modern map) to find the nearest ancient Roman road station, city, or province — and navigates directly to it on the Tabula. Works for any location on Earth; people outside the Roman Empire's extent see a directional marker at the map edge.
 
-### See Your Country on the Ancient Map!
-- **Country Mode** — click the crosshair button, then *Countries* to overlay coloured country polygons on the interactive Leaflet map; click any country to instantly highlight all its ancient Roman places on the Tabula Peutingeriana and zoom the map to fit
-- **GPS country detection** — tap *My Country* to auto-select your current country based on GPS location
-- Supports 58 countries from Portugal to India, including all Roman-era nations
+### See Your Country on the Ancient Map
+Activate **Country Mode** to overlay 58 modern country polygons on the location map. Click or tap any country — or pick from a dropdown — and the Tabula instantly highlights all of that country's ancient places in colour and zooms to fit them. Tap **My Country** for automatic GPS-based country detection. Then toggle labels to read the Latin place names in context.
 
-### Locate Yourself in Antiquity
-- **Locate Me** — press the crosshair button (⊕) to place yourself on the ancient map using GPS or by clicking the interactive map; the viewer navigates to the nearest Roman road station, city, or province with a Wikipedia preview
-- Users outside the Tabula's coverage area (Americas, Australia, East Asia) see a direction marker at the corresponding edge of the map
+> *Germany, France, Egypt, India, Palestine — click your country and see what it looked like in 300 AD.*
 
-### Latin Inscriptions — AI Translated
-- **1,100+ Latin translations** — multi-word Latin place names and inscriptions are translated into English and German by Claude AI (claude-haiku) and stored in the database; translations appear instantly in the hover tooltip and info panel without any runtime API call
-- Famous inscriptions include: *"Hic Alexander responsum accepit: usque quo Alexander?"* (Here Alexander received the answer: How far, Alexander?) and *"In his locis scorpiones nascuntur"* (In these places scorpions are born)
+### Read AI-Translated Latin Inscriptions
+Over 1,100 multi-word Latin inscriptions have been translated into English and German by Claude AI and stored in the database. Translations appear instantly on hover and in the info panel — no API calls at runtime. Famous inscriptions include:
+- *"Hic Alexander responsum accepit: usque quo Alexander?"* — Here Alexander received the answer: how far, Alexander?
+- *"In his locis scorpiones nascuntur"* — In these places scorpions are born.
 
-### Tools
-- **Calibration tool** (`calibrate.html`) — mark precise pixel positions of places on the Miller map; auto-saves to the database via the local dev server
-- **Database viewer** (`database_viewer.html`) — browse, filter, and inspect all records
+### Explore 3,900+ Annotated Places
+Every annotated place links to Wikipedia (with inline summary and thumbnail), shows its Latin name, modern equivalent, and its position in the Tabula's grid. Filter by 14 category types: major city, city, port, road station, river, lake, island, spa/bath, mountain, people/tribes, region, Roman province, and more.
+
+---
+
+## Features at a Glance
+
+| Feature | Detail |
+|---|---|
+| Deep-zoom map viewer | K. Miller 1887 facsimile via OpenSeadragon; 11 segments |
+| Place database | 3,974 records; 81% georeferenced with lat/lng |
+| Country mode | 58 countries, coloured polygon overlay, GPS auto-select |
+| GPS location | Find nearest ancient place from your real-world position |
+| AI translations | 1,100+ Latin inscriptions → English + German (offline) |
+| Wikipedia integration | Inline summary + thumbnail for all linked places |
+| Search | Latin name or modern name |
+| Category filters | 14 place types, persistent filter state |
+| Label toggles | Latin names, modern names — persisted across sessions |
+| Mobile | Portrait (bottom sheet) + landscape (side panel) layouts |
+| Free | No login, no tracking, open source |
+
+---
 
 ## Repository Structure
 
@@ -43,76 +53,85 @@ public/
   index.html                          Main viewer
   calibrate.html                      Calibration tool (requires local server)
   database_viewer.html                Place database browser
-  main.js                             Viewer logic
+  main.js                             Viewer logic (single file, ~4400 lines)
   styles.css                          Styles
   data/
-    review_places_db.json             Primary place database (~3,900 records, with latin_en/latin_de)
-    countries.geojson                 Country polygons for country-mode filter (58 countries)
+    review_places_db.json             Primary place database (~3,974 records)
+    countries.geojson                 Country polygons for country mode (58 countries)
     map_segment_bounds.json           Segment viewport bounds
+    label_params.json                 Persisted label / opacity settings
     places.json                       Derived place positions (SegIV)
     segments.json                     Segment metadata
   Tabula_Peutingeriana_-_Miller.dzi   Miller map DZI descriptor
   Tabula_Peutingeriana_-_Miller_files/ Miller map tiles
-  Readable_SegIV.dzi                  Readable SegIV descriptor
+  Readable_SegIV.dzi                  Readable SegIV descriptor (zoom focus segment)
   Readable_SegIV_files/               Readable SegIV tiles
-  Tabula_Peutingeriana_150dpi_Stitched.dzi  Stitched map descriptor
-  Tabula_Peutingeriana_150dpi_Stitched_files/ Stitched map tiles
 
 scripts/
-  server.py                           Local dev server (port 8080)
+  server.py                           Local dev server (port 8080) — required for calibration saves
   translate_latin.py                  Batch Latin→EN/DE translation via Claude API
-  build_places.py                     Build place position data
+  build_places.py                     Build place position data from calibration
   build_review_db.py                  Build/update the place database
+  prepare_countries.py                Download and filter Natural Earth GeoJSON
   weber_list.json                     Weber place list reference data
 ```
 
+---
+
 ## Running Locally
 
-The calibration tool and database saves require a local server (browser security blocks file writes).
+The calibration tool and database saves require a local server (browsers block file writes from `file://`).
 
 ```bash
 python scripts/server.py
 # → http://localhost:8080/
 ```
 
-The main viewer (`index.html`) and database viewer work directly via `file://` or any static server.
+The main viewer and database viewer work with any static server or directly from `file://`.
+
+---
 
 ## Latin Translations
 
-To regenerate or extend Latin translations:
+Translations are generated once and stored in the database — no runtime API calls needed.
 
 ```bash
 pip install anthropic
-# Set ANTHROPIC_API_KEY or use Claude Code (key auto-detected from ~/.claude/config.json)
 python scripts/translate_latin.py           # translate all pending 2+ word Latin names
 python scripts/translate_latin.py --dry-run # preview without API calls
 ```
 
-Translations are stored as `latin_en` / `latin_de` fields in `review_places_db.json` and served to the browser statically — no runtime API calls needed.
+Requires `ANTHROPIC_API_KEY` (or set via Claude Code / `~/.claude/config.json`).
 
-## Place Database
+---
 
-`public/data/review_places_db.json` contains ~3,900 records with fields:
+## Place Database Schema
+
+`public/data/review_places_db.json` — one JSON object per place:
 
 | Field | Description |
 |---|---|
 | `data_id` | Weber/tp-online numeric ID |
-| `latin` / `latin_std` | Latin name as on map / standardised |
+| `latin` / `latin_std` | Latin name as on map / standardised spelling |
 | `latin_en` / `latin_de` | AI-translated English / German |
 | `modern_preferred` | Modern place name |
 | `type` | Category (see below) |
-| `lat` / `lng` | Geographic coordinates |
-| `country` | Country code(s) (ISO2 or DB code, pipe-separated) |
+| `lat` / `lng` | Geographic coordinates (WGS84) |
+| `country` | Country code(s) — ISO2 or DB code, pipe-separated for multiple |
 | `wiki_url` | Wikipedia article URL |
 | `tabula_segment` / `tabula_row` / `tabula_col` | Grid position on the Tabula |
 | `miller_rect_x1/y1/x2/y2` | Calibrated pixel bounds on the Miller image |
 
 **Place types:** `major_city`, `city`, `port`, `road_station`, `river`, `lake`, `island`, `spa`, `mountain`, `people`, `region`, `roman_province`, `modern_state`, `water`
 
+---
+
 ## Credits
 
-- Map image: K. Miller, 1887 facsimile — public domain, via Wikimedia Commons
-- Place data: [tabula-peutingeriana.de](https://www.tabula-peutingeriana.de/) (M. Weber) and [tp-online.ku.de](https://tp-online.ku.de/) (Universität Ulm)
+- Map image: K. Miller, *Itineraria Romana* 1887 facsimile — public domain, via Wikimedia Commons
+- Original parchment: Österreichische Nationalbibliothek, Vienna — UNESCO Memory of the World (2007)
+- Place data: [tabula-peutingeriana.de](https://www.tabula-peutingeriana.de/) (M. Weber) · [tp-online.ku.de](https://tp-online.ku.de/) (Universität Ulm)
 - Road network: [OmnesViae](https://omnesviae.org)
-- Viewer: [OpenSeadragon](https://openseadragon.github.io/) · Maps: [Leaflet](https://leafletjs.com/) / OpenStreetMap
-- Latin translations: [Anthropic Claude](https://www.anthropic.com/) (claude-haiku-4-5)
+- Viewer: [OpenSeadragon](https://openseadragon.github.io/) · [Leaflet](https://leafletjs.com/) / OpenStreetMap
+- Country polygons: Natural Earth 110m
+- AI translations: [Anthropic Claude](https://www.anthropic.com/) (claude-haiku-4-5)
