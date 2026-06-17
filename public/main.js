@@ -188,6 +188,7 @@ const MAP_RUNTIME_TYPES = new Set(Object.keys(TYPE_COLORS));
 // Label rendering parameters — tunable via the settings panel, saved to label_params.json
 const LP_KEY = "tp_label_params_v1";
 const LP_DEFAULTS = {
+  countryModeOpacity: 0.35, // opacity of roads/places panes when country mode is active (0=invisible, 1=full)
   markerAlpha:       1.0,   // marker fill/stroke opacity multiplier
   fontScale:         1.0,   // marker screen size × fontScale = secondary font ceiling
   maxFontDesktop:  999,    // effectively uncapped — zoom curve drives max font
@@ -2384,12 +2385,12 @@ async function toggleCountryMode() {
     if (_leafletMap) {
       const pane = _leafletMap.getPane("overlayPane");
       if (pane) {
-        pane.style.opacity = "0.35"; pane.style.pointerEvents = "none";
+        pane.style.opacity = String(LP.countryModeOpacity); pane.style.pointerEvents = "none";
         pane.querySelectorAll("svg, canvas").forEach(el => el.style.pointerEvents = "none");
       }
       const mPane = _leafletMap.getPane("markerPane");
       if (mPane) {
-        mPane.style.opacity = "0.35"; mPane.style.pointerEvents = "none";
+        mPane.style.opacity = String(LP.countryModeOpacity); mPane.style.pointerEvents = "none";
         mPane.querySelectorAll("svg, canvas, img").forEach(el => el.style.pointerEvents = "none");
       }
     }
@@ -3632,6 +3633,9 @@ async function saveLabelParams() {
 }
 
 const SP_DEFS = [
+  { section: "Country Mode",  label: "Locate map dim opacity",   key: "countryModeOpacity",
+    min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + "%",
+    desc: "How visible roads and places on the locate map are during country mode. 0% = invisible, 100% = fully visible (no dimming). Default: 35%." },
   { section: "Markers",       label: "Marker opacity",           key: "markerAlpha",
     min: 0,   max: 1,    step: 0.05, fmt: v => Math.round(v * 100) + "%",
     desc: "Transparency of marker rectangles. 100% = fully opaque, 0% = invisible." },
@@ -3812,7 +3816,16 @@ function buildSettingsPanelBody() {
       const val = document.createElement("span");
       val.className = "sp-val";
       val.textContent = def.fmt(LP[def.key]);
-      const onChange = () => { LP[def.key] = Number(inp.value); val.textContent = def.fmt(LP[def.key]); renderMarkers(); };
+      const onChange = () => {
+        LP[def.key] = Number(inp.value); val.textContent = def.fmt(LP[def.key]);
+        if (def.key === "countryModeOpacity" && S.countrySelectMode && _leafletMap) {
+          ["overlayPane", "markerPane"].forEach(p => {
+            const pane = _leafletMap.getPane(p);
+            if (pane) pane.style.opacity = String(LP.countryModeOpacity);
+          });
+        }
+        renderMarkers();
+      };
       const inp = makeSlider(`sp-${def.key}`, def.min, def.max, def.step, LP[def.key], onChange);
       right.appendChild(wrapWithSteps(inp, onChange)); right.appendChild(val);
       row.appendChild(lbl); row.appendChild(right);
@@ -4317,8 +4330,11 @@ function runStartupDemo() {
   const showLocate = () => {
     setTimeout(() => {
       locPopup.classList.add("demo-panel-in");
-      // Activate country mode for demo (isolate is off by default)
-      if (!S.countrySelectMode) toggleCountryMode().catch(() => {});
+      // Demo: activate country mode to show the feature, then deactivate after 3s
+      if (!S.countrySelectMode) {
+        toggleCountryMode().catch(() => {});
+        setTimeout(() => { if (S.countrySelectMode) toggleCountryMode().catch(() => {}); }, 3000);
+      }
       setTimeout(() => {
         locPopup.classList.remove("demo-panel-in");
         demoFlyToButton(locPopup, "control-locate", 420, () => {});
