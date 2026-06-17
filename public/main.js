@@ -252,7 +252,7 @@ const S = {
   selectedSegment: DEFAULT_SEGMENT,
   markersOn:      true,
   labelsOn:       true,
-  activeTypes:    new Set(["city", "temple", "spa"]),
+  activeTypes:    (() => { try { const r = localStorage.getItem("tp_active_types"); if (r) { const a = JSON.parse(r); if (Array.isArray(a) && a.length) return new Set(a); } } catch {} return new Set(["city", "temple", "spa", "road_station", "region"]); })(),
   regionSolo:     false,
   savedActiveTypes: null,
   countrySelectMode: false,
@@ -2666,6 +2666,7 @@ function exitRegionSolo() {
     S.savedActiveTypes = null;
   }
   document.getElementById("region-solo-btn")?.classList.remove("active");
+  try { localStorage.setItem("tp_active_types", JSON.stringify([...S.activeTypes])); } catch {}
   document.querySelectorAll("#type-filter-buttons .type-filter-btn").forEach(b => {
     b.classList.toggle("active", S.activeTypes.has(b.dataset.type));
   });
@@ -2707,6 +2708,7 @@ function setupTypeFilters() {
       S.activeTypes.add(type);
       btn.classList.add("active");
     }
+    try { localStorage.setItem("tp_active_types", JSON.stringify([...S.activeTypes])); } catch {}
     renderMarkers();
   });
 
@@ -2724,6 +2726,7 @@ function setupTypeFilters() {
         container.querySelectorAll(".type-filter-btn").forEach(b => b.classList.add("active"));
         toggleAllBtn.classList.add("active");
       }
+      try { localStorage.setItem("tp_active_types", JSON.stringify([...S.activeTypes])); } catch {}
       renderMarkers();
     });
   }
