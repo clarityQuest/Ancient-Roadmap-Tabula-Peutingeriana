@@ -690,9 +690,9 @@ body, html {
   #attribution { display: none; }
   #settings-btn { display: none !important; }
 
-  /* Search shrinks to ~1/4 of viewport on mobile */
-  #search-container { flex: 0 0 auto; width: min(22vw, 110px); min-width: 0; margin: 0 4px; }
-  #search-input { width: 100%; min-width: 0; font-size: 16px; /* prevent iOS zoom on focus */ }
+  /* Search: wider but compact height on mobile */
+  #search-container { flex: 0 0 auto; width: min(30vw, 140px); min-width: 0; margin: 0 4px; }
+  #search-input { width: 100%; min-width: 0; font-size: 14px; height: 28px; padding: 2px 7px; }
 
   /* Info panel → left-side panel, width reduced by 1/4 */
   #info-panel {
@@ -873,10 +873,12 @@ body, html {
 #country-deactivate-btn:hover { background: rgba(80,30,20,0.55); border-color: rgba(230,140,120,0.8); }
 #country-deactivate-btn.hidden { display: none !important; }
 /* locate-map label toggle buttons */
-#locate-toggle-names, #locate-toggle-modern {
+#locate-toggle-names, #locate-toggle-modern, #locate-toggle-all-labels {
   font-size: 11px; padding: 3px 7px; gap: 3px; flex-shrink: 0;
 }
-#locate-toggle-names svg, #locate-toggle-modern svg { width: 14px !important; height: 14px !important; }
+#locate-toggle-names svg, #locate-toggle-modern svg, #locate-toggle-all-labels svg { width: 14px !important; height: 14px !important; }
+/* Combined label button — landscape only */
+#locate-toggle-all-labels { display: none; }
 /* cat-popup-btn disabled state in country mode */
 #cat-popup-btn:disabled, #cat-popup-btn.disabled {
   opacity: 0.35; pointer-events: none; cursor: not-allowed;
@@ -911,14 +913,17 @@ body, html {
     z-index: 200;
   }
 }
-/* Mobile landscape: full height, info panel bottom third, hide title, shrink header, fix category popup */
+/* Mobile landscape: full height, info panel right, hide title, shrink header, fix category popup */
 @media (pointer: coarse) and (orientation: landscape) {
   #locate-map-popup {
     top: 0 !important;
     bottom: 0 !important;
-    width: 29vw !important;
+    width: 34vw !important;
     height: 100dvh !important;
   }
+  #locate-my-country-btn { display: none !important; }
+  #locate-toggle-names, #locate-toggle-modern { display: none !important; }
+  #locate-toggle-all-labels { display: flex !important; margin-left: auto; }
   #locate-header-title { display: none; }
   #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
     width: 24px !important;

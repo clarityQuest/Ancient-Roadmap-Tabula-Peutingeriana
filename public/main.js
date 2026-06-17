@@ -2407,6 +2407,7 @@ async function toggleCountryMode() {
     document.getElementById("toggle-modern")?.classList.add("active");
     document.getElementById("locate-toggle-names")?.classList.add("active");
     document.getElementById("locate-toggle-modern")?.classList.add("active");
+    document.getElementById("locate-toggle-all-labels")?.classList.add("active");
     renderMarkers();
   } else {
     exitCountryFilter();
@@ -2440,6 +2441,7 @@ async function toggleCountryMode() {
     document.getElementById("toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
     document.getElementById("locate-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
     document.getElementById("locate-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
+    document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
     renderMarkers();
   }
 }
@@ -2863,6 +2865,7 @@ function setupTypeFilters() {
       namesBtn.classList.toggle("active", S.latinLabelsOn);
       document.getElementById("mobile-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
       document.getElementById("locate-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
+      document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
       renderMarkers();
     });
   }
@@ -2876,6 +2879,7 @@ function setupTypeFilters() {
       modernBtn.classList.toggle("active", S.modernLabelsOn);
       document.getElementById("mobile-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
       document.getElementById("locate-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
+      document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
       renderMarkers();
     });
   }
@@ -2910,9 +2914,10 @@ function setupTypeFilters() {
     };
     const openCat  = () => { clearTimeout(catTimer); catPopup.classList.remove("hidden"); };
     const closeCat = () => { catTimer = setTimeout(() => catPopup.classList.add("hidden"), 250); };
-    catWrapper.addEventListener("mouseenter", openCat);
+    catWrapper.addEventListener("mouseenter", () => { if (!S.countrySelectMode) openCat(); });
     catWrapper.addEventListener("mouseleave", closeCat);
     catBtn?.addEventListener("click", () => {
+      if (S.countrySelectMode) return;
       catPopup.classList.toggle("hidden");
       if (!catPopup.classList.contains("hidden") && S.isMobile) {
         resetCatTimer();
@@ -2944,6 +2949,7 @@ function setupTypeFilters() {
       locNamesBtn.classList.toggle("active", S.latinLabelsOn);
       document.getElementById("toggle-names")?.classList.toggle("active", S.latinLabelsOn);
       document.getElementById("mobile-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
+      document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
       renderMarkers();
     });
   }
@@ -2956,6 +2962,27 @@ function setupTypeFilters() {
       locModernBtn.classList.toggle("active", S.modernLabelsOn);
       document.getElementById("toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
       document.getElementById("mobile-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
+      document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
+      renderMarkers();
+    });
+  }
+  // Combined label toggle for landscape mobile (toggles both at once)
+  const locAllBtn = document.getElementById("locate-toggle-all-labels");
+  if (locAllBtn) {
+    locAllBtn.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
+    locAllBtn.addEventListener("click", () => {
+      const newVal = !(S.latinLabelsOn && S.modernLabelsOn);
+      S.latinLabelsOn = newVal;
+      S.modernLabelsOn = newVal;
+      try { localStorage.setItem("tp_latin_labels", newVal ? "1" : "0"); } catch {}
+      try { localStorage.setItem("tp_modern_labels", newVal ? "1" : "0"); } catch {}
+      locAllBtn.classList.toggle("active", newVal);
+      document.getElementById("toggle-names")?.classList.toggle("active", newVal);
+      document.getElementById("toggle-modern")?.classList.toggle("active", newVal);
+      document.getElementById("locate-toggle-names")?.classList.toggle("active", newVal);
+      document.getElementById("locate-toggle-modern")?.classList.toggle("active", newVal);
+      document.getElementById("mobile-toggle-names")?.classList.toggle("active", newVal);
+      document.getElementById("mobile-toggle-modern")?.classList.toggle("active", newVal);
       renderMarkers();
     });
   }
@@ -4351,22 +4378,32 @@ function runStartupDemo() {
               }, 700);
             }, 2500);
           }, 700);
-        }, 900);
+        }, 500);
       } else {
         setTimeout(() => {
           locPopup.classList.remove("demo-panel-in");
           demoFlyToButton(locPopup, "control-locate", 420, () => {});
         }, 980);
       }
-    }, 300);
+    }, 150);
   };
 
-  // Fly the about panel toward its button first, then show locate popup
+  // Pulse the locate button first, then open the popup
+  const preShowLocate = () => {
+    const locBtn = document.getElementById("control-locate");
+    if (locBtn) {
+      locBtn.classList.add("demo-btn-pulse");
+      setTimeout(() => locBtn.classList.remove("demo-btn-pulse"), 600);
+    }
+    setTimeout(showLocate, 500);
+  };
+
+  // Fly the about panel toward its button first, then pulse locate + show popup
   aboutBackdropEl?.classList.add("hidden");
   if (aboutPanelEl && !aboutPanelEl.classList.contains("hidden")) {
-    demoFlyToButton(aboutPanelEl, "about-btn", 380, showLocate, true);
+    demoFlyToButton(aboutPanelEl, "about-btn", 380, preShowLocate, true);
   } else {
-    showLocate();
+    preShowLocate();
   }
 }
 
