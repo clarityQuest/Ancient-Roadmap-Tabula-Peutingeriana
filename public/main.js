@@ -1451,7 +1451,6 @@ function showInfoPanel(place) {
   syncLeafletSelectedMarker(place);
   renderMarkers();
   infoPanelOpenedAt = Date.now();
-  if (S.isMobile) closeLocatePopup();
 
   // Enrich with allRecords data (places.json lacks ulm_img_url / ulm_id)
   if (S.allRecords.length && (!place.ulm_img_url || !place.ulm_id)) {
@@ -2291,7 +2290,6 @@ function setCountryFilter(iso2) {
     locatePopup.style.boxShadow = `0 8px 24px rgba(0,0,0,0.5), 0 0 0 2px ${color}55`;
   }
   document.getElementById("country-isolate-btn")?.classList.remove("hidden");
-  if (S.isMobile) closeLocatePopup();
 }
 
 function exitCountryFilter() {
@@ -2396,11 +2394,18 @@ async function toggleCountryMode() {
       }
     }
     document.getElementById("country-select-bar")?.classList.remove("hidden");
+    // Disable category popup button, show deactivate button
+    const cpBtn = document.getElementById("cat-popup-btn");
+    if (cpBtn) { cpBtn.setAttribute("disabled", "true"); cpBtn.classList.add("disabled"); }
+    document.getElementById("category-popup")?.classList.add("hidden");
+    document.getElementById("country-deactivate-btn")?.classList.remove("hidden");
     // Activate all labels and redraw immediately
     S.latinLabelsOn = true;
     S.modernLabelsOn = true;
     document.getElementById("toggle-names")?.classList.add("active");
     document.getElementById("toggle-modern")?.classList.add("active");
+    document.getElementById("locate-toggle-names")?.classList.add("active");
+    document.getElementById("locate-toggle-modern")?.classList.add("active");
     renderMarkers();
   } else {
     exitCountryFilter();
@@ -2423,11 +2428,17 @@ async function toggleCountryMode() {
       }
     }
     document.getElementById("country-select-bar")?.classList.add("hidden");
+    // Re-enable category popup button, hide deactivate button
+    const cpBtn = document.getElementById("cat-popup-btn");
+    if (cpBtn) { cpBtn.removeAttribute("disabled"); cpBtn.classList.remove("disabled"); }
+    document.getElementById("country-deactivate-btn")?.classList.add("hidden");
     // Restore persisted label settings
     try { S.latinLabelsOn = localStorage.getItem("tp_latin_labels") === "1"; } catch { S.latinLabelsOn = false; }
     try { S.modernLabelsOn = localStorage.getItem("tp_modern_labels") === "1"; } catch { S.modernLabelsOn = false; }
     document.getElementById("toggle-names")?.classList.toggle("active", S.latinLabelsOn);
     document.getElementById("toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
+    document.getElementById("locate-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
+    document.getElementById("locate-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
     renderMarkers();
   }
 }
@@ -2850,6 +2861,7 @@ function setupTypeFilters() {
       try { localStorage.setItem("tp_latin_labels", S.latinLabelsOn ? "1" : "0"); } catch {}
       namesBtn.classList.toggle("active", S.latinLabelsOn);
       document.getElementById("mobile-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
+      document.getElementById("locate-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
       renderMarkers();
     });
   }
@@ -2862,6 +2874,7 @@ function setupTypeFilters() {
       try { localStorage.setItem("tp_modern_labels", S.modernLabelsOn ? "1" : "0"); } catch {}
       modernBtn.classList.toggle("active", S.modernLabelsOn);
       document.getElementById("mobile-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
+      document.getElementById("locate-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
       renderMarkers();
     });
   }
@@ -2919,6 +2932,36 @@ function setupTypeFilters() {
       }
     }, { capture: true });
   }
+
+  // Label toggles in locate map (synced with main toggle-names/toggle-modern)
+  const locNamesBtn = document.getElementById("locate-toggle-names");
+  if (locNamesBtn) {
+    locNamesBtn.classList.toggle("active", S.latinLabelsOn);
+    locNamesBtn.addEventListener("click", () => {
+      S.latinLabelsOn = !S.latinLabelsOn;
+      try { localStorage.setItem("tp_latin_labels", S.latinLabelsOn ? "1" : "0"); } catch {}
+      locNamesBtn.classList.toggle("active", S.latinLabelsOn);
+      document.getElementById("toggle-names")?.classList.toggle("active", S.latinLabelsOn);
+      document.getElementById("mobile-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
+      renderMarkers();
+    });
+  }
+  const locModernBtn = document.getElementById("locate-toggle-modern");
+  if (locModernBtn) {
+    locModernBtn.classList.toggle("active", S.modernLabelsOn);
+    locModernBtn.addEventListener("click", () => {
+      S.modernLabelsOn = !S.modernLabelsOn;
+      try { localStorage.setItem("tp_modern_labels", S.modernLabelsOn ? "1" : "0"); } catch {}
+      locModernBtn.classList.toggle("active", S.modernLabelsOn);
+      document.getElementById("toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
+      document.getElementById("mobile-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
+      renderMarkers();
+    });
+  }
+  // Deactivate country mode button
+  document.getElementById("country-deactivate-btn")?.addEventListener("click", () => {
+    if (S.countrySelectMode) toggleCountryMode();
+  });
 
   // Mobile layout toggle — switches portrait info panel between full-width and compact
   const mobileLayoutToggle = document.getElementById("mobile-layout-toggle");
@@ -4273,9 +4316,9 @@ function runStartupDemo() {
 
   const showLocate = () => {
     setTimeout(() => {
-      openLocatePopup().catch(() => {});
-      locPopup.classList.remove("hidden");
       locPopup.classList.add("demo-panel-in");
+      // Activate country mode for demo (isolate is off by default)
+      if (!S.countrySelectMode) toggleCountryMode().catch(() => {});
       setTimeout(() => {
         locPopup.classList.remove("demo-panel-in");
         demoFlyToButton(locPopup, "control-locate", 420, () => {});

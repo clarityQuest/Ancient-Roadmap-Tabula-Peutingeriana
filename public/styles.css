@@ -758,13 +758,16 @@ body, html {
 
 /* Portrait mode overrides */
 @media (pointer: coarse) and (orientation: portrait) {
-  /* Info panel: right side */
+  /* Info panel: right side, 40% width, moved down 30vh */
   #info-panel {
     left: auto !important; right: 0 !important;
-    width: min(280px, 55vw) !important;
+    top: 30vh !important;
+    width: 40vw !important;
     border-radius: 12px 0 0 12px !important;
     box-shadow: -4px 0 24px rgba(0,0,0,0.6) !important;
   }
+  /* Increase panel map iframe height so location is visible */
+  #panel-map:not(.hidden) iframe { height: 220px !important; }
   /* Category popup: max 70% screen height, scrollable */
   #category-popup {
     max-height: 70svh;
@@ -860,21 +863,48 @@ body, html {
   white-space: nowrap;
 }
 #country-isolate-btn.hidden { display: none !important; }
-/* Mobile portrait: locate map 40%×40% at top-left */
+/* Deactivate country mode button */
+#country-deactivate-btn {
+  font-size: 11px; padding: 5px 8px; gap: 4px; margin-top: 2px;
+  white-space: nowrap; flex-shrink: 0;
+  border-color: rgba(220,100,80,0.45); color: rgba(230,140,120,0.9);
+}
+#country-deactivate-btn:hover { background: rgba(80,30,20,0.55); border-color: rgba(230,140,120,0.8); }
+#country-deactivate-btn.hidden { display: none !important; }
+/* locate-map label toggle buttons */
+#locate-toggle-names, #locate-toggle-modern {
+  font-size: 11px; padding: 3px 7px; gap: 3px; flex-shrink: 0;
+}
+#locate-toggle-names svg, #locate-toggle-modern svg { width: 14px !important; height: 14px !important; }
+/* cat-popup-btn disabled state in country mode */
+#cat-popup-btn:disabled, #cat-popup-btn.disabled {
+  opacity: 0.35; pointer-events: none; cursor: not-allowed;
+}
+/* On mobile: hide country-mode-exit button (redundant, deactivate is via locate map button) */
+@media (pointer: coarse) {
+  #country-mode-exit { display: none !important; }
+  /* Locate header buttons smaller, close button still tappable */
+  #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
+    width: 28px !important; height: 28px !important;
+  }
+  #locate-map-close { width: 32px !important; height: 32px !important; font-size: 22px !important; }
+}
+/* Mobile portrait: locate map full width, 40vh height at top */
 @media (pointer: coarse) and (orientation: portrait) {
   #locate-map-popup {
     position: fixed !important;
-    top: 0 !important; left: 0 !important; right: auto !important; bottom: auto !important;
-    width: 40vw !important; height: 40vh !important;
-    border-radius: 0 0 8px 0 !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: auto !important;
+    width: 100vw !important; height: 40vh !important;
+    border-radius: 0 !important;
     z-index: 200;
   }
 }
-/* Mobile landscape: full height, info panel bottom third, hide title, shrink header */
+/* Mobile landscape: full height, info panel bottom third, hide title, shrink header, fix category popup */
 @media (pointer: coarse) and (orientation: landscape) {
   #locate-map-popup {
     top: 0 !important;
     bottom: 0 !important;
+    width: 29vw !important;
     height: 100dvh !important;
   }
   #locate-header-title { display: none; }
@@ -896,6 +926,11 @@ body, html {
     max-height: none !important;
     border-radius: 8px 8px 0 0 !important;
     box-shadow: 0 -4px 24px rgba(0,0,0,0.6) !important;
+  }
+  /* Category popup: constrain to 80% screen height to prevent overflow off-screen */
+  #category-popup {
+    max-height: 80svh !important;
+    overflow-y: auto !important;
   }
 }
 /* Custom resize handles */
