@@ -1767,8 +1767,6 @@
 
   async function saveEditModal() {
     if (editingDataId == null) return;
-    const dbIdx = dbFullData.records.findIndex(r => r.data_id == editingDataId);
-    if (dbIdx < 0) { alert('Record not found'); return; }
 
     const updated = {};
     document.querySelectorAll('#edit-modal-body .edit-field-input').forEach(input => {
@@ -1782,15 +1780,20 @@
       updated[key] = val;
     });
 
-    dbFullData.records[dbIdx] = updated;
-
-    const allIdx = allRecords.findIndex(r => r.data_id == editingDataId);
-    if (allIdx >= 0) allRecords[allIdx] = { ...updated, remaining_refinement: allRecords[allIdx]?.remaining_refinement || false };
-
     const statusEl = document.getElementById('edit-modal-status');
     statusEl.textContent = 'Saving…';
     statusEl.style.color = 'var(--muted)';
     try {
+      // Re-read fresh DB so concurrent saves from calibrate.html are not overwritten
+      const freshRes = await fetch('data/review_places_db.json?' + Date.now(), { cache: 'no-store' });
+      const freshDb = await freshRes.json();
+      const freshIdx = freshDb.records.findIndex(r => r.data_id == editingDataId);
+      if (freshIdx < 0) { statusEl.textContent = 'Record not found'; return; }
+      freshDb.records[freshIdx] = updated;
+      dbFullData = freshDb;
+      const allIdx = allRecords.findIndex(r => r.data_id == editingDataId);
+      if (allIdx >= 0) allRecords[allIdx] = { ...updated, remaining_refinement: allRecords[allIdx]?.remaining_refinement || false };
+
       const res = await fetch('/api/save-calibration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1815,18 +1818,21 @@
 
   async function deleteEditModal() {
     if (editingDataId == null) return;
-    const r = dbFullData.records.find(rec => rec.data_id == editingDataId);
-    if (!r) return;
-    const name = r.latin || r.modern_preferred || String(r.data_id);
-    if (!confirm(`Delete "${name}" (data_id=${r.data_id}) from the database?\n\nThis cannot be undone.`)) return;
-    if (!confirm(`Confirm permanent deletion of data_id=${r.data_id} — "${name}"?`)) return;
-
-    dbFullData.records = dbFullData.records.filter(rec => rec.data_id != editingDataId);
-    allRecords = allRecords.filter(rec => rec.data_id != editingDataId);
-    closeEditModal();
-    applyFilters();
+    const rPreview = dbFullData.records.find(rec => rec.data_id == editingDataId);
+    const name = rPreview ? (rPreview.latin || rPreview.modern_preferred || String(rPreview.data_id)) : String(editingDataId);
+    if (!confirm(`Delete "${name}" (data_id=${editingDataId}) from the database?\n\nThis cannot be undone.`)) return;
+    if (!confirm(`Confirm permanent deletion of data_id=${editingDataId} — "${name}"?`)) return;
 
     try {
+      // Re-read fresh DB so concurrent calibrate.html saves are not overwritten
+      const freshRes = await fetch('data/review_places_db.json?' + Date.now(), { cache: 'no-store' });
+      const freshDb = await freshRes.json();
+      freshDb.records = freshDb.records.filter(rec => rec.data_id != editingDataId);
+      dbFullData = freshDb;
+      allRecords = allRecords.filter(rec => rec.data_id != editingDataId);
+      closeEditModal();
+      applyFilters();
+
       await fetch('/api/save-calibration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
