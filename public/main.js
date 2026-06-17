@@ -2152,21 +2152,23 @@ function zoomToCountryPlaces(iso2) {
     const rx2 = Math.max(...items.map(i => i.rect_x2)) / MILLER_W;
     const ry1 = Math.min(...items.map(i => i.rect_y1)) / MILLER_W;
     const ry2 = Math.max(...items.map(i => i.rect_y2)) / MILLER_W;
-    const pad = 0.02;
-    const cy = (ry1 + ry2) / 2;
+    const pad = 0.03;
     const MAX_W = 8 / SEGMENT_COUNT;
     const rawW = (rx2 - rx1) + pad * 2;
     const rawH = (ry2 - ry1) + pad * 2;
-    const w = Math.min(rawW, MAX_W);
-    const h = Math.min(rawH, MAX_W * 0.4);
-    // Shift OSD viewport left so the country's left edge appears just right of the locate popup
+    // Measure popup fraction so we can expand viewport to keep right edge visible
     let popFrac = 0;
     const locPopupEl = document.getElementById("locate-map-popup");
     if (locPopupEl && !locPopupEl.classList.contains("hidden")) {
       const vw = S.viewer.element.clientWidth;
-      if (vw > 0) popFrac = Math.min(locPopupEl.offsetWidth / vw, 0.5);
+      if (vw > 0) popFrac = Math.min(locPopupEl.offsetWidth / vw, 0.45);
     }
-    const cx = rx1 + w * (0.5 - popFrac) - pad;
+    // Expand viewport so the country fits entirely in the non-popup portion
+    const w = Math.min(popFrac > 0 ? rawW / (1 - popFrac) : rawW, MAX_W);
+    const h = Math.min(rawH, w * 0.45);
+    const cy = (ry1 + ry2) / 2;
+    // Shift center left so left edge of country aligns just after the popup
+    const cx = rx1 - pad + w * (0.5 - popFrac);
     S.viewer.viewport.fitBounds(
       new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), false
     );

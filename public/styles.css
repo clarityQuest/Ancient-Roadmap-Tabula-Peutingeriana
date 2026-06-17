@@ -316,7 +316,7 @@ body, html {
   border-color: #c8a050;
   color: #ffd080;
 }
-.toggle-btn-sm { padding: 6px 10px; font-size: 13px; }
+.toggle-btn-sm { padding: 10px 16px; font-size: 15px; min-height: 42px; gap: 8px; }
 .toggle-btn.active { border-color: var(--accent); color: var(--accent); }
 
 /* Search */
@@ -440,15 +440,15 @@ body, html {
 /* Type filter buttons */
 .type-filter-group { display: flex; gap: 3px; flex-wrap: wrap; }
 .type-filter-btn {
-  padding: 6px 10px; border-radius: 5px; border: 1px solid var(--border-color);
+  padding: 8px 13px; border-radius: 5px; border: 1px solid var(--border-color);
   background: var(--panel-bg); color: var(--text-muted);
-  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
-  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  display: flex; align-items: center; gap: 8px;
   transition: all 0.15s;
   line-height: 1;
   opacity: 0.6;
 }
-.type-filter-btn .tf-dot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+.type-filter-btn .tf-dot { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; }
 .type-filter-btn.active {
   opacity: 1;
   color: var(--text-main);
@@ -688,16 +688,16 @@ body, html {
   #bottom-left-controls { bottom: 10px; flex-direction: row; gap: 6px; align-items: center; }
   #attribution { display: none; }
 
-  /* Search fills remaining top-bar space */
-  #search-container { flex: 1; min-width: 0; margin: 0 4px; }
+  /* Search shrinks to ~1/4 of viewport on mobile */
+  #search-container { flex: 0 0 auto; width: min(22vw, 110px); min-width: 0; margin: 0 4px; }
   #search-input { width: 100%; min-width: 0; font-size: 16px; /* prevent iOS zoom on focus */ }
 
-  /* Info panel → left-side panel */
+  /* Info panel → left-side panel, width reduced by 1/4 */
   #info-panel {
     position: fixed !important;
     left: 0 !important; right: auto !important;
     top: 56px !important; bottom: 0 !important;
-    width: min(280px, 55vw) !important;
+    width: min(210px, 41vw) !important;
     max-height: none !important;
     border-radius: 0 12px 12px 0 !important;
     padding: 12px 14px 24px;
@@ -735,6 +735,20 @@ body, html {
   /* Resize handles and drag bar are not touch-friendly */
   .resize-handle { display: none; }
   #panel-drag-bar { display: none; }
+}
+
+/* Mobile: "Tabula Peutingeriana" label appears on load then slides away */
+@keyframes slideOutLabel {
+  0%   { max-width: 240px; opacity: 1; margin-left: 6px; padding-right: 4px; }
+  80%  { max-width: 240px; opacity: 1; margin-left: 6px; padding-right: 4px; }
+  100% { max-width: 0; opacity: 0; margin-left: 0; padding-right: 0; }
+}
+@media (pointer: coarse), (max-width: 699px) {
+  .about-btn-label {
+    display: inline-block !important;
+    overflow: hidden; white-space: nowrap;
+    animation: slideOutLabel 1.2s ease 2s forwards;
+  }
 }
 
 /* Portrait mode: info panel full-screen width */
@@ -826,13 +840,23 @@ body, html {
   pointer-events: auto;
   overflow: hidden;
 }
-/* Mobile portrait: nearly full-width, decent height */
-@media (max-width: 600px) and (orientation: portrait) {
-  #locate-map-popup { left: 8px; width: calc(100vw - 16px); bottom: 60px; height: auto; }
+/* Mobile portrait: full screen */
+@media (pointer: coarse) and (orientation: portrait) {
+  #locate-map-popup {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    width: 100vw !important; height: 100dvh !important;
+    border-radius: 0 !important;
+    z-index: 200;
+  }
 }
-/* Mobile landscape: narrower to leave room on the right */
-@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
-  #locate-map-popup { width: 260px; height: 200px; }
+/* Mobile landscape: full height of window */
+@media (pointer: coarse) and (orientation: landscape) {
+  #locate-map-popup {
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100dvh !important;
+  }
 }
 /* Custom resize handles */
 .resize-handle { position: absolute; bottom: 0; width: 20px; height: 20px; z-index: 10; }
