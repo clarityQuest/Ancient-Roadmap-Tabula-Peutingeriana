@@ -2912,9 +2912,9 @@ function setupTypeFilters() {
       clearTimeout(catAutoClose);
       catAutoClose = setTimeout(() => catPopup.classList.add("hidden"), 2000);
     };
-    const openCat  = () => { clearTimeout(catTimer); catPopup.classList.remove("hidden"); };
+    const openCat  = () => { if (S.countrySelectMode) return; clearTimeout(catTimer); catPopup.classList.remove("hidden"); };
     const closeCat = () => { catTimer = setTimeout(() => catPopup.classList.add("hidden"), 250); };
-    catWrapper.addEventListener("mouseenter", () => { if (!S.countrySelectMode) openCat(); });
+    catWrapper.addEventListener("mouseenter", openCat);
     catWrapper.addEventListener("mouseleave", closeCat);
     catBtn?.addEventListener("click", () => {
       if (S.countrySelectMode) return;
@@ -4358,26 +4358,28 @@ function runStartupDemo() {
     setTimeout(() => {
       locPopup.classList.add("demo-panel-in");
       if (!S.countrySelectMode) {
-        // 1) pulse the country button so user notices it
+        const countryBtn = document.getElementById("modern-state-solo-btn");
+        const pulseBtn = btn => {
+          if (!btn) return;
+          btn.classList.add("demo-btn-pulse");
+          setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
+        };
+        // 1st pulse: draw attention to the country button
         setTimeout(() => {
-          const countryBtn = document.getElementById("modern-state-solo-btn");
-          if (countryBtn) {
-            countryBtn.classList.add("demo-btn-pulse");
-            setTimeout(() => countryBtn.classList.remove("demo-btn-pulse"), 600);
-          }
-          // 2) activate country mode to show the effect
+          pulseBtn(countryBtn);
+          // 1s later: 2nd pulse simulates click — activate country mode briefly
           setTimeout(() => {
+            pulseBtn(countryBtn);
             toggleCountryMode().catch(() => {});
-            // 3) let user see the country layer for 2.5s, then deactivate
+            // Show effect for 1.2s, then deactivate and close
             setTimeout(() => {
               if (S.countrySelectMode) toggleCountryMode().catch(() => {});
-              // 4) close locate popup
               setTimeout(() => {
                 locPopup.classList.remove("demo-panel-in");
                 demoFlyToButton(locPopup, "control-locate", 420, () => {});
-              }, 700);
-            }, 2500);
-          }, 700);
+              }, 500);
+            }, 1200);
+          }, 1000);
         }, 500);
       } else {
         setTimeout(() => {
