@@ -4309,8 +4309,54 @@ function runStartupDemo() {
   const aboutBackdropEl = document.getElementById("about-modal-backdrop");
   const locPopup        = document.getElementById("locate-map-popup");
   if (!locPopup) return;
-  // Capture initial viewport so we can restore it after the country mode zoom
   const demoInitialBounds = S.viewer?.viewport?.getBounds(true);
+
+  // Abort controller — all demo timeouts register here so any interaction can cancel them
+  const ctrl = { aborted: false, ids: [] };
+  const T = (fn, delay) => {
+    const id = setTimeout(() => { if (!ctrl.aborted) fn(); }, delay);
+    ctrl.ids.push(id);
+  };
+
+  const demoCleanup = () => {
+    ctrl.aborted = true;
+    ctrl.ids.forEach(clearTimeout);
+    ctrl.ids = [];
+    document.removeEventListener("click",      onInteract, true);
+    document.removeEventListener("touchstart", onInteract, true);
+    document.removeEventListener("keydown",    onInteract, true);
+    document.removeEventListener("wheel",      onInteract, true);
+  };
+
+  // Full state reset used both by normal demo end and by abort
+  const resetDemoState = () => {
+    if (S.countrySelectMode) toggleCountryMode().catch(() => {});
+    S.countryIsolate = false;
+    document.getElementById("country-isolate-btn")?.classList.remove("active");
+    try { localStorage.setItem("tp_country_isolate", "0"); } catch {}
+    locPopup.style.transition = ""; locPopup.style.transform = ""; locPopup.style.opacity = "";
+    locPopup.classList.add("hidden"); locPopup.classList.remove("demo-panel-in");
+    document.getElementById("category-popup")?.classList.add("hidden");
+    S.activeTypes = new Set(); S.latinLabelsOn = false; S.modernLabelsOn = false;
+    try { localStorage.setItem("tp_latin_labels",  "0"); } catch {}
+    try { localStorage.setItem("tp_modern_labels", "0"); } catch {}
+    ["toggle-all-labels","locate-toggle-all-labels"].forEach(id =>
+      document.getElementById(id)?.classList.remove("active"));
+    document.getElementById("toggle-all-types")?.classList.remove("active");
+    document.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
+    renderMarkers();
+  };
+
+  // Any user interaction cancels the demo immediately
+  const onInteract = (e) => {
+    if (e.type === "keydown" && ["Control","Shift","Alt","Meta"].includes(e.key)) return;
+    demoCleanup();
+    resetDemoState();
+  };
+  document.addEventListener("click",      onInteract, { capture: true });
+  document.addEventListener("touchstart", onInteract, { capture: true });
+  document.addEventListener("keydown",    onInteract, { capture: true });
+  document.addEventListener("wheel",      onInteract, { capture: true });
 
   const pulseBtn = btn => {
     if (!btn) return;
@@ -4318,15 +4364,13 @@ function runStartupDemo() {
     setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
   };
 
-  // Called after locate popup flies away — animates category then names buttons, then resets to plain map
   const finishDemo = () => {
-    setTimeout(() => {
+    T(() => {
       const catBtn   = document.getElementById("cat-popup-btn");
       const catPopup = document.getElementById("category-popup");
       pulseBtn(catBtn);
-      setTimeout(() => {
+      T(() => {
         catPopup?.classList.remove("hidden");
-        // Activate city, temple, spa so they appear on map while popup is open
         const demoTypes = ["city", "temple", "spa"];
         S.activeTypes = new Set(demoTypes);
         document.querySelectorAll(".type-filter-btn").forEach(b =>
@@ -4334,33 +4378,19 @@ function runStartupDemo() {
         );
         document.getElementById("toggle-all-types")?.classList.remove("active");
         renderMarkers();
-        // Pulse Names button while category popup is still open
-        setTimeout(() => {
+        T(() => {
           const namesBtn2 = document.getElementById("toggle-all-labels");
           pulseBtn(namesBtn2);
-          setTimeout(() => {
-            // Activate labels so they appear on map (popup still open)
-            S.latinLabelsOn  = true;
-            S.modernLabelsOn = true;
+          T(() => {
+            S.latinLabelsOn  = true; S.modernLabelsOn = true;
             try { localStorage.setItem("tp_latin_labels",  "1"); } catch {}
             try { localStorage.setItem("tp_modern_labels", "1"); } catch {}
             namesBtn2?.classList.add("active");
             document.getElementById("locate-toggle-all-labels")?.classList.add("active");
             renderMarkers();
-            // Wait 1.5s, then close popup and clear everything to plain map
-            setTimeout(() => {
-              catPopup?.classList.add("hidden");
-              S.activeTypes    = new Set();
-              S.latinLabelsOn  = false;
-              S.modernLabelsOn = false;
-              try { localStorage.setItem("tp_latin_labels",  "0"); } catch {}
-              try { localStorage.setItem("tp_modern_labels", "0"); } catch {}
-              ["toggle-all-labels", "locate-toggle-all-labels"].forEach(id =>
-                document.getElementById(id)?.classList.remove("active")
-              );
-              document.getElementById("toggle-all-types")?.classList.remove("active");
-              document.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
-              renderMarkers();
+            T(() => {
+              demoCleanup();
+              resetDemoState();
             }, 1500);
           }, 700);
         }, 700);
@@ -4369,57 +4399,45 @@ function runStartupDemo() {
   };
 
   const showLocate = () => {
-    // Open popup immediately after locate-button pulse finishes
-    setTimeout(() => {
+    T(() => {
       locPopup.classList.add("demo-panel-in");
-      openLocatePopup().catch(() => {}); // remove hidden + start loading Leaflet now
+      openLocatePopup().catch(() => {});
       if (!S.countrySelectMode) {
         const countryBtn = document.getElementById("modern-state-solo-btn");
         const isolateBtn = document.getElementById("country-isolate-btn");
-
-        // Wait 1.5s for Leaflet tiles + country polygons to load
-        setTimeout(() => {
-          // Animate country mode button
+        T(() => {
           pulseBtn(countryBtn);
-          // Activate country mode — chain everything inside .then() so isolate
-          // only runs after GeoJSON is loaded and country-isolate-btn is visible
-          setTimeout(() => {
+          T(() => {
             toggleCountryMode().then(() => {
-              // Pick Germany so isolate has a visible effect on the Tabula
+              if (ctrl.aborted) return;
               setCountryFilter("DE");
-              // Show country mode + Italy highlighted for 1s
-              setTimeout(() => {
-                // Animate isolate button (now guaranteed visible after toggleCountryMode resolved)
+              T(() => {
                 pulseBtn(isolateBtn);
-                setTimeout(() => {
-                  // Force-activate isolate regardless of persisted state
+                T(() => {
                   S.countryIsolate = true;
                   isolateBtn?.classList.add("active");
                   try { localStorage.setItem("tp_country_isolate", "1"); } catch {}
                   renderMarkers();
-                  // Show isolate (only Italy places) for 1.5s
-                  setTimeout(() => {
-                    // Force-deactivate isolate, keep activeTypes empty so no markers show after exit
+                  T(() => {
                     S.countryIsolate = false;
                     isolateBtn?.classList.remove("active");
                     try { localStorage.setItem("tp_country_isolate", "0"); } catch {}
                     S.activeTypes = new Set();
                     if (S.countrySelectMode) toggleCountryMode().catch(() => {});
-                    setTimeout(() => {
-                      // Restore the exact viewport from before the demo started
+                    T(() => {
                       if (demoInitialBounds) S.viewer?.viewport?.fitBounds(demoInitialBounds);
                       locPopup.classList.remove("demo-panel-in");
-                      demoFlyToButton(locPopup, "control-locate", 420, finishDemo);
+                      demoFlyToButton(locPopup, "control-locate", 420,
+                        () => { if (!ctrl.aborted) finishDemo(); });
                     }, 400);
-                  }, 1500); // isolate visible for 1.5s
-                }, 700); // wait for isolate pulse
-              }, 1500); // country+Italy visible for 1.5s
+                  }, 1500);
+                }, 700);
+              }, 1500);
             }).catch(() => {});
-          }, 700); // wait for country-btn pulse
-        }, 1500); // wait for map content to load
-
+          }, 700);
+        }, 1500);
       } else {
-        setTimeout(() => {
+        T(() => {
           locPopup.classList.remove("demo-panel-in");
           demoFlyToButton(locPopup, "control-locate", 420, () => {});
         }, 980);
@@ -4427,19 +4445,18 @@ function runStartupDemo() {
     }, 50);
   };
 
-  // 200ms after about-btn animation → pulse locate button + open popup simultaneously
   const preShowLocate = () => {
-    setTimeout(() => {
+    T(() => {
       const locBtn = document.getElementById("control-locate");
       pulseBtn(locBtn);
-      showLocate(); // open immediately as pulse starts
+      showLocate();
     }, 200);
   };
 
-  // Fly about panel away first, then start locate sequence
   aboutBackdropEl?.classList.add("hidden");
   if (aboutPanelEl && !aboutPanelEl.classList.contains("hidden")) {
-    demoFlyToButton(aboutPanelEl, "about-btn", 380, preShowLocate, true);
+    demoFlyToButton(aboutPanelEl, "about-btn", 380,
+      () => { if (!ctrl.aborted) preShowLocate(); }, true);
   } else {
     preShowLocate();
   }
