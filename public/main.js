@@ -4399,14 +4399,14 @@ function runStartupDemo() {
                   renderMarkers();
                   // Show isolate (only Italy places) for 1.5s
                   setTimeout(() => {
-                    // Force-deactivate isolate and restore all types
+                    // Force-deactivate isolate, keep activeTypes empty so no markers show after exit
                     S.countryIsolate = false;
                     isolateBtn?.classList.remove("active");
                     try { localStorage.setItem("tp_country_isolate", "0"); } catch {}
-                    const allT = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state");
-                    allT.forEach(t => S.activeTypes.add(t));
+                    S.activeTypes = new Set();
                     if (S.countrySelectMode) toggleCountryMode().catch(() => {});
                     setTimeout(() => {
+                      S.viewer?.viewport?.goHome(); // reset zoom/pan to full map view
                       locPopup.classList.remove("demo-panel-in");
                       demoFlyToButton(locPopup, "control-locate", 420, finishDemo);
                     }, 400);
