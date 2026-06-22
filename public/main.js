@@ -4366,28 +4366,30 @@ function runStartupDemo() {
         setTimeout(() => {
           // Animate country mode button
           pulseBtn(countryBtn);
-          // Activate country mode after pulse finishes
+          // Activate country mode — chain everything inside .then() so isolate
+          // only runs after GeoJSON is loaded and country-isolate-btn is visible
           setTimeout(() => {
-            toggleCountryMode().catch(() => {});
-            // Show country mode for 1s
-            setTimeout(() => {
-              // Animate isolate button
-              pulseBtn(isolateBtn);
-              // Activate isolate after pulse finishes
+            toggleCountryMode().then(() => {
+              // Pick Italy as demo country so isolate has a visible effect
+              setCountryFilter("IT");
+              // Show country mode + Italy highlighted for 1s
               setTimeout(() => {
-                if (!S.countryIsolate && isolateBtn) isolateBtn.click();
-                // Show isolate for 1s
+                // Animate isolate button (now guaranteed visible)
+                pulseBtn(isolateBtn);
                 setTimeout(() => {
-                  // Reset isolate, exit country mode, then close locate popup
-                  if (S.countryIsolate && isolateBtn) isolateBtn.click();
-                  if (S.countrySelectMode) toggleCountryMode().catch(() => {});
+                  if (!S.countryIsolate && isolateBtn) isolateBtn.click();
+                  // Show isolate (only Italy places) for 1s
                   setTimeout(() => {
-                    locPopup.classList.remove("demo-panel-in");
-                    demoFlyToButton(locPopup, "control-locate", 420, finishDemo);
-                  }, 400);
-                }, 1000); // isolate visible for 1s
-              }, 700); // wait for isolate-btn pulse
-            }, 1000); // country mode visible for 1s
+                    if (S.countryIsolate && isolateBtn) isolateBtn.click();
+                    if (S.countrySelectMode) toggleCountryMode().catch(() => {});
+                    setTimeout(() => {
+                      locPopup.classList.remove("demo-panel-in");
+                      demoFlyToButton(locPopup, "control-locate", 420, finishDemo);
+                    }, 400);
+                  }, 1000); // isolate visible for 1s
+                }, 700); // wait for isolate pulse
+              }, 1000); // country+Italy visible for 1s
+            }).catch(() => {});
           }, 700); // wait for country-btn pulse
         }, 1500); // wait for map content to load
 
