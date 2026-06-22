@@ -861,7 +861,7 @@ function renderMillerOverlay(ctx) {
       if (y + h > cBoxY2) cBoxY2 = y + h;
     }
 
-    if (S.markersOn) {
+    if (S.markersOn && !S.countrySelectMode) {
       const ma = LP.markerAlpha ?? 1.0;
       const isArea = ["region", "roman_province", "modern_state", "people"].includes(item.type);
       if (isArea) {
@@ -1097,7 +1097,7 @@ function renderMarkers() {
       if (y + rh > cBoxY2) cBoxY2 = y + rh;
     }
 
-    if (S.markersOn) {
+    if (S.markersOn && !S.countrySelectMode) {
       const ma = LP.markerAlpha ?? 1.0;
       if (isRegion) {
         ctx.fillStyle = color;
@@ -2401,11 +2401,6 @@ async function toggleCountryMode() {
     if (cpBtn) { cpBtn.setAttribute("disabled", "true"); cpBtn.classList.add("disabled"); }
     document.getElementById("category-popup")?.classList.add("hidden");
     document.getElementById("country-deactivate-btn")?.classList.remove("hidden");
-    // Activate all labels and redraw immediately
-    S.latinLabelsOn = true;
-    S.modernLabelsOn = true;
-    document.getElementById("toggle-all-labels")?.classList.add("active");
-    document.getElementById("locate-toggle-all-labels")?.classList.add("active");
     renderMarkers();
   } else {
     exitCountryFilter();
@@ -2593,8 +2588,9 @@ function toggleLeafletPlaces() {
         const name = r.latin_std || r.latin || r.modern || "";
         const isSeg1 = false;
         const color = TYPE_COLORS[r.type] || "#D97706";
+        const dotR = S.isMobile ? (isSeg1 ? 1.5 : 2.2) : (isSeg1 ? 3.2 : 4.8);
         const m = _leafletL.circleMarker([rlat, rlng], {
-          radius: isSeg1 ? 3.2 : 4.8, color, weight: 1.5, fillColor: color,
+          radius: dotR, color, weight: S.isMobile ? 0.8 : 1.5, fillColor: color,
           fillOpacity: isSeg1 ? 0.4 : 0.75,
         });
         const tooltip = isSeg1 ? (name ? `${name} [Segment I — lost]` : "[Segment I — lost]") : name;
