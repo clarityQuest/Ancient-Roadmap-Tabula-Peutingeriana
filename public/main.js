@@ -4347,7 +4347,7 @@ function runStartupDemo() {
             namesBtn2?.classList.add("active");
             document.getElementById("locate-toggle-all-labels")?.classList.add("active");
             renderMarkers();
-            // Wait 1s, then close popup and clear everything to plain map
+            // Wait 1.5s, then close popup and clear everything to plain map
             setTimeout(() => {
               catPopup?.classList.add("hidden");
               S.activeTypes    = new Set();
@@ -4361,7 +4361,7 @@ function runStartupDemo() {
               document.getElementById("toggle-all-types")?.classList.remove("active");
               document.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
               renderMarkers();
-            }, 1000);
+            }, 1500);
           }, 700);
         }, 700);
       }, 700);
@@ -4397,7 +4397,7 @@ function runStartupDemo() {
                   isolateBtn?.classList.add("active");
                   try { localStorage.setItem("tp_country_isolate", "1"); } catch {}
                   renderMarkers();
-                  // Show isolate (only Italy places) for 1s
+                  // Show isolate (only Italy places) for 1.5s
                   setTimeout(() => {
                     // Force-deactivate isolate and restore all types
                     S.countryIsolate = false;
@@ -4410,9 +4410,9 @@ function runStartupDemo() {
                       locPopup.classList.remove("demo-panel-in");
                       demoFlyToButton(locPopup, "control-locate", 420, finishDemo);
                     }, 400);
-                  }, 1000); // isolate visible for 1s
+                  }, 1500); // isolate visible for 1.5s
                 }, 700); // wait for isolate pulse
-              }, 1000); // country+Italy visible for 1s
+              }, 1500); // country+Italy visible for 1.5s
             }).catch(() => {});
           }, 700); // wait for country-btn pulse
         }, 1500); // wait for map content to load
