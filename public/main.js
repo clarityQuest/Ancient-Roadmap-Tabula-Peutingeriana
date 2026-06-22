@@ -2395,6 +2395,7 @@ async function toggleCountryMode() {
       }
     }
     document.getElementById("country-select-bar")?.classList.remove("hidden");
+    document.getElementById("country-isolate-btn")?.classList.remove("hidden");
     // Disable category popup button, show deactivate button
     const cpBtn = document.getElementById("cat-popup-btn");
     if (cpBtn) { cpBtn.setAttribute("disabled", "true"); cpBtn.classList.add("disabled"); }
@@ -2430,6 +2431,7 @@ async function toggleCountryMode() {
       }
     }
     document.getElementById("country-select-bar")?.classList.add("hidden");
+    document.getElementById("country-isolate-btn")?.classList.add("hidden");
     // Re-enable category popup button, hide deactivate button
     const cpBtn = document.getElementById("cat-popup-btn");
     if (cpBtn) { cpBtn.removeAttribute("disabled"); cpBtn.classList.remove("disabled"); }
@@ -4355,39 +4357,53 @@ function runStartupDemo() {
   if (!locPopup) return;
 
   const showLocate = () => {
+    // Open faster (50ms) so the popup appears right after the locate-button pulse
     setTimeout(() => {
       locPopup.classList.add("demo-panel-in");
       if (!S.countrySelectMode) {
-        const countryBtn = document.getElementById("modern-state-solo-btn");
+        const countryBtn  = document.getElementById("modern-state-solo-btn");
+        const isolateBtn  = document.getElementById("country-isolate-btn");
         const pulseBtn = btn => {
           if (!btn) return;
           btn.classList.add("demo-btn-pulse");
           setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
         };
-        // 1st pulse: draw attention to the country button
+        // Wait for Leaflet content to load, then start animating
         setTimeout(() => {
+          // 1st country button pulse — draw attention
           pulseBtn(countryBtn);
-          // 1s later: 2nd pulse simulates click — activate country mode briefly
+          // 1s later: 2nd pulse simulates the click — activate country mode
           setTimeout(() => {
             pulseBtn(countryBtn);
             toggleCountryMode().catch(() => {});
-            // Show effect for 1.2s, then deactivate and close
+            // Wait so user can see countries coloured on the map
             setTimeout(() => {
-              if (S.countrySelectMode) toggleCountryMode().catch(() => {});
+              // Pulse isolate button, then click it to show the effect
+              pulseBtn(isolateBtn);
               setTimeout(() => {
-                locPopup.classList.remove("demo-panel-in");
-                demoFlyToButton(locPopup, "control-locate", 420, () => {});
-              }, 500);
-            }, 1200);
+                if (isolateBtn && !S.countryIsolate) isolateBtn.click();
+                // Wait briefly so user sees the isolated view
+                setTimeout(() => {
+                  // Reset isolate and deactivate country mode cleanly
+                  if (S.countryIsolate && isolateBtn) isolateBtn.click();
+                  if (S.countrySelectMode) toggleCountryMode().catch(() => {});
+                  // Close the popup
+                  setTimeout(() => {
+                    locPopup.classList.remove("demo-panel-in");
+                    demoFlyToButton(locPopup, "control-locate", 420, () => {});
+                  }, 400);
+                }, 1200);
+              }, 400);
+            }, 2000);
           }, 1000);
-        }, 500);
+        }, 1500); // wait for Leaflet map tiles and country polygons to load
       } else {
         setTimeout(() => {
           locPopup.classList.remove("demo-panel-in");
           demoFlyToButton(locPopup, "control-locate", 420, () => {});
         }, 980);
       }
-    }, 150);
+    }, 50);
   };
 
   // Pulse the locate button first, then open the popup
