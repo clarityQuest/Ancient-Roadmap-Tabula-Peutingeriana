@@ -4019,8 +4019,19 @@ async function init() {
     showNavigator: true,
     navigatorPosition: "BOTTOM_RIGHT",
     navigatorAutoFade: true,
-    navigatorHeight: Math.min(182, Math.round(window.innerHeight * 0.15)) + "px",
-    navigatorWidth:  Math.round(Math.min(182, Math.round(window.innerHeight * 0.15)) * (1144 / 182)) + "px",
+    navigatorHeight: (() => {
+      const RATIO = 46380 / 2953; // actual Miller DZI aspect ratio
+      const maxH = Math.round(window.innerHeight / 6);
+      const maxW = Math.round(window.innerWidth  / 2);
+      const w = Math.round(maxH * RATIO);
+      return (w > maxW ? Math.round(maxW / RATIO) : maxH) + "px";
+    })(),
+    navigatorWidth: (() => {
+      const RATIO = 46380 / 2953;
+      const maxH = Math.round(window.innerHeight / 6);
+      const maxW = Math.round(window.innerWidth  / 2);
+      return Math.min(Math.round(maxH * RATIO), maxW) + "px";
+    })(),
     defaultZoomLevel: 0,
     minZoomLevel: 0,
     maxZoomLevel: 80,
@@ -4319,6 +4330,14 @@ function runStartupDemo() {
       pulseBtn(catBtn);
       setTimeout(() => {
         catPopup?.classList.remove("hidden");
+        // Activate city, temple, spa so they appear on map while popup is open
+        const demoTypes = ["city", "temple", "spa"];
+        S.activeTypes = new Set(demoTypes);
+        document.querySelectorAll(".type-filter-btn").forEach(b =>
+          b.classList.toggle("active", demoTypes.includes(b.dataset.type))
+        );
+        document.getElementById("toggle-all-types")?.classList.remove("active");
+        renderMarkers();
         // Pulse Names button while category popup is still open
         setTimeout(() => {
           const namesBtn2 = document.getElementById("toggle-all-labels");
