@@ -4435,12 +4435,12 @@ function runStartupDemo() {
     }, 50);
   };
 
-  // 200ms after about-btn animation → pulse locate button → open popup after pulse
+  // 200ms after about-btn animation → pulse locate button + open popup simultaneously
   const preShowLocate = () => {
     setTimeout(() => {
       const locBtn = document.getElementById("control-locate");
       pulseBtn(locBtn);
-      setTimeout(showLocate, 700); // open after pulse finishes
+      showLocate(); // open immediately as pulse starts
     }, 200);
   };
 
