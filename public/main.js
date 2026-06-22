@@ -2376,8 +2376,6 @@ async function toggleCountryMode() {
       renderCountryLayer();
       populateCountryDropdown();
       fitLeafletToCountries();
-      // Auto-select user's GPS country if location is already known
-      if (S.userLocLat != null) locateMyCountry();
     }
     // Dim, disable interaction, and hide tooltips on roads/places panes
     const mapEl = document.getElementById("locate-leaflet-map");
@@ -4311,6 +4309,8 @@ function runStartupDemo() {
   const aboutBackdropEl = document.getElementById("about-modal-backdrop");
   const locPopup        = document.getElementById("locate-map-popup");
   if (!locPopup) return;
+  // Capture initial viewport so we can restore it after the country mode zoom
+  const demoInitialBounds = S.viewer?.viewport?.getBounds(true);
 
   const pulseBtn = btn => {
     if (!btn) return;
@@ -4385,8 +4385,8 @@ function runStartupDemo() {
           // only runs after GeoJSON is loaded and country-isolate-btn is visible
           setTimeout(() => {
             toggleCountryMode().then(() => {
-              // Pick Italy so isolate has a visible effect on the Tabula
-              setCountryFilter("IT");
+              // Pick Germany so isolate has a visible effect on the Tabula
+              setCountryFilter("DE");
               // Show country mode + Italy highlighted for 1s
               setTimeout(() => {
                 // Animate isolate button (now guaranteed visible after toggleCountryMode resolved)
@@ -4406,7 +4406,8 @@ function runStartupDemo() {
                     S.activeTypes = new Set();
                     if (S.countrySelectMode) toggleCountryMode().catch(() => {});
                     setTimeout(() => {
-                      S.viewer?.viewport?.goHome(); // reset zoom/pan to full map view
+                      // Restore the exact viewport from before the demo started
+                      if (demoInitialBounds) S.viewer?.viewport?.fitBounds(demoInitialBounds);
                       locPopup.classList.remove("demo-panel-in");
                       demoFlyToButton(locPopup, "control-locate", 420, finishDemo);
                     }, 400);
