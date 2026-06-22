@@ -764,7 +764,7 @@ body, html {
   #info-panel {
     left: 0 !important; right: 0 !important;
     bottom: 0 !important; top: auto !important;
-    width: 100% !important; height: 42vh !important;
+    width: 100% !important; height: 33vh !important;
     border-radius: 10px 10px 0 0 !important;
     box-shadow: 0 -4px 24px rgba(0,0,0,0.6) !important;
   }
