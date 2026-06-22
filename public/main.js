@@ -4393,6 +4393,7 @@ function runStartupDemo() {
     // Open popup immediately after locate-button pulse finishes
     setTimeout(() => {
       locPopup.classList.add("demo-panel-in");
+      openLocatePopup().catch(() => {}); // remove hidden + start loading Leaflet now
       if (!S.countrySelectMode) {
         const countryBtn = document.getElementById("modern-state-solo-btn");
         const isolateBtn = document.getElementById("country-isolate-btn");
