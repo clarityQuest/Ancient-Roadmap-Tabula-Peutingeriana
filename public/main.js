@@ -2404,10 +2404,7 @@ async function toggleCountryMode() {
     // Activate all labels and redraw immediately
     S.latinLabelsOn = true;
     S.modernLabelsOn = true;
-    document.getElementById("toggle-names")?.classList.add("active");
-    document.getElementById("toggle-modern")?.classList.add("active");
-    document.getElementById("locate-toggle-names")?.classList.add("active");
-    document.getElementById("locate-toggle-modern")?.classList.add("active");
+    document.getElementById("toggle-all-labels")?.classList.add("active");
     document.getElementById("locate-toggle-all-labels")?.classList.add("active");
     renderMarkers();
   } else {
@@ -2439,10 +2436,7 @@ async function toggleCountryMode() {
     // Restore persisted label settings
     try { S.latinLabelsOn = localStorage.getItem("tp_latin_labels") === "1"; } catch { S.latinLabelsOn = false; }
     try { S.modernLabelsOn = localStorage.getItem("tp_modern_labels") === "1"; } catch { S.modernLabelsOn = false; }
-    document.getElementById("toggle-names")?.classList.toggle("active", S.latinLabelsOn);
-    document.getElementById("toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
-    document.getElementById("locate-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
-    document.getElementById("locate-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
+    document.getElementById("toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
     document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
     renderMarkers();
   }
@@ -2857,31 +2851,18 @@ function setupTypeFilters() {
     });
   }
 
-  // Names (Latin) toggle
-  const namesBtn = document.getElementById("toggle-names");
-  if (namesBtn) {
-    namesBtn.classList.toggle("active", S.latinLabelsOn);
-    namesBtn.addEventListener("click", () => {
-      S.latinLabelsOn = !S.latinLabelsOn;
-      try { localStorage.setItem("tp_latin_labels", S.latinLabelsOn ? "1" : "0"); } catch {}
-      namesBtn.classList.toggle("active", S.latinLabelsOn);
-      document.getElementById("mobile-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
-      document.getElementById("locate-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
-      document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
-      renderMarkers();
-    });
-  }
-  // Modern names toggle
-  const modernBtn = document.getElementById("toggle-modern");
-  if (modernBtn) {
-    modernBtn.classList.toggle("active", S.modernLabelsOn);
-    modernBtn.addEventListener("click", () => {
-      S.modernLabelsOn = !S.modernLabelsOn;
-      try { localStorage.setItem("tp_modern_labels", S.modernLabelsOn ? "1" : "0"); } catch {}
-      modernBtn.classList.toggle("active", S.modernLabelsOn);
-      document.getElementById("mobile-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
-      document.getElementById("locate-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
-      document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
+  // Combined names toggle (Latin + Modern together)
+  const allLabelsBtn = document.getElementById("toggle-all-labels");
+  if (allLabelsBtn) {
+    allLabelsBtn.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
+    allLabelsBtn.addEventListener("click", () => {
+      const newVal = !(S.latinLabelsOn && S.modernLabelsOn);
+      S.latinLabelsOn  = newVal;
+      S.modernLabelsOn = newVal;
+      try { localStorage.setItem("tp_latin_labels",  newVal ? "1" : "0"); } catch {}
+      try { localStorage.setItem("tp_modern_labels", newVal ? "1" : "0"); } catch {}
+      allLabelsBtn.classList.toggle("active", newVal);
+      document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", newVal);
       renderMarkers();
     });
   }
@@ -2941,50 +2922,18 @@ function setupTypeFilters() {
     }, { capture: true });
   }
 
-  // Label toggles in locate map (synced with main toggle-names/toggle-modern)
-  const locNamesBtn = document.getElementById("locate-toggle-names");
-  if (locNamesBtn) {
-    locNamesBtn.classList.toggle("active", S.latinLabelsOn);
-    locNamesBtn.addEventListener("click", () => {
-      S.latinLabelsOn = !S.latinLabelsOn;
-      try { localStorage.setItem("tp_latin_labels", S.latinLabelsOn ? "1" : "0"); } catch {}
-      locNamesBtn.classList.toggle("active", S.latinLabelsOn);
-      document.getElementById("toggle-names")?.classList.toggle("active", S.latinLabelsOn);
-      document.getElementById("mobile-toggle-names")?.classList.toggle("active", S.latinLabelsOn);
-      document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
-      renderMarkers();
-    });
-  }
-  const locModernBtn = document.getElementById("locate-toggle-modern");
-  if (locModernBtn) {
-    locModernBtn.classList.toggle("active", S.modernLabelsOn);
-    locModernBtn.addEventListener("click", () => {
-      S.modernLabelsOn = !S.modernLabelsOn;
-      try { localStorage.setItem("tp_modern_labels", S.modernLabelsOn ? "1" : "0"); } catch {}
-      locModernBtn.classList.toggle("active", S.modernLabelsOn);
-      document.getElementById("toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
-      document.getElementById("mobile-toggle-modern")?.classList.toggle("active", S.modernLabelsOn);
-      document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
-      renderMarkers();
-    });
-  }
-  // Combined label toggle for landscape mobile (toggles both at once)
+  // Combined label toggle in locate map (synced with toolbar toggle-all-labels)
   const locAllBtn = document.getElementById("locate-toggle-all-labels");
   if (locAllBtn) {
     locAllBtn.classList.toggle("active", S.latinLabelsOn && S.modernLabelsOn);
     locAllBtn.addEventListener("click", () => {
       const newVal = !(S.latinLabelsOn && S.modernLabelsOn);
-      S.latinLabelsOn = newVal;
+      S.latinLabelsOn  = newVal;
       S.modernLabelsOn = newVal;
-      try { localStorage.setItem("tp_latin_labels", newVal ? "1" : "0"); } catch {}
+      try { localStorage.setItem("tp_latin_labels",  newVal ? "1" : "0"); } catch {}
       try { localStorage.setItem("tp_modern_labels", newVal ? "1" : "0"); } catch {}
       locAllBtn.classList.toggle("active", newVal);
-      document.getElementById("toggle-names")?.classList.toggle("active", newVal);
-      document.getElementById("toggle-modern")?.classList.toggle("active", newVal);
-      document.getElementById("locate-toggle-names")?.classList.toggle("active", newVal);
-      document.getElementById("locate-toggle-modern")?.classList.toggle("active", newVal);
-      document.getElementById("mobile-toggle-names")?.classList.toggle("active", newVal);
-      document.getElementById("mobile-toggle-modern")?.classList.toggle("active", newVal);
+      document.getElementById("toggle-all-labels")?.classList.toggle("active", newVal);
       renderMarkers();
     });
   }
@@ -4362,28 +4311,39 @@ function runStartupDemo() {
     setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
   };
 
-  // Called after locate popup flies away — animates category button then resets to plain map
+  // Called after locate popup flies away — animates category then names buttons, then resets to plain map
   const finishDemo = () => {
     setTimeout(() => {
       const catBtn   = document.getElementById("cat-popup-btn");
       const catPopup = document.getElementById("category-popup");
       pulseBtn(catBtn);
-      // Open category popup after pulse finishes
       setTimeout(() => {
         catPopup?.classList.remove("hidden");
-        // Show for 1s, then close and reset map to clean state
         setTimeout(() => {
           catPopup?.classList.add("hidden");
-          S.activeTypes    = new Set();
-          S.latinLabelsOn  = false;
-          S.modernLabelsOn = false;
-          try { localStorage.setItem("tp_latin_labels",  "0"); } catch {}
-          try { localStorage.setItem("tp_modern_labels", "0"); } catch {}
-          ["toggle-names","toggle-modern","mobile-toggle-names","mobile-toggle-modern",
-           "locate-toggle-names","locate-toggle-modern","locate-toggle-all-labels"].forEach(id =>
-            document.getElementById(id)?.classList.remove("active")
-          );
-          renderMarkers();
+          // Animate the Names button, show labels, then clear to plain map
+          const namesBtn2 = document.getElementById("toggle-all-labels");
+          pulseBtn(namesBtn2);
+          setTimeout(() => {
+            S.latinLabelsOn  = true;
+            S.modernLabelsOn = true;
+            try { localStorage.setItem("tp_latin_labels",  "1"); } catch {}
+            try { localStorage.setItem("tp_modern_labels", "1"); } catch {}
+            namesBtn2?.classList.add("active");
+            document.getElementById("locate-toggle-all-labels")?.classList.add("active");
+            renderMarkers();
+            setTimeout(() => {
+              S.activeTypes    = new Set();
+              S.latinLabelsOn  = false;
+              S.modernLabelsOn = false;
+              try { localStorage.setItem("tp_latin_labels",  "0"); } catch {}
+              try { localStorage.setItem("tp_modern_labels", "0"); } catch {}
+              ["toggle-all-labels", "locate-toggle-all-labels"].forEach(id =>
+                document.getElementById(id)?.classList.remove("active")
+              );
+              renderMarkers();
+            }, 1000);
+          }, 700);
         }, 1000);
       }, 700);
     }, 200);

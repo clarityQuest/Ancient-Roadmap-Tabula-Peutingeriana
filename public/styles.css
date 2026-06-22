@@ -879,8 +879,8 @@ body, html {
   font-size: 11px; padding: 3px 7px; gap: 3px; flex-shrink: 0;
 }
 #locate-toggle-names svg, #locate-toggle-modern svg, #locate-toggle-all-labels svg { width: 14px !important; height: 14px !important; }
-/* Combined label button — landscape only */
-#locate-toggle-all-labels { display: none; }
+/* Individual label buttons hidden; combined always visible */
+#locate-toggle-names, #locate-toggle-modern { display: none !important; }
 /* cat-popup-btn disabled state in country mode */
 #cat-popup-btn:disabled, #cat-popup-btn.disabled {
   opacity: 0.35; pointer-events: none; cursor: not-allowed;
@@ -924,8 +924,6 @@ body, html {
     height: 100dvh !important;
   }
   #locate-my-country-btn { display: none !important; }
-  #locate-toggle-names, #locate-toggle-modern { display: none !important; }
-  #locate-toggle-all-labels { display: flex !important; margin-left: auto; }
   #locate-header-title { display: none; }
   #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
     width: 24px !important;
