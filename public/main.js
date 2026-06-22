@@ -4018,7 +4018,8 @@ async function init() {
       const maxH = Math.round(window.innerHeight / 6);
       const maxW = Math.round(window.innerWidth  / 2);
       const w = Math.round(maxH * RATIO);
-      return (w > maxW ? Math.round(maxW / RATIO) : maxH) + "px";
+      const h = w > maxW ? Math.round(maxW / RATIO) : maxH;
+      return Math.round(h * 1.4) + "px"; // 40% extra height → ~20% black top+bottom
     })(),
     navigatorWidth: (() => {
       const RATIO = 46380 / 2953;
