@@ -910,7 +910,7 @@ body, html {
   #locate-map-popup {
     position: fixed !important;
     top: 0 !important; left: 0 !important; right: 0 !important; bottom: auto !important;
-    width: 100vw !important; height: 40vh !important;
+    width: 100vw !important; height: 15vh !important;
     border-radius: 0 !important;
     z-index: 200;
   }
@@ -920,7 +920,7 @@ body, html {
   #locate-map-popup {
     top: 0 !important;
     bottom: 0 !important;
-    width: 34vw !important;
+    width: 29vw !important;
     height: 100dvh !important;
   }
   #locate-my-country-btn { display: none !important; }
@@ -942,7 +942,7 @@ body, html {
   #info-panel {
     left: auto !important; right: 0 !important;
     top: 0 !important; bottom: 0 !important;
-    width: 30vw !important; height: auto !important;
+    width: 25.5vw !important; height: auto !important;
     max-height: none !important;
     border-radius: 12px 0 0 12px !important;
     box-shadow: -4px 0 24px rgba(0,0,0,0.6) !important;
