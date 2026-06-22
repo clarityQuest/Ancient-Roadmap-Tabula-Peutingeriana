@@ -4319,12 +4319,12 @@ function runStartupDemo() {
       pulseBtn(catBtn);
       setTimeout(() => {
         catPopup?.classList.remove("hidden");
+        // Pulse Names button while category popup is still open
         setTimeout(() => {
-          catPopup?.classList.add("hidden");
-          // Animate the Names button, show labels, then clear to plain map
           const namesBtn2 = document.getElementById("toggle-all-labels");
           pulseBtn(namesBtn2);
           setTimeout(() => {
+            // Activate labels so they appear on map (popup still open)
             S.latinLabelsOn  = true;
             S.modernLabelsOn = true;
             try { localStorage.setItem("tp_latin_labels",  "1"); } catch {}
@@ -4332,7 +4332,9 @@ function runStartupDemo() {
             namesBtn2?.classList.add("active");
             document.getElementById("locate-toggle-all-labels")?.classList.add("active");
             renderMarkers();
+            // Wait 1s, then close popup and clear everything to plain map
             setTimeout(() => {
+              catPopup?.classList.add("hidden");
               S.activeTypes    = new Set();
               S.latinLabelsOn  = false;
               S.modernLabelsOn = false;
@@ -4341,10 +4343,12 @@ function runStartupDemo() {
               ["toggle-all-labels", "locate-toggle-all-labels"].forEach(id =>
                 document.getElementById(id)?.classList.remove("active")
               );
+              document.getElementById("toggle-all-types")?.classList.remove("active");
+              document.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
               renderMarkers();
             }, 1000);
           }, 700);
-        }, 1000);
+        }, 700);
       }, 700);
     }, 200);
   };
