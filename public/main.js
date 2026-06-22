@@ -4370,17 +4370,26 @@ function runStartupDemo() {
           // only runs after GeoJSON is loaded and country-isolate-btn is visible
           setTimeout(() => {
             toggleCountryMode().then(() => {
-              // Pick Italy as demo country so isolate has a visible effect
+              // Pick Italy so isolate has a visible effect on the Tabula
               setCountryFilter("IT");
               // Show country mode + Italy highlighted for 1s
               setTimeout(() => {
-                // Animate isolate button (now guaranteed visible)
+                // Animate isolate button (now guaranteed visible after toggleCountryMode resolved)
                 pulseBtn(isolateBtn);
                 setTimeout(() => {
-                  if (!S.countryIsolate && isolateBtn) isolateBtn.click();
+                  // Force-activate isolate regardless of persisted state
+                  S.countryIsolate = true;
+                  isolateBtn?.classList.add("active");
+                  try { localStorage.setItem("tp_country_isolate", "1"); } catch {}
+                  renderMarkers();
                   // Show isolate (only Italy places) for 1s
                   setTimeout(() => {
-                    if (S.countryIsolate && isolateBtn) isolateBtn.click();
+                    // Force-deactivate isolate and restore all types
+                    S.countryIsolate = false;
+                    isolateBtn?.classList.remove("active");
+                    try { localStorage.setItem("tp_country_isolate", "0"); } catch {}
+                    const allT = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state");
+                    allT.forEach(t => S.activeTypes.add(t));
                     if (S.countrySelectMode) toggleCountryMode().catch(() => {});
                     setTimeout(() => {
                       locPopup.classList.remove("demo-panel-in");
