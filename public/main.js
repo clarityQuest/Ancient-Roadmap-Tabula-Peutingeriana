@@ -4351,52 +4351,81 @@ function demoFlyToButton(panel, btnId, duration, onDone, centered = false) {
 }
 
 function runStartupDemo() {
-  const aboutPanelEl   = document.getElementById("about-panel");
+  const aboutPanelEl    = document.getElementById("about-panel");
   const aboutBackdropEl = document.getElementById("about-modal-backdrop");
-  const locPopup       = document.getElementById("locate-map-popup");
+  const locPopup        = document.getElementById("locate-map-popup");
   if (!locPopup) return;
 
+  const pulseBtn = btn => {
+    if (!btn) return;
+    btn.classList.add("demo-btn-pulse");
+    setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
+  };
+
+  // Called after locate popup flies away — animates category button then resets to plain map
+  const finishDemo = () => {
+    setTimeout(() => {
+      const catBtn   = document.getElementById("cat-popup-btn");
+      const catPopup = document.getElementById("category-popup");
+      pulseBtn(catBtn);
+      // Open category popup after pulse finishes
+      setTimeout(() => {
+        catPopup?.classList.remove("hidden");
+        // Show for 1s, then close and reset map to clean state
+        setTimeout(() => {
+          catPopup?.classList.add("hidden");
+          S.activeTypes    = new Set();
+          S.latinLabelsOn  = false;
+          S.modernLabelsOn = false;
+          try { localStorage.setItem("tp_latin_labels",  "0"); } catch {}
+          try { localStorage.setItem("tp_modern_labels", "0"); } catch {}
+          ["toggle-names","toggle-modern","mobile-toggle-names","mobile-toggle-modern",
+           "locate-toggle-names","locate-toggle-modern","locate-toggle-all-labels"].forEach(id =>
+            document.getElementById(id)?.classList.remove("active")
+          );
+          renderMarkers();
+        }, 1000);
+      }, 700);
+    }, 200);
+  };
+
   const showLocate = () => {
-    // Open faster (50ms) so the popup appears right after the locate-button pulse
+    // Open popup immediately after locate-button pulse finishes
     setTimeout(() => {
       locPopup.classList.add("demo-panel-in");
       if (!S.countrySelectMode) {
-        const countryBtn  = document.getElementById("modern-state-solo-btn");
-        const isolateBtn  = document.getElementById("country-isolate-btn");
-        const pulseBtn = btn => {
-          if (!btn) return;
-          btn.classList.add("demo-btn-pulse");
-          setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
-        };
-        // Wait for Leaflet content to load, then start animating
+        const countryBtn = document.getElementById("modern-state-solo-btn");
+        const isolateBtn = document.getElementById("country-isolate-btn");
+
+        // Wait 1.5s for Leaflet tiles + country polygons to load
         setTimeout(() => {
-          // 1st country button pulse — draw attention
+          // Animate country mode button
           pulseBtn(countryBtn);
-          // 1s later: 2nd pulse simulates the click — activate country mode
+          // Activate country mode after pulse finishes
           setTimeout(() => {
-            pulseBtn(countryBtn);
             toggleCountryMode().catch(() => {});
-            // Wait so user can see countries coloured on the map
+            // Show country mode for 1s
             setTimeout(() => {
-              // Pulse isolate button, then click it to show the effect
+              // Animate isolate button
               pulseBtn(isolateBtn);
+              // Activate isolate after pulse finishes
               setTimeout(() => {
-                if (isolateBtn && !S.countryIsolate) isolateBtn.click();
-                // Wait briefly so user sees the isolated view
+                if (!S.countryIsolate && isolateBtn) isolateBtn.click();
+                // Show isolate for 1s
                 setTimeout(() => {
-                  // Reset isolate and deactivate country mode cleanly
+                  // Reset isolate, exit country mode, then close locate popup
                   if (S.countryIsolate && isolateBtn) isolateBtn.click();
                   if (S.countrySelectMode) toggleCountryMode().catch(() => {});
-                  // Close the popup
                   setTimeout(() => {
                     locPopup.classList.remove("demo-panel-in");
-                    demoFlyToButton(locPopup, "control-locate", 420, () => {});
+                    demoFlyToButton(locPopup, "control-locate", 420, finishDemo);
                   }, 400);
-                }, 1200);
-              }, 400);
-            }, 2000);
-          }, 1000);
-        }, 1500); // wait for Leaflet map tiles and country polygons to load
+                }, 1000); // isolate visible for 1s
+              }, 700); // wait for isolate-btn pulse
+            }, 1000); // country mode visible for 1s
+          }, 700); // wait for country-btn pulse
+        }, 1500); // wait for map content to load
+
       } else {
         setTimeout(() => {
           locPopup.classList.remove("demo-panel-in");
@@ -4406,17 +4435,16 @@ function runStartupDemo() {
     }, 50);
   };
 
-  // Pulse the locate button first, then open the popup
+  // 200ms after about-btn animation → pulse locate button → open popup after pulse
   const preShowLocate = () => {
-    const locBtn = document.getElementById("control-locate");
-    if (locBtn) {
-      locBtn.classList.add("demo-btn-pulse");
-      setTimeout(() => locBtn.classList.remove("demo-btn-pulse"), 600);
-    }
-    setTimeout(showLocate, 500);
+    setTimeout(() => {
+      const locBtn = document.getElementById("control-locate");
+      pulseBtn(locBtn);
+      setTimeout(showLocate, 700); // open after pulse finishes
+    }, 200);
   };
 
-  // Fly the about panel toward its button first, then pulse locate + show popup
+  // Fly about panel away first, then start locate sequence
   aboutBackdropEl?.classList.add("hidden");
   if (aboutPanelEl && !aboutPanelEl.classList.contains("hidden")) {
     demoFlyToButton(aboutPanelEl, "about-btn", 380, preShowLocate, true);
