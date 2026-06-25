@@ -20,10 +20,16 @@ DB_PATH = ROOT / "public" / "data" / "review_places_db.json"
 
 
 def is_seg1_area(lat, lng):
+    """All geographic territory on the lost Tabula Segment I.
+    OmnesViae marks these places grey (OVPlace = reconstructed, not on surviving parchment).
+    Covers all of Iberia (including Mediterranean coast), Britain, Mauretania Tingitana (Morocco),
+    Pyrenees passes, and SW France (Aquitania). Algeria (Mauretania Caesariensis) excluded —
+    that region appears on the surviving Tabula Segment II.
+    """
     lat, lng = float(lat), float(lng)
-    if lat > 50 and lng < 3:                return True  # Britain
-    if lat > 35 and lat < 45 and lng < -3:  return True  # Iberia
-    if lat < 36 and lng < -3:               return True  # Morocco Atlantic
+    if lat > 49 and lng < 3:                return True  # Britain
+    if lat > 35 and lat < 49 and lng < 4:   return True  # All Iberia + Pyrenees + SW France
+    if lat < 36 and lng < -2:               return True  # Morocco / Mauretania Tingitana
     return False
 
 
@@ -36,10 +42,11 @@ def derive_type(symbol):
 
 def guess_country(lat, lng):
     lat, lng = float(lat), float(lng)
-    if lat > 50 and lng < 3:   return "GB"
-    if lat > 35 and lat < 45 and lng < -9: return "PT"
-    if lat > 35 and lat < 45 and lng < -3: return "ES"
-    if lat < 36:               return "MA"
+    if lat > 49 and lng < 3:               return "GB"
+    if lat > 43 and lat < 49 and lng < 4:  return "FR"
+    if lat > 35 and lat < 44 and lng < -9: return "PT"
+    if lat > 35 and lat < 44:              return "ES"
+    if lat < 36:                           return "MA"
     return ""
 
 
