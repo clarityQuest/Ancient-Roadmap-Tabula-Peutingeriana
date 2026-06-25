@@ -1033,7 +1033,26 @@ body, html {
   width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 #locate-map-close:hover { color: #fff; }
-#locate-leaflet-map { width: 100%; flex: 1; min-height: 0; }
+#locate-leaflet-map { width: 100%; flex: 1; min-height: 0; position: relative; }
+
+/* Dot-color legend — bottom-right of locate map */
+#locate-legend {
+  position: absolute; bottom: 8px; right: 8px; z-index: 500;
+  background: rgba(18,16,12,0.82);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  padding: 5px 8px;
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: 12.5%; /* 1/8 of parent */
+  overflow-y: auto;
+  pointer-events: none;
+}
+.ll-row { display: flex; align-items: center; gap: 5px; }
+.ll-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.ll-label { font-size: 10px; color: rgba(220,215,200,0.88); white-space: nowrap; line-height: 1.3; }
 #locate-map-hint {
   font-size: 10px; color: var(--text-muted);
   margin: 4px 12px 2px; text-align: center;

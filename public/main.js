@@ -621,6 +621,26 @@ function showSeg1Modal() {
   if (m) m.classList.remove("hidden");
 }
 
+function buildLocateLegend() {
+  const el = document.getElementById("locate-legend");
+  if (!el) return;
+  const LEGEND_TYPES = [
+    { type: "major_city",     label: "Major city" },
+    { type: "city",           label: "City" },
+    { type: "road_station",   label: "Road station" },
+    { type: "port",           label: "Port" },
+    { type: "spa",            label: "Spa / Bath" },
+    { type: "roman_province", label: "Province" },
+    { type: "region",         label: "Region" },
+    { type: "river",          label: "River" },
+  ];
+  const seg1Row = `<div class="ll-row"><span class="ll-dot" style="background:#888899;opacity:0.5"></span><span class="ll-label">Segment I (lost)</span></div>`;
+  el.innerHTML = LEGEND_TYPES.map(({ type, label }) => {
+    const c = TYPE_COLORS[type] || "#D97706";
+    return `<div class="ll-row"><span class="ll-dot" style="background:${c}"></span><span class="ll-label">${label}</span></div>`;
+  }).join("") + seg1Row;
+}
+
 /* ============================================================
    Marker rendering (canvas overlay)
    ============================================================ */
@@ -2618,18 +2638,20 @@ function toggleLeafletPlaces() {
         const rlat = Number(r.lat), rlng = Number(r.lng);
         if (!Number.isFinite(rlat) || !Number.isFinite(rlng)) continue;
         const seg = Number(r.tabula_segment ?? r.grid_segment);
-        if (seg === 1) continue; // Segment I is lost — skip from locate map
+        const isSeg1 = seg === 1;
         const name = r.latin_std || r.latin || r.modern || "";
-        const color = TYPE_COLORS[r.type] || "#D97706";
+        const color = isSeg1 ? "#888899" : (TYPE_COLORS[r.type] || "#D97706");
         const dotR = S.isMobile ? 2.2 : 4.8;
         const m = _leafletL.circleMarker([rlat, rlng], {
           radius: dotR, color, weight: S.isMobile ? 0.8 : 1.5, fillColor: color,
-          fillOpacity: 0.75,
+          fillOpacity: isSeg1 ? 0.35 : 0.75,
         });
-        const tooltip = name;
-        if (tooltip) m.bindTooltip(tooltip, { direction: "top", offset: [0, -4] });
+        const tooltipText = isSeg1 ? `${name} [Segment I — lost]` : name;
+        if (tooltipText) m.bindTooltip(tooltipText, { direction: "top", offset: [0, -4] });
         // Click a place dot → navigate Tabula; in country mode also allows country selection
-        m.on("click", () => {
+        m.on("click", (e) => {
+          e.originalEvent?.stopPropagation(); // prevent Leaflet map click from also firing
+          if (isSeg1) { showSeg1Modal(); return; }
           if (S.countrySelectMode && r.type !== "roman_province") {
             const zoom = _leafletMap ? _leafletMap.getZoom() : 0;
             if (zoom < 5) {
@@ -2649,6 +2671,7 @@ function toggleLeafletPlaces() {
         markers.push(m);
       }
       _leafletPlacesLayer = _leafletL.layerGroup(markers);
+      buildLocateLegend();
     }
     _leafletPlacesLayer.addTo(_leafletMap);
     updateLeafletZoomStyles();
