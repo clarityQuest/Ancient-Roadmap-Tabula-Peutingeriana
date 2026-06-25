@@ -962,7 +962,7 @@ body, html {
   #locate-map-popup {
     position: fixed !important;
     top: 0 !important; left: 0 !important; right: 0 !important; bottom: auto !important;
-    width: 100vw !important; height: 33vh !important;
+    width: 100vw !important; height: 40vh !important;
     border-radius: 0 !important;
     z-index: 200;
   }
@@ -1035,17 +1035,21 @@ body, html {
 #locate-map-close:hover { color: #fff; }
 #locate-leaflet-map { width: 100%; flex: 1; min-height: 0; position: relative; }
 
-/* Dot-color legend — bottom-right of locate map */
+/* Dot-color legend — top-right of locate map (avoids Leaflet attribution at bottom-right) */
 #locate-legend {
-  position: absolute; bottom: 8px; right: 8px; z-index: 500;
+  position: absolute; top: 8px; right: 8px; z-index: 500;
   background: rgba(18,16,12,0.82);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 6px;
   padding: 5px 8px;
   display: flex; flex-direction: column; gap: 3px;
-  max-height: 12.5%; /* 1/8 of parent */
+  max-height: 12.5%; /* 1/8 of parent map height */
   overflow-y: auto;
   pointer-events: none;
+}
+/* Hide legend on mobile (coarse pointer / narrow) */
+@media (pointer: coarse), (max-width: 600px) {
+  #locate-legend { display: none !important; }
 }
 .ll-row { display: flex; align-items: center; gap: 5px; }
 .ll-dot {
