@@ -2008,9 +2008,23 @@ function setUserLocation(lat, lng, isDefault = false) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
   let bestNonArea = null, bestNonAreaSq = Infinity;
   let bestArea = null, bestAreaSq = Infinity;
+  // Search surviving Tabula places (Seg II+)
   for (const p of pool) {
     if (p.lat == null || p.lng == null) continue;
     if (S.mapMode !== "old" && (p.px == null || p.py == null)) continue;
+    const plat = Number(p.lat), plng = Number(p.lng);
+    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+    const dsq = (lat - plat) ** 2 + (lng - plng) ** 2;
+    if (LOCATE_AREA_TYPES.has(p.type)) {
+      if (dsq < bestAreaSq) { bestAreaSq = dsq; bestArea = p; }
+    } else {
+      if (dsq < bestNonAreaSq) { bestNonAreaSq = dsq; bestNonArea = p; }
+    }
+  }
+  // Also search Segment I places by their modern geocoordinates
+  for (const p of S.allRecords) {
+    if (Number(p.tabula_segment) !== 1) continue;
+    if (p.lat == null || p.lng == null) continue;
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
     const dsq = (lat - plat) ** 2 + (lng - plng) ** 2;
@@ -2049,6 +2063,16 @@ function setUserLocation(lat, lng, isDefault = false) {
     const name = best.latin_std || best.latin || "";
     const distKm = locDistKm(lat, lng, Number(best.lat), Number(best.lng));
     const distRound = Math.round(distKm);
+
+    // Segment I place — show modal only, no Tabula navigation (segment is lost, no calibration)
+    if (Number(best.tabula_segment) === 1) {
+      showSeg1Modal();
+      showLocateMarkerPopup(`${name} — Segment I (lost) (~${distRound} km)`);
+      if (statusEl) { statusEl.textContent = `Nearest: ${name} (Segment I — lost, ~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+      if (hint) hint.textContent = "Segment I of the Tabula is lost — click † for details";
+      renderMarkers();
+      return;
+    }
 
     if (distKm <= LOCATE_SNAP_KM) {
       // Snap: place is close enough — highlight the rect, no separate crosshair needed
