@@ -189,6 +189,7 @@ const MAP_RUNTIME_TYPES = new Set(Object.keys(TYPE_COLORS));
 const LP_KEY = "tp_label_params_v1";
 const LP_DEFAULTS = {
   countryModeOpacity: 0.35, // opacity of roads/places panes when country mode is active (0=invisible, 1=full)
+  countryMarkerAlpha: 0.5,  // intensity of country-colour fills on Tabula canvas (0=invisible, 1=full)
   markerAlpha:       1.0,   // marker fill/stroke opacity multiplier
   fontScale:         1.0,   // marker screen size × fontScale = secondary font ceiling
   maxFontDesktop:  999,    // effectively uncapped — zoom curve drives max font
@@ -255,7 +256,6 @@ const S = {
   latinLabelsOn:   (() => { try { return localStorage.getItem("tp_latin_labels") === "1"; } catch {} return false; })(),
   modernLabelsOn:  (() => { try { return localStorage.getItem("tp_modern_labels") === "1"; } catch {} return false; })(),
   countryIsolate:  (() => { try { return localStorage.getItem("tp_country_isolate") === "1"; } catch {} return false; })(),
-  countryMarkerAlpha: (() => { try { const v = Number(localStorage.getItem("tp_country_alpha")); return Number.isFinite(v) && v >= 0 ? Math.min(1, v) : 0.5; } catch {} return 0.5; })(),
   activeTypes:    new Set(),
   regionSolo:     false,
   savedActiveTypes: null,
@@ -806,10 +806,10 @@ function drawUserCrosshair(ctx, cx, cy) {
 
 function drawHighlightRing(ctx, cx, cy, baseR) {
   ctx.save();
-  // Black outer ring for contrast against any background
+  // Red outer ring for contrast against any background
   ctx.beginPath();
   ctx.arc(cx, cy, baseR + 9, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.strokeStyle = "rgba(220,30,30,0.9)";
   ctx.lineWidth = 5;
   ctx.stroke();
   // Gold ring
@@ -832,8 +832,8 @@ function drawHighlightRing(ctx, cx, cy, baseR) {
 function drawSelectionFrame(ctx, x, y, w, h) {
   const pad = 4;
   ctx.save();
-  // Black outer frame for contrast
-  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  // Red outer frame for contrast
+  ctx.strokeStyle = "rgba(220,30,30,0.9)";
   ctx.lineWidth = 5;
   ctx.strokeRect(x - pad - 2, y - pad - 2, w + (pad + 2) * 2, h + (pad + 2) * 2);
   // Gold frame
@@ -937,7 +937,7 @@ function renderMillerOverlay(ctx) {
     // Country filter active: fill + highlight matching places
     if (S.countryFilter && isCountryMatch) {
       const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
-      const ca = S.countryMarkerAlpha;
+      const ca = LP.countryMarkerAlpha;
       ctx.save();
       ctx.globalAlpha = ca * 0.56;
       ctx.fillStyle = fColor;
@@ -956,7 +956,7 @@ function renderMillerOverlay(ctx) {
       const iso2 = dbCodesToIso2(item.country)[0];
       const cc = iso2 ? (_countryColorMap[iso2] || null) : null;
       if (cc && !isCountryMatch) {
-        const ca = S.countryMarkerAlpha;
+        const ca = LP.countryMarkerAlpha;
         ctx.save();
         ctx.globalAlpha = ca * 0.44;
         ctx.fillStyle = cc;
@@ -973,7 +973,7 @@ function renderMillerOverlay(ctx) {
       const iso2 = dbCodesToIso2(item.country)[0];
       const cc = iso2 ? (_countryColorMap[iso2] || null) : null;
       if (cc) {
-        const ca = S.countryMarkerAlpha;
+        const ca = LP.countryMarkerAlpha;
         ctx.save();
         ctx.globalAlpha = ca * 0.44;
         ctx.fillStyle = cc;
@@ -2620,18 +2620,13 @@ function toggleLeafletPlaces() {
         const seg = Number(r.tabula_segment ?? r.grid_segment);
         if (seg === 1) continue; // Segment I is lost — skip from locate map
         const name = r.latin_std || r.latin || r.modern || "";
-        const isProvince = r.type === "roman_province";
         const color = TYPE_COLORS[r.type] || "#D97706";
-        const baseDotR = S.isMobile ? 2.2 : 4.8;
-        const dotR = isProvince ? (S.isMobile ? 5 : 9) : baseDotR;
+        const dotR = S.isMobile ? 2.2 : 4.8;
         const m = _leafletL.circleMarker([rlat, rlng], {
-          radius: dotR,
-          color: isProvince ? "#ffffff" : color,
-          weight: isProvince ? (S.isMobile ? 1.5 : 2) : (S.isMobile ? 0.8 : 1.5),
-          fillColor: color,
-          fillOpacity: isProvince ? 0.35 : 0.75,
+          radius: dotR, color, weight: S.isMobile ? 0.8 : 1.5, fillColor: color,
+          fillOpacity: 0.75,
         });
-        const tooltip = isSeg1 ? (name ? `${name} [Segment I — lost]` : "[Segment I — lost]") : name;
+        const tooltip = name;
         if (tooltip) m.bindTooltip(tooltip, { direction: "top", offset: [0, -4] });
         // Click a place dot → navigate Tabula; in country mode also allows country selection
         m.on("click", () => {
@@ -2735,16 +2730,6 @@ function setupControls() {
   document.getElementById("seg1-modal")?.addEventListener("click", (e) => {
     if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden");
   });
-  // Country marker alpha slider
-  const alphaSlider = document.getElementById("country-alpha-slider");
-  if (alphaSlider) {
-    alphaSlider.value = Math.round(S.countryMarkerAlpha * 100);
-    alphaSlider.addEventListener("input", () => {
-      S.countryMarkerAlpha = Number(alphaSlider.value) / 100;
-      try { localStorage.setItem("tp_country_alpha", S.countryMarkerAlpha); } catch {}
-      renderMarkers();
-    });
-  }
   document.addEventListener("fullscreenchange", () => {
     // Let OSD adapt to the new size after fullscreen transition
     setTimeout(() => renderMarkers(), 150);
@@ -3680,6 +3665,9 @@ const SP_DEFS = [
   { section: "Country Mode",  label: "Locate map dim opacity",   key: "countryModeOpacity",
     min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + "%",
     desc: "How visible roads and places on the locate map are during country mode. 0% = invisible, 100% = fully visible (no dimming). Default: 35%." },
+  { section: "Country Mode",  label: "Tabula marker colour intensity", key: "countryMarkerAlpha",
+    min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + "%",
+    desc: "Intensity of country-colour fills drawn on the Tabula map. 0% = invisible, 100% = maximum. Default: 50%." },
   { section: "Markers",       label: "Marker opacity",           key: "markerAlpha",
     min: 0,   max: 1,    step: 0.05, fmt: v => Math.round(v * 100) + "%",
     desc: "Transparency of marker rectangles. 100% = fully opaque, 0% = invisible." },
