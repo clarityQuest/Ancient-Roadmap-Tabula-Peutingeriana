@@ -2064,8 +2064,10 @@ function setUserLocation(lat, lng, isDefault = false) {
     const distKm = locDistKm(lat, lng, Number(best.lat), Number(best.lng));
     const distRound = Math.round(distKm);
 
-    // Segment I place — show modal only, no Tabula navigation (segment is lost, no calibration)
+    // Segment I place — show info panel + modal, no Tabula navigation (segment is lost)
     if (Number(best.tabula_segment) === 1) {
+      const full = S.allRecords.find(a => a.data_id === best.data_id) || best;
+      if (!S.isMobile) showInfoPanel(full);
       showSeg1Modal();
       showLocateMarkerPopup(`${name} — Segment I (lost) (~${distRound} km)`);
       if (statusEl) { statusEl.textContent = `Nearest: ${name} (Segment I — lost, ~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
@@ -2675,7 +2677,12 @@ function toggleLeafletPlaces() {
         // Click a place dot → navigate Tabula; in country mode also allows country selection
         m.on("click", (e) => {
           e.originalEvent?.stopPropagation(); // prevent Leaflet map click from also firing
-          if (isSeg1) { showSeg1Modal(); return; }
+          if (isSeg1) {
+            const full = S.allRecords.find(a => a.data_id === r.data_id) || r;
+            showInfoPanel(full);
+            showSeg1Modal();
+            return;
+          }
           if (S.countrySelectMode && r.type !== "roman_province") {
             const zoom = _leafletMap ? _leafletMap.getZoom() : 0;
             if (zoom < 5) {
