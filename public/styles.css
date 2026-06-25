@@ -242,6 +242,58 @@ body, html {
   color: var(--accent);
   border-color: var(--accent);
 }
+/* Lost segment I button */
+.seg-btn-lost {
+  color: rgba(160,160,170,0.55) !important;
+  border-style: dashed !important;
+  border-color: rgba(120,120,140,0.4) !important;
+  font-style: italic;
+  letter-spacing: 0;
+  cursor: help;
+}
+.seg-btn-lost:hover {
+  background: rgba(80,60,60,0.6) !important;
+  color: rgba(200,180,160,0.85) !important;
+}
+
+/* Segment I info modal */
+#seg1-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 200; display: flex; align-items: center; justify-content: center;
+}
+#seg1-modal.hidden { display: none !important; }
+#seg1-modal-inner {
+  position: relative;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 28px 28px 22px;
+  max-width: min(560px, calc(100vw - 32px));
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.75);
+  color: var(--text-main);
+}
+#seg1-modal-inner h3 { margin: 0 0 14px; font-size: 18px; color: var(--text-main); }
+#seg1-modal-inner h4 { margin: 16px 0 6px; font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+#seg1-modal-inner p, #seg1-modal-inner li { font-size: 13px; line-height: 1.65; color: var(--text-main); }
+#seg1-modal-inner ul { padding-left: 20px; margin: 8px 0; }
+#seg1-modal-close {
+  position: absolute; top: 10px; right: 12px;
+  background: transparent; border: none; color: var(--text-muted);
+  font-size: 24px; cursor: pointer; line-height: 1;
+}
+#seg1-modal-close:hover { color: #fff; }
+
+/* Country alpha slider in country-select-bar */
+#country-alpha-label {
+  display: flex; align-items: center; gap: 5px;
+  color: var(--text-muted); font-size: 11px; white-space: nowrap;
+  margin-left: 4px;
+}
+#country-alpha-slider {
+  width: 72px; height: 4px; accent-color: var(--accent);
+  cursor: pointer; vertical-align: middle;
+}
 
 /* Buttons */
 .ctrl-btn {

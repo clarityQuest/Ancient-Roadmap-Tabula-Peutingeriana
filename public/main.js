@@ -255,6 +255,7 @@ const S = {
   latinLabelsOn:   (() => { try { return localStorage.getItem("tp_latin_labels") === "1"; } catch {} return false; })(),
   modernLabelsOn:  (() => { try { return localStorage.getItem("tp_modern_labels") === "1"; } catch {} return false; })(),
   countryIsolate:  (() => { try { return localStorage.getItem("tp_country_isolate") === "1"; } catch {} return false; })(),
+  countryMarkerAlpha: (() => { try { const v = Number(localStorage.getItem("tp_country_alpha")); return Number.isFinite(v) && v >= 0 ? Math.min(1, v) : 0.5; } catch {} return 0.5; })(),
   activeTypes:    new Set(),
   regionSolo:     false,
   savedActiveTypes: null,
@@ -576,11 +577,14 @@ function setupSegmentSelector() {
     (item.country || "").split("|").forEach(c => { if (c.trim()) segCountries.get(n).add(c.trim()); });
   }
 
-  container.innerHTML = S.segments.map((seg) => {
-    const n = Number(seg.number);
-    const roman = String(seg.roman || n);
-    return `<button class="seg-btn" data-seg="${n}">${roman}</button>`;
-  }).join("");
+  container.innerHTML =
+    `<button class="seg-btn seg-btn-lost" data-seg="1" title="Segment I — lost since the 16th century (click for info)">I†</button>` +
+    S.segments.map((seg) => {
+      const n = Number(seg.number);
+      const roman = String(seg.roman || n);
+      const tip = `Segment ${roman}${seg.label ? ": " + seg.label : ""}`;
+      return `<button class="seg-btn" data-seg="${n}" title="${tip}">${roman}</button>`;
+    }).join("");
   applySegmentUIState();
 
   const infoEl = document.getElementById("segment-hover-info");
@@ -588,7 +592,9 @@ function setupSegmentSelector() {
   container.addEventListener("click", (e) => {
     const btn = e.target.closest(".seg-btn");
     if (!btn) return;
-    focusSegment(Number(btn.dataset.seg));
+    const n = Number(btn.dataset.seg);
+    if (n === 1) { showSeg1Modal(); return; }
+    focusSegment(n);
   });
 
   container.addEventListener("mouseover", (e) => {
@@ -608,6 +614,11 @@ function setupSegmentSelector() {
       infoEl.classList.add("hidden");
     }
   });
+}
+
+function showSeg1Modal() {
+  const m = document.getElementById("seg1-modal");
+  if (m) m.classList.remove("hidden");
 }
 
 /* ============================================================
@@ -795,24 +806,46 @@ function drawUserCrosshair(ctx, cx, cy) {
 
 function drawHighlightRing(ctx, cx, cy, baseR) {
   ctx.save();
-  ctx.globalAlpha = 0.55;
+  // Black outer ring for contrast against any background
+  ctx.beginPath();
+  ctx.arc(cx, cy, baseR + 9, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  // Gold ring
+  ctx.globalAlpha = 0.95;
   ctx.beginPath();
   ctx.arc(cx, cy, baseR + 6, 0, Math.PI * 2);
   ctx.strokeStyle = "#FFD700";
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // White inner ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, baseR + 2, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,255,255,0.75)";
+  ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.globalAlpha = 1;
   ctx.restore();
 }
 
 function drawSelectionFrame(ctx, x, y, w, h) {
-  const pad = 3;
+  const pad = 4;
   ctx.save();
-  ctx.globalAlpha = 0.9;
+  // Black outer frame for contrast
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.lineWidth = 5;
+  ctx.strokeRect(x - pad - 2, y - pad - 2, w + (pad + 2) * 2, h + (pad + 2) * 2);
+  // Gold frame
+  ctx.globalAlpha = 0.95;
   ctx.strokeStyle = "#FFD700";
   ctx.lineWidth = 2.5;
   ctx.strokeRect(x - pad, y - pad, w + pad * 2, h + pad * 2);
-  ctx.globalAlpha = 0.18;
+  // White inner frame
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.globalAlpha = 0.2;
   ctx.fillStyle = "#FFD700";
   ctx.fillRect(x - pad, y - pad, w + pad * 2, h + pad * 2);
   ctx.restore();
@@ -896,7 +929,7 @@ function renderMillerOverlay(ctx) {
     }
 
     if (S.latinLabelsOn || S.modernLabelsOn) {
-      const txt2 = S.latinLabelsOn ? stripQ(item.latin || item.latin_std || "") : "";
+      const txt2 = S.latinLabelsOn ? cleanLatinDisplay(item.latin || item.latin_std || "") : "";
       const txt1 = S.modernLabelsOn ? (truncWords(stripQ(item.modern), 4) || "") : "";
       if (txt1 || txt2) mLabelCandidates.push({ item, x, y, w, h, txt1, txt2, isCountryMatch });
     }
@@ -904,11 +937,12 @@ function renderMillerOverlay(ctx) {
     // Country filter active: fill + highlight matching places
     if (S.countryFilter && isCountryMatch) {
       const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
+      const ca = S.countryMarkerAlpha;
       ctx.save();
-      ctx.globalAlpha = 0.28;
+      ctx.globalAlpha = ca * 0.56;
       ctx.fillStyle = fColor;
       ctx.fillRect(x, y, w, h);
-      ctx.globalAlpha = 0.85;
+      ctx.globalAlpha = Math.min(1, ca * 1.7);
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2.5;
       ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
@@ -922,11 +956,12 @@ function renderMillerOverlay(ctx) {
       const iso2 = dbCodesToIso2(item.country)[0];
       const cc = iso2 ? (_countryColorMap[iso2] || null) : null;
       if (cc && !isCountryMatch) {
+        const ca = S.countryMarkerAlpha;
         ctx.save();
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = ca * 0.44;
         ctx.fillStyle = cc;
         ctx.fillRect(x, y, w, h);
-        ctx.globalAlpha = 0.5;
+        ctx.globalAlpha = ca;
         ctx.strokeStyle = cc;
         ctx.lineWidth = 2;
         ctx.strokeRect(x, y, w, h);
@@ -938,11 +973,12 @@ function renderMillerOverlay(ctx) {
       const iso2 = dbCodesToIso2(item.country)[0];
       const cc = iso2 ? (_countryColorMap[iso2] || null) : null;
       if (cc) {
+        const ca = S.countryMarkerAlpha;
         ctx.save();
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = ca * 0.44;
         ctx.fillStyle = cc;
         ctx.fillRect(x, y, w, h);
-        ctx.globalAlpha = 0.6;
+        ctx.globalAlpha = Math.min(1, ca * 1.2);
         ctx.strokeStyle = cc;
         ctx.lineWidth = 4;
         ctx.strokeRect(x, y, w, h);
@@ -1131,7 +1167,7 @@ function renderMarkers() {
     }
 
     if (S.latinLabelsOn || S.modernLabelsOn) {
-      const latin  = S.latinLabelsOn ? stripQ(p.latin_std || p.latin || null) : null;
+      const latin  = S.latinLabelsOn ? cleanLatinDisplay(p.latin_std || p.latin || null) : null;
       const modern = S.modernLabelsOn ? (truncWords(stripQ(p.modern), 4) || null) : null;
       if (latin || modern) labelCandidates.push({ p, x, y, w: rw, h: rh, cx, cy, color, isRegion, latin, modern, isCountryMatch });
     }
@@ -1302,7 +1338,7 @@ function showTooltip(place, x, y) {
   const color = TYPE_COLORS[place.type] || "#92400E";
   const typeLabel = TYPE_LABELS[place.type] || place.type;
   const typeIcon = TYPE_ICONS[place.type] || "📍";
-  const displayLatin = stripQ(place.latin_std || place.latin);
+  const displayLatin = cleanLatinDisplay(place.latin_std || place.latin);
   const flagHtml = countryFlagHtml(place.country);
   const segNum = Number(place.tabula_segment ?? place.segment);
   const segMeta = Number.isFinite(segNum) ? S.segments.find(s => Number(s.number) === segNum) : null;
@@ -1383,7 +1419,7 @@ function showMillerTooltip(item, x, y) {
   const translLine = transl ? `<div class="tt-transl">${escHtml(transl)}</div>` : "";
 
   tt.innerHTML = `
-    <div class="tt-latin">${escHtml(stripQ(item.latin || item.latin_std || String(item.data_id)))}</div>
+    <div class="tt-latin">${escHtml(cleanLatinDisplay(item.latin || item.latin_std || String(item.data_id)))}</div>
     ${translLine}
     ${item.modern   ? `<div class="tt-modern">${escHtml(stripQ(item.modern))}</div>` : ""}
     ${flagHtml ? `<div class="tt-country">${flagHtml}<span class="tt-country-name">${escHtml(countryName(item.country) || item.country || "")}</span></div>` : ""}
@@ -1466,7 +1502,7 @@ function showInfoPanel(place) {
   }
 
   const panel = document.getElementById("info-panel");
-  const panelLatin = stripQ(place.latin || place.latin_std);
+  const panelLatin = cleanLatinDisplay(place.latin || place.latin_std);
   const latinEl = document.getElementById("panel-latin");
   latinEl.textContent = panelLatin;
   delete latinEl.dataset.translation;
@@ -2584,22 +2620,30 @@ function toggleLeafletPlaces() {
         const seg = Number(r.tabula_segment ?? r.grid_segment);
         if (seg === 1) continue; // Segment I is lost — skip from locate map
         const name = r.latin_std || r.latin || r.modern || "";
-        const isSeg1 = false;
+        const isProvince = r.type === "roman_province";
         const color = TYPE_COLORS[r.type] || "#D97706";
-        const dotR = S.isMobile ? (isSeg1 ? 1.5 : 2.2) : (isSeg1 ? 3.2 : 4.8);
+        const baseDotR = S.isMobile ? 2.2 : 4.8;
+        const dotR = isProvince ? (S.isMobile ? 5 : 9) : baseDotR;
         const m = _leafletL.circleMarker([rlat, rlng], {
-          radius: dotR, color, weight: S.isMobile ? 0.8 : 1.5, fillColor: color,
-          fillOpacity: isSeg1 ? 0.4 : 0.75,
+          radius: dotR,
+          color: isProvince ? "#ffffff" : color,
+          weight: isProvince ? (S.isMobile ? 1.5 : 2) : (S.isMobile ? 0.8 : 1.5),
+          fillColor: color,
+          fillOpacity: isProvince ? 0.35 : 0.75,
         });
         const tooltip = isSeg1 ? (name ? `${name} [Segment I — lost]` : "[Segment I — lost]") : name;
         if (tooltip) m.bindTooltip(tooltip, { direction: "top", offset: [0, -4] });
-        // Click a place dot → navigate Tabula to it and open info panel (blocked in country mode)
+        // Click a place dot → navigate Tabula; in country mode also allows country selection
         m.on("click", () => {
-          if (S.countrySelectMode) {
-            // In country mode: click on a place selects its country
-            const iso2 = guessCountryFromLatLng(r.lat, r.lng);
-            if (iso2) setCountryFilter(iso2);
-            return;
+          if (S.countrySelectMode && r.type !== "roman_province") {
+            const zoom = _leafletMap ? _leafletMap.getZoom() : 0;
+            if (zoom < 5) {
+              // Zoomed out: click selects country
+              const iso2 = guessCountryFromLatLng(r.lat, r.lng);
+              if (iso2) setCountryFilter(iso2);
+              return;
+            }
+            // Zoomed in (≥5): fall through and navigate to place
           }
           const full = S.allRecords.find(a => a.data_id === r.data_id) || r;
           panToPlace(full);
@@ -2684,6 +2728,23 @@ function setupControls() {
   document.getElementById("country-mode-exit")?.addEventListener("click", () => {
     exitCountryFilter();
   });
+  // Segment I modal close
+  document.getElementById("seg1-modal-close")?.addEventListener("click", () => {
+    document.getElementById("seg1-modal")?.classList.add("hidden");
+  });
+  document.getElementById("seg1-modal")?.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden");
+  });
+  // Country marker alpha slider
+  const alphaSlider = document.getElementById("country-alpha-slider");
+  if (alphaSlider) {
+    alphaSlider.value = Math.round(S.countryMarkerAlpha * 100);
+    alphaSlider.addEventListener("input", () => {
+      S.countryMarkerAlpha = Number(alphaSlider.value) / 100;
+      try { localStorage.setItem("tp_country_alpha", S.countryMarkerAlpha); } catch {}
+      renderMarkers();
+    });
+  }
   document.addEventListener("fullscreenchange", () => {
     // Let OSD adapt to the new size after fullscreen transition
     setTimeout(() => renderMarkers(), 150);
@@ -3543,6 +3604,17 @@ function escHtml(s) {
 // Strip uncertainty markers (?) from displayed names — they are internal notation only
 function stripQ(s) {
   return s ? s.replace(/\s*\?\s*/g, " ").trim() : s;
+}
+
+// Strip bracketed repetitions like "Ad aqvas (Ad Aquas)" → "Ad aqvas"
+// Only strips when inner ≈ outer (medieval Latin v/j spelling normalization)
+function cleanLatinDisplay(s) {
+  const sq = stripQ(s);
+  if (!sq || !sq.includes("(")) return sq;
+  const m = sq.match(/^(.+?)\s*\(([^)]{2,})\)\s*$/);
+  if (!m) return sq;
+  const norm = t => t.toLowerCase().replace(/v/g, "u").replace(/j/g, "i").replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
+  return norm(m[1]) === norm(m[2]) ? m[1].trim() : sq;
 }
 
 function tabulaSectionHref(place) {
