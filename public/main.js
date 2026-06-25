@@ -3026,6 +3026,12 @@ function setupTypeFilters() {
   const closeAbout = document.getElementById("close-about");
   const aboutBackdrop = document.getElementById("about-modal-backdrop");
   function openAboutPanel() {
+    // Close all other panels first
+    closeLocatePopup();
+    document.getElementById("info-panel")?.classList.add("hidden");
+    document.getElementById("category-popup")?.classList.add("hidden");
+    document.getElementById("settings-panel")?.classList.add("hidden");
+    document.getElementById("seg1-modal")?.classList.add("hidden");
     aboutPanel.classList.remove("hidden");
     aboutBackdrop?.classList.remove("hidden");
   }
