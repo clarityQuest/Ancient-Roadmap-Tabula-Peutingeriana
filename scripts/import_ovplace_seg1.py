@@ -89,10 +89,11 @@ def main():
         if modern and modern.strip() in ("?", ""):
             modern = None
 
-        # Extract numeric ID from OVPlace123
+        # Extract numeric ID from OVPlace123 and offset by 10M to avoid collision
+        # with TPPlace records (which also use small numeric IDs in the same data_id field).
         ov_id_str = entry["@id"].split("OVPlace")[-1]
         try:
-            data_id = int(ov_id_str)
+            data_id = 10_000_000 + int(ov_id_str)
         except ValueError:
             data_id = None
 

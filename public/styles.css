@@ -455,6 +455,8 @@ body, html {
 #panel-latin-transl.hidden { display: none; }
 #panel-modern { font-size: 20px; font-weight: 600; color: var(--text-muted); line-height: 1.25; }
 /* Wiki section: summary full-width, then links+image row below */
+#panel-seg1-note { font-size: 12px; color: var(--text-muted); margin: 6px 0 8px; padding: 5px 9px; background: rgba(136,136,153,0.12); border-left: 2px solid #888899; border-radius: 0 3px 3px 0; line-height: 1.5; }
+#panel-seg1-note a { color: #a89f8c; }
 #panel-wiki-section { margin-top: 10px; }
 #panel-wiki-summary { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-bottom: 8px; }
 #panel-wiki-bottom { display: flex; gap: 10px; align-items: flex-start; margin-top: 6px; }
@@ -552,8 +554,11 @@ body, html {
 }
 #panel-latin[data-translation] { cursor: help; }
 
-/* Country mode: suppress all Leaflet tooltips on the locate map */
-#locate-leaflet-map.country-mode-active .leaflet-tooltip { display: none !important; }
+/* Rich tooltip for Leaflet place dots */
+.ltt.leaflet-tooltip { background: rgba(18,16,12,0.93); border: 1px solid rgba(255,255,255,0.12); color: rgba(220,215,200,0.95); border-radius: 5px; padding: 5px 9px; font-size: 12px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.5); max-width: 220px; }
+.ltt.leaflet-tooltip::before { border-top-color: rgba(18,16,12,0.93) !important; }
+/* Country mode: country layer shows country name tooltip; place dots show their own tooltip.
+   No blanket suppression — Leaflet handles tooltip priority by hover proximity. */
 
 /* About modal backdrop */
 #about-modal-backdrop {
@@ -1035,21 +1040,50 @@ body, html {
 #locate-map-close:hover { color: #fff; }
 #locate-leaflet-map { width: 100%; flex: 1; min-height: 0; position: relative; }
 
-/* Dot-color legend — top-right of locate map (avoids Leaflet attribution at bottom-right) */
+/* Dot-color legend — bottom-right of locate map, above the attribution credit */
 #locate-legend {
-  position: absolute; top: 8px; right: 8px; z-index: 500;
-  background: rgba(18,16,12,0.82);
+  position: absolute; bottom: 26px; right: 8px; top: auto; z-index: 500;
+  background: rgba(18,16,12,0.88);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 6px;
   padding: 5px 8px;
   display: flex; flex-direction: column; gap: 3px;
-  max-height: 12.5%; /* 1/8 of parent map height */
-  overflow-y: auto;
   pointer-events: none;
 }
-/* Hide legend on mobile (coarse pointer / narrow) */
+/* Mobile: hide by default, show when toggled; legend button visible */
+#locate-legend-btn { display: none; }
+/* Legend toggle button — inside Leaflet map, mobile only, bottom-right above attribution */
+#locate-legend-btn {
+  display: none;
+  position: absolute; bottom: 26px; right: 8px; z-index: 501;
+  opacity: 0.5;
+  background: rgba(18,16,12,0.88);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 5px;
+  padding: 5px 7px;
+  cursor: pointer;
+  color: rgba(220,215,200,0.95);
+  align-items: center; justify-content: center;
+  pointer-events: auto;
+}
+/* Mobile country label — bottom-centre of Leaflet map */
+#locate-country-bar {
+  display: none;
+  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+  z-index: 501;
+  background: rgba(18,14,8,0.88);
+  border: 1px solid rgba(200,160,80,0.45);
+  border-radius: 14px;
+  padding: 4px 14px;
+  color: #e8dfc8; font-size: 12px; font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
 @media (pointer: coarse), (max-width: 600px) {
-  #locate-legend { display: none !important; }
+  #locate-legend { display: none; bottom: 36px; }
+  #locate-legend.legend-open { display: flex !important; }
+  #locate-legend-btn { display: flex !important; }
+  #locate-country-bar:not(.hidden) { display: flex !important; }
 }
 .ll-row { display: flex; align-items: center; gap: 5px; }
 .ll-dot {

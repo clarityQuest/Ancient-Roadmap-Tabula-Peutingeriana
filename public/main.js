@@ -30,6 +30,7 @@ const MILLER_H = 2953;
 const SEGMENT_COUNT = 11;
 
 const TYPE_COLORS = {
+  major_city:     "#8B0000",
   city:           "#8B0000",
   port:           "#1D4ED8",
   road_station:   "#D97706",
@@ -63,6 +64,7 @@ const TYPE_LABEL_PRIORITY = {
 };
 
 const TYPE_LABELS = {
+  major_city:     "Major City",
   city:           "City",
   port:           "Port",
   road_station:   "Road Station",
@@ -593,7 +595,7 @@ function setupSegmentSelector() {
     const btn = e.target.closest(".seg-btn");
     if (!btn) return;
     const n = Number(btn.dataset.seg);
-    if (n === 1) { showSeg1Modal(); return; }
+    if (n === 1) { openSeg1Modal(); return; }
     focusSegment(n);
   });
 
@@ -616,7 +618,14 @@ function setupSegmentSelector() {
   });
 }
 
+let _seg1ModalShown = false;
 function showSeg1Modal() {
+  if (_seg1ModalShown) return;
+  _seg1ModalShown = true;
+  const m = document.getElementById("seg1-modal");
+  if (m) m.classList.remove("hidden");
+}
+function openSeg1Modal() {
   const m = document.getElementById("seg1-modal");
   if (m) m.classList.remove("hidden");
 }
@@ -634,7 +643,7 @@ function buildLocateLegend() {
     { type: "region",         label: "Region" },
     { type: "river",          label: "River" },
   ];
-  const seg1Row = `<div class="ll-row"><span class="ll-dot" style="background:#888899;opacity:0.5"></span><span class="ll-label">Segment I (lost)</span></div>`;
+  const seg1Row = `<div class="ll-row"><span class="ll-dot" style="background:rgba(217,119,6,0.45);box-shadow:0 0 0 1.5px #888899"></span><span class="ll-label">Segment I (lost)</span></div>`;
   el.innerHTML = LEGEND_TYPES.map(({ type, label }) => {
     const c = TYPE_COLORS[type] || "#D97706";
     return `<div class="ll-row"><span class="ll-dot" style="background:${c}"></span><span class="ll-label">${label}</span></div>`;
@@ -1469,9 +1478,10 @@ function syncLeafletSelectedMarker(place) {
     _leafletSelectedMarker = null;
   }
   if (!place || !_leafletMap || !_leafletL) return;
-  const rec = S.allRecords.find(r => place.data_id != null && r.data_id === Number(place.data_id));
-  const lat = Number(rec?.lat ?? place.lat);
-  const lng = Number(rec?.lng ?? place.lng);
+  // Use coordinates directly from the place object. The previous allRecords.find(data_id) lookup
+  // caused the wrong record to be used for Seg I places due to OVPlace/TPPlace ID collisions.
+  const lat = Number(place.lat ?? place.geocoding_lat);
+  const lng = Number(place.lng ?? place.geocoding_lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 || lng === 0) {
     const hint = document.getElementById("locate-map-hint");
     if (hint) { hint.textContent = "Location unknown for this place"; hint.style.color = "#ef4444"; }
@@ -1504,16 +1514,21 @@ function syncLeafletSelectedMarker(place) {
 
 function showInfoPanel(place) {
   S.selectedPlace = place;
-  S.selectedDataId = place.data_id != null ? Number(place.data_id) : null;
+  // Seg I places share data_id numbers with surviving Tabula records (OVPlace vs TPPlace IDs clash).
+  // Setting selectedDataId=null prevents the wrong surviving record from getting a selection frame.
+  S.selectedDataId = (Number(place.tabula_segment) === 1) ? null :
+                     (place.data_id != null ? Number(place.data_id) : null);
   syncLeafletSelectedMarker(place);
   renderMarkers();
   infoPanelOpenedAt = Date.now();
 
-  // Enrich with allRecords data (places.json lacks ulm_img_url / ulm_id)
-  if (S.allRecords.length && (!place.ulm_img_url || !place.ulm_id)) {
+  // Enrich with allRecords data (places.json lacks ulm_img_url / ulm_id).
+  // Skip for Seg I: they're OVPlace records with no ULM data, and data_id collides with TPPlace IDs.
+  if (S.allRecords.length && (!place.ulm_img_url || !place.ulm_id) && Number(place.tabula_segment) !== 1) {
     const rec = S.allRecords.find(r =>
-      (place.data_id != null && r.data_id === place.data_id) ||
-      (place.id      && (r.record_id === place.id || r.id === place.id))
+      (place.record_id && r.record_id === place.record_id) ||
+      (place.id && !place.record_id && (r.record_id === place.id || r.id === place.id)) ||
+      (!place.record_id && !place.id && place.data_id != null && r.data_id === place.data_id)
     );
     if (rec) {
       if (!place.ulm_img_url && rec.ulm_img_url) place = { ...place, ulm_img_url: rec.ulm_img_url };
@@ -1596,6 +1611,16 @@ function showInfoPanel(place) {
 
   const provinceEl = document.getElementById("panel-province");
   if (provinceEl) provinceEl.textContent = place.province || "";
+
+  const seg1NoteEl = document.getElementById("panel-seg1-note");
+  if (seg1NoteEl) {
+    if (Number(place.tabula_segment) === 1) {
+      seg1NoteEl.innerHTML = `<a href="#" onclick="openSeg1Modal();return false">Place from lost Segment I</a>`;
+      seg1NoteEl.classList.remove("hidden");
+    } else {
+      seg1NoteEl.classList.add("hidden");
+    }
+  }
 
   // OSM map (interactive — placed in panel so user can zoom/pan it)
   const panelMap = document.getElementById("panel-map");
@@ -1926,6 +1951,13 @@ function interpolateTabulaVp(lat, lng, maxDistKm = Infinity) {
 // Projects a real-world location onto the edge of the Tabula's geographic bbox.
 // Returns { vp, centVp, cLat, cLng, edgeLat, edgeLng } — edge viewport position,
 // centroid VP, and centroid lat/lng for compass/arrow direction.
+function isInSeg1Area(lat, lng) {
+  if (lat > 49 && lng < 3) return true;
+  if (lat > 35 && lat < 49 && lng < 4) return true;
+  if (lat < 36 && lng < -2) return true;
+  return false;
+}
+
 function projectToTabulaEdge(userLat, userLng) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
   let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
@@ -1987,9 +2019,12 @@ function compassBearing(fromLat, fromLng, toLat, toLng) {
 function panToLocVp(vx, vy, isOutside = false) {
   if (!S.viewer?.viewport) return;
   S.highlightVp = { vx, vy };
+  // Mobile zoom-in fix: 0.011 was too tight (1.1% of Tabula width = very zoomed in).
+  // 0.03 gives ~6% context, still clearly centred on the place.
+  const isLandscape = S.isMobile && window.innerWidth > window.innerHeight;
   const hw = isOutside
     ? (S.isMobile ? 0.06 : 0.12)
-    : (S.isMobile ? 0.011 : 0.033);
+    : (isLandscape ? 0.04 : S.isMobile ? 0.03 : 0.033);
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
     S.viewer.viewport.fitBounds(
@@ -2064,10 +2099,16 @@ function setUserLocation(lat, lng, isDefault = false) {
     const distKm = locDistKm(lat, lng, Number(best.lat), Number(best.lng));
     const distRound = Math.round(distKm);
 
-    // Segment I place — show info panel + modal, no Tabula navigation (segment is lost)
+    // Segment I place — crosshair at left edge of surviving Tabula, info panel + modal
     if (Number(best.tabula_segment) === 1) {
-      const full = S.allRecords.find(a => a.data_id === best.data_id) || best;
-      if (!S.isMobile) showInfoPanel(full);
+      const edgeResult = projectToTabulaEdge(lat, lng);
+      S.userLocVp = edgeResult.vp;
+      S.userLocCentVp = edgeResult.centVp;
+      S.userLocOutside = true;
+      S.userLocLabel = edgeResult.cLat && edgeResult.cLng
+        ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map` : "W of map";
+      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
+      if (!S.isMobile) showInfoPanel(best);
       showSeg1Modal();
       showLocateMarkerPopup(`${name} — Segment I (lost) (~${distRound} km)`);
       if (statusEl) { statusEl.textContent = `Nearest: ${name} (Segment I — lost, ~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
@@ -2280,6 +2321,20 @@ function placeMatchesIso2(p, iso2) {
 
 function zoomToCountryPlaces(iso2) {
   if (!S.viewer?.viewport) return;
+
+  // Portrait mobile: locate popup is at the TOP (40vh), not the left side.
+  // Country center cy would appear at the screen centre (50%), but the visible OSD
+  // is the bottom 60%. Shift the camera up by half the popup height so the country
+  // lands in the middle of the visible zone.
+  const isPortrait = S.isMobile && window.innerHeight > window.innerWidth;
+  function portraitCyShift(w) {
+    if (!isPortrait) return 0;
+    const popEl = document.getElementById("locate-map-popup");
+    const popH = popEl ? popEl.offsetHeight : window.innerHeight * 0.4;
+    const viewW = S.viewer.element?.clientWidth || window.innerWidth;
+    return (popH / 2) * (w / viewW);   // in OSD units: shifts camera up so country drops into visible zone
+  }
+
   if (S.mapMode === "old") {
     const items = S.millerCalib.filter(item => placeMatchesIso2(item, iso2));
     if (!items.length) return;
@@ -2288,27 +2343,31 @@ function zoomToCountryPlaces(iso2) {
     const ry1 = Math.min(...items.map(i => i.rect_y1)) / MILLER_W;
     const ry2 = Math.max(...items.map(i => i.rect_y2)) / MILLER_W;
     const pad = 0.03;
-    const MAX_W = 8 / SEGMENT_COUNT;
+    const MAX_W = S.isMobile ? (3 / SEGMENT_COUNT) : (8 / SEGMENT_COUNT);
     const rawW = (rx2 - rx1) + pad * 2;
     const rawH = (ry2 - ry1) + pad * 2;
-    // Measure popup fraction so we can expand viewport to keep right edge visible
     let popFrac = 0;
-    const locPopupEl = document.getElementById("locate-map-popup");
-    if (locPopupEl && !locPopupEl.classList.contains("hidden")) {
-      const vw = S.viewer.element.clientWidth;
-      if (vw > 0) popFrac = Math.min(locPopupEl.offsetWidth / vw, 0.45);
+    if (!isPortrait) {
+      // Landscape/desktop only: popup is on the left, expand viewport so country
+      // fits in the non-popup right portion and shift cx accordingly.
+      const locPopupEl = document.getElementById("locate-map-popup");
+      if (locPopupEl && !locPopupEl.classList.contains("hidden")) {
+        const vw = S.viewer.element.clientWidth;
+        if (vw > 0) popFrac = Math.min(locPopupEl.offsetWidth / vw, 0.45);
+      }
     }
-    // Expand viewport so the country fits entirely in the non-popup portion
     const w = Math.min(popFrac > 0 ? rawW / (1 - popFrac) : rawW, MAX_W);
     const h = Math.min(rawH, w * 0.45);
-    const cy = (ry1 + ry2) / 2;
-    // Shift center left so left edge of country aligns just after the popup
-    const cx = rx1 - pad + w * (0.5 - popFrac);
+    const cy = (ry1 + ry2) / 2 - portraitCyShift(w);
+    const cx = isPortrait
+      ? (rx1 + rx2) / 2                         // portrait: genuine geographic centre
+      : rx1 - pad + w * (0.5 - popFrac);        // landscape: shift right of popup
     S.viewer.viewport.fitBounds(
       new OpenSeadragon.Rect(cx - w / 2, cy - h / 2, w, h), false
     );
     return;
   }
+
   const filtered = S.places.filter(p => placeMatchesIso2(p, iso2));
   if (!filtered.length) return;
   const vxMin = Math.min(...filtered.map(p => p.vx));
@@ -2316,8 +2375,14 @@ function zoomToCountryPlaces(iso2) {
   const vyMin = Math.min(...filtered.map(p => p.vy));
   const vyMax = Math.max(...filtered.map(p => p.vy));
   const pad = 0.012;
+  const rawW = (vxMax - vxMin) + pad * 2;
+  const rawH = (vyMax - vyMin) + pad * 2;
+  const maxW = S.isMobile ? 0.22 : 1.0;
+  const w = Math.min(rawW, maxW);
+  const cx = (vxMin + vxMax) / 2;
+  const cy = (vyMin + vyMax) / 2 - portraitCyShift(w);
   S.viewer.viewport.fitBounds(
-    new OpenSeadragon.Rect(vxMin - pad, vyMin - pad, (vxMax - vxMin) + pad * 2, (vyMax - vyMin) + pad * 2),
+    new OpenSeadragon.Rect(cx - w / 2, cy - rawH / 2, w, rawH),
     false
   );
 }
@@ -2355,7 +2420,13 @@ function setCountryFilter(iso2) {
   const name = _countryNameMap[iso2] || iso2;
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = iso2;
-  // Floating mode bar
+  // Mobile: show country name inside the Leaflet map at the bottom
+  const locCountryBar = document.getElementById("locate-country-bar");
+  if (locCountryBar) {
+    locCountryBar.textContent = name;
+    locCountryBar.classList.remove("hidden");
+  }
+  // Floating mode bar (desktop)
   const modeBar = document.getElementById("country-mode-bar");
   const modeLabel = document.getElementById("country-mode-label");
   if (modeBar && modeLabel) {
@@ -2380,6 +2451,7 @@ function exitCountryFilter() {
   S.countryPlaces = null;
   renderMarkers();
   document.getElementById("country-mode-bar")?.classList.add("hidden");
+  document.getElementById("locate-country-bar")?.classList.add("hidden");
   document.getElementById("country-isolate-btn")?.classList.add("hidden");
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = "";
@@ -2528,7 +2600,7 @@ async function openLocatePopup() {
 
   const locateZoom = window.innerWidth >= 1000 ? 10 : 9;
   if (!_leafletMap) {
-    _leafletMap = L.map("locate-leaflet-map").setView([lat, lng], locateZoom);
+    _leafletMap = L.map("locate-leaflet-map").setView([40, 35], 3);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
       maxZoom: 19,
@@ -2553,12 +2625,15 @@ async function openLocatePopup() {
     });
     document.getElementById("locate-places-btn").addEventListener("click", toggleLeafletPlaces);
     document.getElementById("locate-roads-btn").addEventListener("click", toggleLeafletRoads);
+    document.getElementById("locate-legend-btn")?.addEventListener("click", () => {
+      document.getElementById("locate-legend")?.classList.toggle("legend-open");
+    });
     _leafletMap.on("zoomend", updateLeafletZoomStyles);
     // Default: roads on (behind), then places on top
     toggleLeafletRoads().then(() => toggleLeafletPlaces());
   } else {
     _leafletMarker.setLatLng([lat, lng]);
-    _leafletMap.panTo([lat, lng]); // preserve user's zoom level on reopen
+    if (S.userLocLat != null) _leafletMap.panTo([lat, lng]);
   }
   setTimeout(() => _leafletMap.invalidateSize(), 60);
 }
@@ -2609,14 +2684,18 @@ async function toggleLeafletRoads() {
         const fromLL = road.f;
         const toLL   = road.t;
 
-        let color   = "#EA580C";   // orange — normal road
+        const midLat = (fromLL[0] + toLL[0]) / 2;
+        const midLng = (fromLL[1] + toLL[1]) / 2;
+        const isSeg1Road = isInSeg1Area(midLat, midLng);
+
+        let color   = isSeg1Road ? "#888899" : "#EA580C";
         let weight  = 2.5;
         let dash    = null;
-        let opacity = 0.51;        // 40% more transparent than original 0.85
+        let opacity = isSeg1Road ? 0.45 : 0.51;
 
-        if (road.w) {
+        if (!isSeg1Road && road.w) {
           color = "#0284C7";        // sky blue — over water
-        } else if (road.m) {
+        } else if (!isSeg1Road && road.m) {
           color = "#7C2D12";        // deep red-brown — crosses mountains
         }
         if (road.r) {
@@ -2624,7 +2703,7 @@ async function toggleLeafletRoads() {
         }
         if (road.x) {
           dash = "8 6";             // long-gap dash — extrapolated (skips unlocated places)
-          opacity = 0.4;
+          opacity = isSeg1Road ? 0.35 : 0.4;
         }
 
         const opts = { color, weight, opacity, interactive: true };
@@ -2666,37 +2745,56 @@ function toggleLeafletPlaces() {
         const seg = Number(r.tabula_segment ?? r.grid_segment);
         const isSeg1 = seg === 1;
         const name = r.latin_std || r.latin || r.modern || "";
-        const color = isSeg1 ? "#888899" : (TYPE_COLORS[r.type] || "#D97706");
-        const dotR = S.isMobile ? 2.2 : 4.8;
+        // d: Seg I dots use type color fill with grey stroke so type is visible but segment is marked
+        const typeColor = TYPE_COLORS[r.type] || "#D97706";
+        const strokeColor = isSeg1 ? "#888899" : typeColor;
+        const dotR = S.isMobile ? 4.4 : 4.8;
         const m = _leafletL.circleMarker([rlat, rlng], {
-          radius: dotR, color, weight: S.isMobile ? 0.8 : 1.5, fillColor: color,
-          fillOpacity: isSeg1 ? 0.35 : 0.75,
+          radius: dotR, color: strokeColor, weight: isSeg1 ? 1.5 : (S.isMobile ? 0.8 : 1.5),
+          fillColor: typeColor, fillOpacity: isSeg1 ? 0.5 : 0.75,
         });
-        const tooltipText = isSeg1 ? `${name} [Segment I — lost]` : name;
-        if (tooltipText) m.bindTooltip(tooltipText, { direction: "top", offset: [0, -4] });
-        // Click a place dot → navigate Tabula; in country mode also allows country selection
+        // a: rich tooltip — latin name, modern, type+color dot, country flag
+        const modern = r.modern || "";
+        const typeLabel = TYPE_LABELS[r.type] || r.type || "";
+        const flag = r.country ? countryFlagHtml(r.country.split("|")[0]) : "";
+        const tipLines = [`<b>${escHtml(name)}</b>`];
+        if (modern) tipLines.push(`<span style="font-size:11px;color:rgba(200,195,180,0.9)">${escHtml(modern)}</span>`);
+        if (typeLabel || flag) {
+          const tdot = `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${typeColor};vertical-align:middle;margin-right:3px"></span>`;
+          tipLines.push(`<span style="font-size:11px">${tdot}${flag ? flag + " " : ""}${escHtml(typeLabel)}</span>`);
+        }
+        if (isSeg1) tipLines.push(`<em style="font-size:10px;opacity:0.7">Segment I — lost</em>`);
+        m.bindTooltip(tipLines.join("<br>"), { direction: "top", offset: [0, -6], className: "ltt" });
+        // Click: navigate Tabula; in country mode also allows country selection
         m.on("click", (e) => {
-          e.originalEvent?.stopPropagation(); // prevent Leaflet map click from also firing
+          e.originalEvent?.stopPropagation();
           if (isSeg1) {
-            const full = S.allRecords.find(a => a.data_id === r.data_id) || r;
-            showInfoPanel(full);
+            // e: use r directly — avoids data_id collision with non-Seg1 records
+            showInfoPanel(r);
+            const edgeResult = projectToTabulaEdge(rlat, rlng);
+            S.userLocVp = edgeResult.vp;
+            S.userLocCentVp = edgeResult.centVp;
+            S.userLocOutside = true;
+            S.userLocLabel = edgeResult.cLat && edgeResult.cLng
+              ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, rlat, rlng)} of map` : "W of map";
+            if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
             showSeg1Modal();
+            renderMarkers();
             return;
           }
           if (S.countrySelectMode && r.type !== "roman_province") {
             const zoom = _leafletMap ? _leafletMap.getZoom() : 0;
             if (zoom < 5) {
-              // Zoomed out: click selects country
               const iso2 = guessCountryFromLatLng(r.lat, r.lng);
               if (iso2) setCountryFilter(iso2);
               return;
             }
-            // Zoomed in (≥5): fall through and navigate to place
           }
-          const full = S.allRecords.find(a => a.data_id === r.data_id) || r;
-          panToPlace(full);
-          startHighlight(full);
-          showInfoPanel(full);
+          // e: look up S.places for vx/vy (needed for stitched-mode navigation)
+          const navRec = S.places.find(p => p.data_id === r.data_id) || r;
+          panToPlace(navRec);
+          startHighlight(navRec);
+          showInfoPanel(r);
           renderMarkers();
         });
         markers.push(m);

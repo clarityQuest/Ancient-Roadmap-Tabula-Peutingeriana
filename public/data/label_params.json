@@ -1,6 +1,7 @@
 {
-  "countryModeOpacity": 0.2,
-  "markerAlpha": 0.9,
+  "countryModeOpacity": 0.55,
+  "countryMarkerAlpha": 0.5,
+  "markerAlpha": 1,
   "fontScale": 1,
   "maxFontDesktop": 14,
   "maxFontMobile": 11,
