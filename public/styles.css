@@ -944,23 +944,25 @@ body, html {
 /* On mobile: hide country-mode-exit button (redundant, deactivate is via locate map button) */
 @media (pointer: coarse) {
   #country-mode-exit { display: none !important; }
-  /* Locate header buttons: uniform size */
+  /* Locate header buttons: compact — keep icon size, reduce container */
   #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
-    width: 28px !important; height: 28px !important;
+    width: 24px !important; height: 24px !important;
     min-width: auto !important; min-height: auto !important;
-    padding: 4px !important;
+    padding: 2px !important;
   }
   #locate-gps-btn svg, #locate-places-btn svg, #locate-roads-btn svg, #locate-my-country-btn svg {
     width: 18px !important; height: 18px !important;
   }
-  /* Close button: same size as info panel close button */
-  #locate-map-close { width: 36px !important; height: 36px !important; min-width: auto !important; min-height: auto !important; font-size: 28px !important; }
+  /* Close button: compact but still clearly tappable */
+  #locate-map-close { width: 28px !important; height: 28px !important; min-width: auto !important; min-height: auto !important; font-size: 22px !important; }
   /* Hide hint + attr text on phone (takes up map space) */
   #locate-map-hint { display: none !important; }
   #locate-map-attr { display: none !important; }
   /* Locate header: ultra-compact to maximise map area */
   #locate-map-header { padding: 1px 5px 1px 6px !important; }
   #locate-header-btns { gap: 2px !important; }
+  /* Country bar: reduce padding so more map is visible (keep font/icon size) */
+  #country-select-bar { padding: 2px 6px !important; gap: 4px !important; }
   /* Show resize handle for locate popup on touch */
   #locate-map-popup .resize-handle { display: block !important; }
   /* Category popup: smaller fonts + icons on mobile */

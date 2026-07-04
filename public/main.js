@@ -1738,10 +1738,7 @@ function showInfoPanel(place) {
 
 function hideInfoPanel() {
   document.getElementById("info-panel").classList.add("hidden");
-  S.selectedPlace = null;
-  S.selectedDataId = null;
-  syncLeafletSelectedMarker(null);
-  renderMarkers();
+  // Intentionally keep S.selectedPlace / S.selectedDataId so the Tabula highlight ring persists.
 }
 
 /* ============================================================
@@ -2037,19 +2034,24 @@ function compassBearing(fromLat, fromLng, toLat, toLng) {
 
 // Pan + zoom to a viewport position with location-appropriate zoom level.
 // isOutside=true uses a wider view so the edge crosshair is clearly at the map boundary.
-function panToLocVp(vx, vy, isOutside = false) {
+// place (optional) adjusts zoom: road_station gets tightest zoom; other types use ~2× wider view.
+function panToLocVp(vx, vy, isOutside = false, place = null) {
   if (!S.viewer?.viewport) return;
   S.highlightVp = { vx, vy };
-  // Mobile zoom-in fix: 0.011 was too tight (1.1% of Tabula width = very zoomed in).
-  // 0.03 gives ~6% context, still clearly centred on the place.
   const isLandscape = S.isMobile && window.innerWidth > window.innerHeight;
   const isPhone = S.isMobile && !S.isTablet;
+  const isRoadStation = !place || place.type === "road_station";
   const hw = isOutside
     ? (S.isMobile ? 0.06 : 0.12)
-    : (isLandscape ? (isPhone ? 0.012 : 0.025)
-      : isPhone ? 0.005
-      : S.isTablet ? 0.018
-      : 0.033);
+    : isRoadStation
+      ? (isLandscape ? (isPhone ? 0.012 : 0.025)
+        : isPhone ? 0.005
+        : S.isTablet ? 0.018
+        : 0.033)
+      : (isLandscape ? (isPhone ? 0.022 : 0.040)
+        : isPhone ? 0.014
+        : S.isTablet ? 0.030
+        : 0.050);
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
     S.viewer.viewport.fitBounds(
@@ -2132,7 +2134,7 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocOutside = true;
       S.userLocLabel = edgeResult.cLat && edgeResult.cLng
         ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map` : "W of map";
-      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
+      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true, best);
       if (!S.isMobile) showInfoPanel(best);
       showSeg1Modal();
       showLocateMarkerPopup(`${name} — Segment I (lost) (~${distRound} km)`);
@@ -2149,7 +2151,7 @@ function setUserLocation(lat, lng, isDefault = false) {
       S.userLocLabel = "";
       S.userLocOutside = false; S.userLocCentVp = null;
       startHighlight(best, true);
-      if (snapVp) panToLocVp(snapVp.vx, snapVp.vy); // pan using snapVp even though crosshair is hidden
+      if (snapVp) panToLocVp(snapVp.vx, snapVp.vy, false, best);
       if (!S.isMobile) showInfoPanel(best);
       if (statusEl) { statusEl.textContent = `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
@@ -2168,7 +2170,7 @@ function setUserLocation(lat, lng, isDefault = false) {
         S.userLocOutside = false;
         S.userLocLabel = "";
         startHighlight(best, true);
-        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy);
+        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, false, best);
         if (!S.isMobile) showInfoPanel(best);
         if (statusEl) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
         if (hint) hint.textContent = "Click map or drag marker to set location";
@@ -2196,7 +2198,7 @@ function setUserLocation(lat, lng, isDefault = false) {
         S.userLocLabel = !edgeResult.isInside
           ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`
           : "";
-        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, !edgeResult.isInside);
+        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, !edgeResult.isInside, best);
 
         if (distKm <= LOCATE_MAX_DIST_KM) {
           startHighlight(best, true);
@@ -2809,7 +2811,7 @@ function toggleLeafletPlaces() {
             S.userLocOutside = true;
             S.userLocLabel = edgeResult.cLat && edgeResult.cLng
               ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, rlat, rlng)} of map` : "W of map";
-            if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true);
+            if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true, r);
             showSeg1Modal();
             renderMarkers();
             return;
