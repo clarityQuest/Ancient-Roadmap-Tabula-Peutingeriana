@@ -4116,19 +4116,40 @@ function initSettingsPanel() {
    Resizable panels
    ============================================================ */
 function initResizablePanels() {
+  // Detach a panel from its responsive CSS constraints so JS can freely position/size it.
+  // Uses inline !important which always wins over stylesheet !important.
+  function detach(panel) {
+    const pr = panel.getBoundingClientRect();
+    const set = (p, v) => panel.style.setProperty(p, v, "important");
+    set("position", "fixed");
+    set("left",   pr.left   + "px");
+    set("top",    pr.top    + "px");
+    set("right",  "auto");
+    set("bottom", "auto");
+    set("width",  pr.width  + "px");
+    set("height", pr.height + "px");
+    return { left: pr.left, top: pr.top, width: pr.width, height: pr.height };
+  }
+
   function makeHandle(panel, cls, minW, minH, onResize) {
     const h = document.createElement("div");
     h.className = "resize-handle " + cls;
     panel.appendChild(h);
     function startResize(clientX, clientY) {
-      return { sx: clientX, sy: clientY, sw: panel.offsetWidth, sh: panel.offsetHeight };
+      const s = detach(panel);
+      return { sx: clientX, sy: clientY, sw: s.width, sh: s.height, sl: s.left };
     }
-    function doResize({ sx, sy, sw, sh }, clientX, clientY) {
+    function doResize({ sx, sy, sw, sh, sl }, clientX, clientY) {
       const dx = clientX - sx, dy = clientY - sy;
-      const newW = Math.max(minW, cls === "resize-bl" ? sw - dx : sw + dx);
-      const newH = Math.max(minH, sh + dy);
-      panel.style.width  = newW + "px";
-      panel.style.height = newH + "px";
+      const set = (p, v) => panel.style.setProperty(p, v, "important");
+      if (cls === "resize-bl") {
+        const newW = Math.max(minW, sw - dx);
+        set("width", newW + "px");
+        set("left",  Math.max(0, sl + dx) + "px");
+      } else {
+        set("width", Math.max(minW, sw + dx) + "px");
+      }
+      set("height", Math.max(minH, sh + dy) + "px");
       if (onResize) onResize();
     }
     h.addEventListener("mousedown", e => {
@@ -4162,22 +4183,18 @@ function initResizablePanels() {
 
   function makeDraggable(panel, handle) {
     function startDrag(clientX, clientY) {
-      const pr = panel.getBoundingClientRect();
-      const cr = (panel.offsetParent || document.documentElement).getBoundingClientRect();
-      const initLeft = pr.left - cr.left, initTop = pr.top - cr.top;
-      panel.style.left  = initLeft + "px";
-      panel.style.right = "auto";
-      panel.style.top   = initTop  + "px";
-      return { initLeft, initTop, sx: clientX, sy: clientY };
+      const s = detach(panel);
+      return { initLeft: s.left, initTop: s.top, sx: clientX, sy: clientY };
     }
+    const setPos = (left, top) => {
+      panel.style.setProperty("left", Math.max(0, left) + "px", "important");
+      panel.style.setProperty("top",  Math.max(0, top)  + "px", "important");
+    };
     handle.addEventListener("mousedown", e => {
       if (e.target.closest("button, a, input, select")) return;
       e.preventDefault();
       const { initLeft, initTop, sx, sy } = startDrag(e.clientX, e.clientY);
-      const onMove = e => {
-        panel.style.left = Math.max(0, initLeft + e.clientX - sx) + "px";
-        panel.style.top  = Math.max(0, initTop  + e.clientY - sy) + "px";
-      };
+      const onMove = e => setPos(initLeft + e.clientX - sx, initTop + e.clientY - sy);
       const onUp = () => {
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup",   onUp);
@@ -4187,13 +4204,13 @@ function initResizablePanels() {
     });
     handle.addEventListener("touchstart", e => {
       if (e.target.closest("button, a, input, select")) return;
+      e.preventDefault();
       const t0 = e.touches[0];
       const { initLeft, initTop, sx, sy } = startDrag(t0.clientX, t0.clientY);
       const onMove = e => {
         e.preventDefault();
         const t = e.touches[0];
-        panel.style.left = Math.max(0, initLeft + t.clientX - sx) + "px";
-        panel.style.top  = Math.max(0, initTop  + t.clientY - sy) + "px";
+        setPos(initLeft + t.clientX - sx, initTop + t.clientY - sy);
       };
       const onEnd = () => {
         document.removeEventListener("touchmove", onMove);
@@ -4201,7 +4218,7 @@ function initResizablePanels() {
       };
       document.addEventListener("touchmove", onMove, { passive: false });
       document.addEventListener("touchend",  onEnd);
-    }, { passive: true });
+    }, { passive: false });
   }
 
   const locPopup = document.getElementById("locate-map-popup");
