@@ -1,4 +1,28 @@
 
+PENDING!!
+
+1) seems the category icon is larger than the user location map icon, decrease its size to be equal size
+
+1) tabula zoom buttons not working with user location map visible in landscape mode
+2) please analyze in detail why the icon is still cropped and not shown in full let me decide which options to fix
+
+
+1) if the user location map tiles etc are still loading show some kind of loading animation
+2) icon still looks shitty, use the full 512x512 size and scale down not crop
+3) "rotate to landscape" hint in portrait mode startup shall be written in center not on left as now, in order not to be covered by the category button
+4) seems like app crashes on pixel 7 phone while running fine on pixel tablet
+
+
+
+
+1) dont see the user location map close button after changing from landscape to portrait
+2) +- buttons stay in the middle after closing user loc map in demo landscape mode, in portrait the +- buttons just vanish
+3) the icon is still unchanged looks like a crop of the old 1024x1024 icon, please regenerate with the new icon: "E:\Projects\tabula android\release assets\icon.png"
+4) remove fullcreen button from "landscape recommendation" in portrait mode
+
+
+
+
 
 60626
 

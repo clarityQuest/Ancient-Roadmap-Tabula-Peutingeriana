@@ -81,6 +81,11 @@ const TYPE_LABELS = {
   people:         "People",
 };
 
+// major_city is an alias for city (same color, same filter toggle)
+function isTypeActive(type) {
+  return S.activeTypes.has(type === "major_city" ? "city" : type);
+}
+
 const TYPE_ICONS = {
   city: "🏛", port: "⚓", road_station: "🛣",
   river: "〰", lake: "💧", island: "🏝", region: "📍",
@@ -285,6 +290,7 @@ const S = {
   defaultLat: (() => { try { const v = Number(localStorage.getItem("tp_defaultLat")); return Number.isFinite(v) && v !== 0 ? v : 41.8902; } catch { return 41.8902; } })(),
   defaultLng: (() => { try { const v = Number(localStorage.getItem("tp_defaultLng")); return Number.isFinite(v) && v !== 0 ? v : 12.4922; } catch { return 12.4922; } })(),
   isMobile: window.matchMedia("(pointer: coarse), (max-width: 600px)").matches,
+  isTablet: window.matchMedia("(pointer: coarse) and (min-width: 768px)").matches,
   canvas:       null,
   ctx:          null,
   originalTile: null,
@@ -634,7 +640,6 @@ function buildLocateLegend() {
   const el = document.getElementById("locate-legend");
   if (!el) return;
   const LEGEND_TYPES = [
-    { type: "major_city",     label: "Major city" },
     { type: "city",           label: "City" },
     { type: "road_station",   label: "Road station" },
     { type: "port",           label: "Port" },
@@ -648,6 +653,21 @@ function buildLocateLegend() {
     const c = TYPE_COLORS[type] || "#D97706";
     return `<div class="ll-row"><span class="ll-dot" style="background:${c}"></span><span class="ll-label">${label}</span></div>`;
   }).join("") + seg1Row;
+}
+
+function placeGpsMarker(lat, lng) {
+  _gpsLat = lat; _gpsLng = lng;
+  if (!_leafletMap || !_leafletL) return;
+  if (!_gpsMarker) {
+    _gpsMarker = _leafletL.circleMarker([lat, lng], {
+      radius: 9, color: "#b91c1c", weight: 2.5,
+      fillColor: "#ef4444", fillOpacity: 0.88,
+      interactive: false,
+    }).addTo(_leafletMap);
+    _gpsMarker.bindTooltip("Your GPS location", { permanent: false, direction: "top" });
+  } else {
+    _gpsMarker.setLatLng([lat, lng]);
+  }
 }
 
 /* ============================================================
@@ -728,11 +748,11 @@ function loadMillerCalib(allRecords) {
 
 function startHighlight(place, isLocate = false) {
   S.highlightDataId = Number(place.data_id);
-  S.highlightUntil  = Date.now() + 20000;
+  S.highlightUntil  = Date.now() + 1000;
   S.highlightLocate = isLocate;
   S.highlightPlace  = place;
   renderMarkers();
-  setTimeout(() => { S.highlightDataId = null; S.highlightLocate = false; renderMarkers(); }, 20000);
+  setTimeout(() => { S.highlightDataId = null; S.highlightLocate = false; renderMarkers(); }, 1000);
 }
 
 function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle = null) {
@@ -900,7 +920,7 @@ function renderMillerOverlay(ctx) {
     const isHighlightedItem = item.data_id === S.highlightDataId && Date.now() < S.highlightUntil;
     const isSelectedItem    = item.data_id === S.selectedDataId;
     const isCountryMatch = S.countryFilter ? placeMatchesIso2(item, S.countryFilter) : false;
-    if (!S.countrySelectMode && !isHighlightedItem && !isSelectedItem && !isCountryMatch && !S.activeTypes.has(item.type)) continue;
+    if (!S.countrySelectMode && !isHighlightedItem && !isSelectedItem && !isCountryMatch && !isTypeActive(item.type)) continue;
     if (S.countryFilter && S.countryIsolate && !isHighlightedItem && !isSelectedItem && !isCountryMatch) continue;
     const vx1 = item.rect_x1 / MILLER_W;
     const vx2 = item.rect_x2 / MILLER_W;
@@ -1143,7 +1163,7 @@ function renderMarkers() {
     const isCountryMatch = S.countryFilter
       ? (S.countryPlaces !== null && S.countryPlaces.has(p.data_id))
       : false;
-    if (!S.countrySelectMode && !isHighlighted && !isCountryMatch && !S.activeTypes.has(p.type)) continue;
+    if (!S.countrySelectMode && !isHighlighted && !isCountryMatch && !isTypeActive(p.type)) continue;
     if (S.countryFilter && S.countryIsolate && !isHighlighted && !isCountryMatch) continue;
     if (p.vx < bx0 || p.vx > bx1 || p.vy < by0 || p.vy > by1) continue;
     // Country-matched places always visible regardless of zoom (like highlighted places)
@@ -1349,7 +1369,7 @@ function hitTest(clientX, clientY) {
   let best = null, bestDist = Infinity;
 
   for (const p of S.places) {
-    if (!S.activeTypes.has(p.type)) continue;
+    if (!isTypeActive(p.type)) continue;
     if (!isVisibleAtZoom(p.type, zoom)) continue;
     const { cx, cy } = viewportToCanvas(p.vx, p.vy);
     const dx = cx - ex, dy = cy - ey;
@@ -1881,6 +1901,7 @@ let _leafletPlacesOn = false;
 let _leafletRoadsLayer = null;
 let _leafletRoadsOn = false;
 let _leafletSelectedMarker = null;
+let _gpsMarker = null, _gpsLat = null, _gpsLng = null;
 let _omnesViaeData = null;
 let _countriesGeoJSON = null;
 let _leafletCountriesLayer = null;
@@ -2022,9 +2043,13 @@ function panToLocVp(vx, vy, isOutside = false) {
   // Mobile zoom-in fix: 0.011 was too tight (1.1% of Tabula width = very zoomed in).
   // 0.03 gives ~6% context, still clearly centred on the place.
   const isLandscape = S.isMobile && window.innerWidth > window.innerHeight;
+  const isPhone = S.isMobile && !S.isTablet;
   const hw = isOutside
     ? (S.isMobile ? 0.06 : 0.12)
-    : (isLandscape ? 0.04 : S.isMobile ? 0.03 : 0.033);
+    : (isLandscape ? (isPhone ? 0.012 : 0.025)
+      : isPhone ? 0.005
+      : S.isTablet ? 0.018
+      : 0.033);
   if (S.mapMode === "old") {
     const millerAspect = MILLER_H / MILLER_W;
     S.viewer.viewport.fitBounds(
@@ -2601,10 +2626,15 @@ async function openLocatePopup() {
   const locateZoom = window.innerWidth >= 1000 ? 10 : 9;
   if (!_leafletMap) {
     _leafletMap = L.map("locate-leaflet-map").setView([40, 35], 3);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const _tileLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
       maxZoom: 19,
     }).addTo(_leafletMap);
+    const _loadingEl = document.getElementById("locate-map-loading");
+    if (_loadingEl) {
+      _tileLayer.on("loading", () => _loadingEl.classList.remove("hidden"));
+      _tileLayer.on("load",    () => _loadingEl.classList.add("hidden"));
+    }
     // Tabula coverage bounding box: lat 20–58°N, lng -15–105°E
     L.rectangle([[20, -15], [58, 105]], {
       color: "#c8a050", weight: 1.5,
@@ -2629,6 +2659,8 @@ async function openLocatePopup() {
       document.getElementById("locate-legend")?.classList.toggle("legend-open");
     });
     _leafletMap.on("zoomend", updateLeafletZoomStyles);
+    // If GPS was already acquired before map init, show the GPS dot
+    if (_gpsLat != null) placeGpsMarker(_gpsLat, _gpsLng);
     // Default: roads on (behind), then places on top
     toggleLeafletRoads().then(() => toggleLeafletPlaces());
   } else {
@@ -2819,7 +2851,12 @@ function acquireGps(openAfter = false) {
     return;
   }
   navigator.geolocation.getCurrentPosition(
-    pos => { setUserLocation(pos.coords.latitude, pos.coords.longitude); done(); },
+    pos => {
+      const { latitude, longitude } = pos.coords;
+      setUserLocation(latitude, longitude);
+      placeGpsMarker(latitude, longitude);
+      done();
+    },
     ()  => { setUserLocation(S.defaultLat, S.defaultLng, true); done(); },
     { timeout: 8000 }
   );
@@ -2963,8 +3000,9 @@ function setupTypeFilters() {
   if (!container) return;
 
   // Main types, then region/people separated at the bottom
+  // major_city is treated as city (same color, same toggle) — excluded from button list
   const RP_TYPES = new Set(["region", "people"]);
-  const mainTypes = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state" && !RP_TYPES.has(t));
+  const mainTypes = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state" && t !== "major_city" && !RP_TYPES.has(t));
   const rpTypes   = Object.keys(TYPE_COLORS).filter(t => RP_TYPES.has(t));
   const types     = [...mainTypes, ...rpTypes];
 
@@ -3186,7 +3224,7 @@ function setupMobileMenu() {
 
   function openMenu() {
     const typeContainer = document.getElementById("mobile-type-filter-buttons");
-    const types = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state");
+    const types = Object.keys(TYPE_COLORS).filter(t => t !== "modern_state" && t !== "major_city");
     const allOn = types.every(t => S.activeTypes.has(t));
     typeContainer.innerHTML =
       `<button class="ctrl-btn toggle-btn${allOn ? " active" : ""}" id="mobile-toggle-all" style="width:100%;margin-bottom:6px">Select All</button>` +
@@ -4080,18 +4118,21 @@ function initResizablePanels() {
     const h = document.createElement("div");
     h.className = "resize-handle " + cls;
     panel.appendChild(h);
+    function startResize(clientX, clientY) {
+      return { sx: clientX, sy: clientY, sw: panel.offsetWidth, sh: panel.offsetHeight };
+    }
+    function doResize({ sx, sy, sw, sh }, clientX, clientY) {
+      const dx = clientX - sx, dy = clientY - sy;
+      const newW = Math.max(minW, cls === "resize-bl" ? sw - dx : sw + dx);
+      const newH = Math.max(minH, sh + dy);
+      panel.style.width  = newW + "px";
+      panel.style.height = newH + "px";
+      if (onResize) onResize();
+    }
     h.addEventListener("mousedown", e => {
       e.preventDefault();
-      const sx = e.clientX, sy = e.clientY;
-      const sw = panel.offsetWidth, sh = panel.offsetHeight;
-      const onMove = e => {
-        const dx = e.clientX - sx, dy = e.clientY - sy;
-        const newW = Math.max(minW, cls === "resize-bl" ? sw - dx : sw + dx);
-        const newH = Math.max(minH, sh + dy);
-        panel.style.width  = newW + "px";
-        panel.style.height = newH + "px";
-        if (onResize) onResize();
-      };
+      const state = startResize(e.clientX, e.clientY);
+      const onMove = e => doResize(state, e.clientX, e.clientY);
       const onUp = () => {
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup",   onUp);
@@ -4099,6 +4140,22 @@ function initResizablePanels() {
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup",   onUp);
     });
+    h.addEventListener("touchstart", e => {
+      e.preventDefault();
+      const t0 = e.touches[0];
+      const state = startResize(t0.clientX, t0.clientY);
+      const onMove = e => {
+        e.preventDefault();
+        const t = e.touches[0];
+        doResize(state, t.clientX, t.clientY);
+      };
+      const onEnd = () => {
+        document.removeEventListener("touchmove", onMove);
+        document.removeEventListener("touchend",  onEnd);
+      };
+      document.addEventListener("touchmove", onMove, { passive: false });
+      document.addEventListener("touchend",  onEnd);
+    }, { passive: false });
   }
 
   function makeDraggable(panel, handle) {
@@ -4233,16 +4290,16 @@ async function init() {
     navigatorAutoFade: true,
     navigatorHeight: (() => {
       const RATIO = 46380 / 2953; // actual Miller DZI aspect ratio
-      const maxH = Math.round(window.innerHeight / 6);
-      const maxW = Math.round(window.innerWidth  / 2);
+      const maxH = Math.round(window.innerHeight / 4); // 50% bigger than /6
+      const maxW = Math.round(window.innerWidth  * 0.75); // allow up to 75% width
       const w = Math.round(maxH * RATIO);
       const h = w > maxW ? Math.round(maxW / RATIO) : maxH;
       return Math.round(h * 1.4) + "px"; // 40% extra height → ~20% black top+bottom
     })(),
     navigatorWidth: (() => {
       const RATIO = 46380 / 2953;
-      const maxH = Math.round(window.innerHeight / 6);
-      const maxW = Math.round(window.innerWidth  / 2);
+      const maxH = Math.round(window.innerHeight / 4); // 50% bigger than /6
+      const maxW = Math.round(window.innerWidth  * 0.75);
       return Math.min(Math.round(maxH * RATIO), maxW) + "px";
     })(),
     defaultZoomLevel: 0,

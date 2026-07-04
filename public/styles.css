@@ -138,8 +138,8 @@ body, html {
 /* Category popup */
 #cat-popup-wrapper { position: relative; }
 #cat-popup-btn {
-  width: 62px;
-  height: 62px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border-radius: 8px;
   border-color: rgba(200, 160, 80, 0.55);
@@ -150,10 +150,10 @@ body, html {
   border-color: #c8a050;
   color: #ffd080;
 }
-#cat-popup-btn svg { width: 30px; height: 30px; }
+#cat-popup-btn svg { width: 22px; height: 22px; }
 #category-popup {
   position: absolute;
-  bottom: 0;
+  bottom: calc(100% + 4px);
   left: 0;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
@@ -161,7 +161,6 @@ body, html {
   padding: 10px;
   z-index: 20;
   min-width: 220px;
-  padding-bottom: 62px;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
@@ -495,7 +494,7 @@ body, html {
 /* Type filter buttons */
 .type-filter-group { display: flex; gap: 3px; flex-wrap: wrap; }
 .type-filter-btn {
-  padding: 8px 13px; border-radius: 5px; border: 1px solid var(--border-color);
+  padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border-color);
   background: var(--panel-bg); color: var(--text-muted);
   font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
   display: flex; align-items: center; gap: 8px;
@@ -749,9 +748,9 @@ body, html {
 
   /* Search: wider, compact, small font on mobile */
   #search-container { flex: 0 0 auto; width: min(30vw, 140px); min-width: 0; margin: 0 4px; }
-  #search-input { width: 100%; min-width: 0; font-size: 7px; height: 24px; padding: 2px 6px; }
-  #search-results .search-item { font-size: 7px; padding: 5px 6px; }
-  #search-results .si-modern { font-size: 6px; }
+  #search-input { width: 100%; min-width: 0; font-size: 9px; height: 24px; padding: 2px 6px; }
+  #search-results .search-item { font-size: 9px; padding: 5px 6px; }
+  #search-results .si-modern { font-size: 7px; }
 
   /* Info panel → left-side panel, width reduced by 1/4 */
   #info-panel {
@@ -817,11 +816,11 @@ body, html {
 
 /* Portrait mode overrides */
 @media (pointer: coarse) and (orientation: portrait) {
-  /* Info panel: bottom sheet, full width */
+  /* Info panel: bottom sheet, 80% width (right-aligned) — tablets override to 75% below */
   #info-panel {
-    left: 0 !important; right: 0 !important;
+    left: 20% !important; right: 0 !important;
     bottom: 0 !important; top: auto !important;
-    width: 100% !important; height: 33vh !important;
+    width: 80% !important; height: 33vh !important;
     border-radius: 10px 10px 0 0 !important;
     box-shadow: 0 -4px 24px rgba(0,0,0,0.6) !important;
   }
@@ -945,16 +944,25 @@ body, html {
 /* On mobile: hide country-mode-exit button (redundant, deactivate is via locate map button) */
 @media (pointer: coarse) {
   #country-mode-exit { display: none !important; }
-  /* Locate header buttons: tight around icon, override ctrl-btn min-size */
+  /* Locate header buttons: uniform size */
   #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
-    width: 22px !important; height: 22px !important;
+    width: 28px !important; height: 28px !important;
     min-width: auto !important; min-height: auto !important;
-    padding: 3px !important;
+    padding: 4px !important;
   }
   #locate-gps-btn svg, #locate-places-btn svg, #locate-roads-btn svg, #locate-my-country-btn svg {
-    width: 16px !important; height: 16px !important;
+    width: 18px !important; height: 18px !important;
   }
-  #locate-map-close { width: 30px !important; height: 30px !important; min-width: auto !important; min-height: auto !important; font-size: 20px !important; }
+  /* Close button: same size as info panel close button */
+  #locate-map-close { width: 36px !important; height: 36px !important; min-width: auto !important; min-height: auto !important; font-size: 28px !important; }
+  /* Hide hint + attr text on phone (takes up map space) */
+  #locate-map-hint { display: none !important; }
+  #locate-map-attr { display: none !important; }
+  /* Locate header: ultra-compact to maximise map area */
+  #locate-map-header { padding: 1px 5px 1px 6px !important; }
+  #locate-header-btns { gap: 2px !important; }
+  /* Show resize handle for locate popup on touch */
+  #locate-map-popup .resize-handle { display: block !important; }
   /* Category popup: smaller fonts + icons on mobile */
   #category-popup { font-size: 11px; }
   #category-popup .toggle-btn-sm { font-size: 11px !important; padding: 5px 9px !important; min-height: 32px !important; gap: 4px !important; }
@@ -983,10 +991,10 @@ body, html {
   #locate-my-country-btn { display: none !important; }
   #locate-header-title { display: none; }
   #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
-    width: 24px !important;
-    height: 24px !important;
+    width: 28px !important;
+    height: 28px !important;
     min-width: auto !important; min-height: auto !important;
-    padding: 3px !important;
+    padding: 4px !important;
   }
   #locate-gps-btn svg, #locate-places-btn svg, #locate-roads-btn svg,
   #locate-my-country-btn svg, #modern-state-solo-btn svg {
@@ -994,7 +1002,7 @@ body, html {
     height: 18px !important;
   }
   #modern-state-solo-btn { font-size: 11px; padding: 3px 5px; }
-  #locate-map-close { width: 28px !important; height: 28px !important; min-width: auto !important; min-height: auto !important; font-size: 20px !important; }
+  #locate-map-close { width: 36px !important; height: 36px !important; min-width: auto !important; min-height: auto !important; font-size: 28px !important; }
   /* Info panel: right side, 30vw, full height */
   #info-panel {
     left: auto !important; right: 0 !important;
@@ -1012,6 +1020,8 @@ body, html {
     max-height: 80svh !important;
     overflow-y: auto !important;
   }
+  /* Show info panel drag bar in landscape so panel can be moved */
+  #panel-drag-bar { display: block !important; }
 }
 /* Custom resize handles */
 .resize-handle { position: absolute; bottom: 0; width: 20px; height: 20px; z-index: 10; }
@@ -1258,5 +1268,68 @@ body, html {
     width: min(300px, 72vw) !important;
     border-radius: 0 12px 12px 0 !important;
     box-shadow: 4px 0 24px rgba(0,0,0,0.6) !important;
+  }
+}
+
+/* GPS icon is rendered via L.icon (SVG data URI) — no extra CSS needed */
+
+/* ── Tile loading spinner for locate map ─────────────────── */
+#locate-map-loading {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 600;
+  width: 32px; height: 32px;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top-color: #c8a050;
+  border-radius: 50%;
+  animation: locateSpin 0.7s linear infinite;
+  pointer-events: none;
+}
+#locate-map-loading.hidden { display: none !important; }
+@keyframes locateSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ── Tablet overrides (touch + ≥768px) ───────────────────── */
+@media (pointer: coarse) and (min-width: 768px) {
+  /* Wider info panel on tablet */
+  #info-panel {
+    width: min(280px, 38vw) !important;
+  }
+  /* Locate map icons slightly larger on tablet */
+  #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
+    width: 32px !important; height: 32px !important;
+  }
+  #locate-gps-btn svg, #locate-places-btn svg, #locate-roads-btn svg, #locate-my-country-btn svg {
+    width: 20px !important; height: 20px !important;
+  }
+  /* Tablet search field 50% bigger than base mobile (7px → 11px) */
+  #search-input { font-size: 11px !important; height: 28px !important; }
+  #search-results .search-item { font-size: 11px !important; }
+  #search-results .si-modern { font-size: 9px !important; }
+  /* Show drag bar + resize handle on tablet (more screen = usable) */
+  #panel-drag-bar { display: block !important; }
+  #locate-map-popup .resize-handle { display: block !important; }
+}
+
+/* Tablet portrait: info panel starts at 25% of screen width, goes full right */
+@media (pointer: coarse) and (orientation: portrait) and (min-width: 768px) {
+  #info-panel {
+    left: 25% !important;
+    right: 0 !important;
+    width: 75% !important;
+    border-radius: 10px 10px 0 0 !important;
+  }
+}
+
+/* Tablet landscape: info panel fits content, not full height */
+@media (pointer: coarse) and (orientation: landscape) and (min-width: 768px) {
+  #info-panel {
+    top: 0 !important;
+    bottom: auto !important;
+    height: auto !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
   }
 }
