@@ -672,16 +672,22 @@ function placeGpsMarker(lat, lng) {
       _leafletMap.createPane("gpsPane");
       _leafletMap.getPane("gpsPane").style.zIndex = "610";
     }
-    const icon = _leafletL.divIcon({
-      className: "gps-pin-icon",
-      html: '<div class="gps-pin-pointer"></div>',
-      iconSize: [22, 30],
-      iconAnchor: [11, 29],
+    // Same icon image/size/anchor as the default (blue) Leaflet marker — a CSS hue
+    // filter (see .gps-red-icon) is the only difference, so the two are identical
+    // shapes and only the color tells them apart.
+    const LEAFLET_IMG = "https://unpkg.com/leaflet@1.9.4/dist/images/";
+    const icon = _leafletL.icon({
+      iconUrl:       LEAFLET_IMG + "marker-icon.png",
+      iconRetinaUrl: LEAFLET_IMG + "marker-icon-2x.png",
+      shadowUrl:     LEAFLET_IMG + "marker-shadow.png",
+      iconSize: [25, 41], iconAnchor: [12, 41],
+      popupAnchor: [1, -34], tooltipAnchor: [16, -28], shadowSize: [41, 41],
+      className: "gps-red-icon",
     });
     _gpsMarker = _leafletL.marker([lat, lng], {
       icon, pane: "gpsPane", interactive: false, keyboard: false,
     }).addTo(_leafletMap);
-    _gpsMarker.bindTooltip("Your GPS location", { permanent: false, direction: "top", offset: [0, -26] });
+    _gpsMarker.bindTooltip("Your GPS location", { permanent: false, direction: "top" });
   } else {
     _gpsMarker.setLatLng([lat, lng]);
   }
@@ -2154,9 +2160,10 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false) {
   S.userLocLat = lat;
   S.userLocLng = lng;
 
-  // Default/fallback location: only update Leaflet marker position, don't draw on Tabula
-  if (isDefault) return;
-
+  // isDefault (GPS unavailable, falling back to the configured default coordinates):
+  // still compute the crosshair/pan/highlight below so the red GPS marker has somewhere
+  // to be, but skip the routine "Nearest: X" status text since the caller already
+  // flashed a more specific "GPS unavailable" message that this would otherwise clobber.
   const statusEl = document.getElementById("status");
   const hint = document.getElementById("locate-map-hint");
 
@@ -2178,7 +2185,7 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false) {
       if (!S.isMobile) showInfoPanel(best);
       showSeg1Modal();
       showLocateMarkerPopup(`${name} — Segment I (lost) (~${distRound} km)`);
-      if (statusEl) { statusEl.textContent = `Nearest: ${name} (Segment I — lost, ~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+      if (statusEl && !isDefault) { statusEl.textContent = `Nearest: ${name} (Segment I — lost, ~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Segment I of the Tabula is lost — click † for details";
       renderMarkers();
       return;
@@ -2193,7 +2200,7 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false) {
       startHighlight(best, true);
       if (snapVp) panToLocVp(snapVp.vx, snapVp.vy, false, best);
       if (!S.isMobile) showInfoPanel(best);
-      if (statusEl) { statusEl.textContent = `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+      if (statusEl && !isDefault) { statusEl.textContent = `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(`${name} (~${distRound} km)`);
 
@@ -2212,7 +2219,7 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false) {
         startHighlight(best, true);
         if (S[P + "Vp"]) panToLocVp(S[P + "Vp"].vx, S[P + "Vp"].vy, false, best);
         if (!S.isMobile) showInfoPanel(best);
-        if (statusEl) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+        if (statusEl && !isDefault) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
         if (hint) hint.textContent = "Click map or drag marker to set location";
         showLocateMarkerPopup(`~${name} (~${distRound} km)`);
 
@@ -2243,11 +2250,11 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false) {
         if (distKm <= LOCATE_MAX_DIST_KM) {
           startHighlight(best, true);
           if (!S.isMobile) showInfoPanel(best);
-          if (statusEl) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
+          if (statusEl && !isDefault) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
           if (hint) hint.textContent = "Click map or drag marker to set location";
           showLocateMarkerPopup(`~${name} (~${distRound} km)`);
         } else {
-          if (statusEl) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
+          if (statusEl && !isDefault) { statusEl.textContent = `Outside Tabula coverage — nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 8000); }
           if (hint) hint.textContent = "Outside Tabula area — click inside the orange box";
           showLocateMarkerPopup(`Outside (~${distRound} km)`);
         }
@@ -2898,9 +2905,13 @@ function acquireGps(openAfter = false) {
     statusEl.textContent = msg;
     setTimeout(() => { statusEl.textContent = ""; }, 6000);
   };
+  // No GPS available at all: the red marker/crosshair still needs *somewhere* to be,
+  // so treat the configured default coordinates as the "GPS" fix (isDefault=true only
+  // suppresses the routine status text, which would otherwise clobber the message below).
   if (!navigator.geolocation) {
     flashStatus("Geolocation not supported — using default location");
-    setUserLocation(S.defaultLat, S.defaultLng, true);
+    setUserLocation(S.defaultLat, S.defaultLng, true, true);
+    placeGpsMarker(S.defaultLat, S.defaultLng);
     done();
     return;
   }
@@ -2918,7 +2929,8 @@ function acquireGps(openAfter = false) {
         : err?.code === 2 ? "Position unavailable"
         : "Timed out";
       flashStatus(`GPS: ${reason} — using default location`);
-      setUserLocation(S.defaultLat, S.defaultLng, true);
+      setUserLocation(S.defaultLat, S.defaultLng, true, true);
+      placeGpsMarker(S.defaultLat, S.defaultLng);
       done();
     },
     { timeout: 12000, enableHighAccuracy: true, maximumAge: 60000 }
