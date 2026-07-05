@@ -227,7 +227,7 @@
 
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260705g" />
+  <link rel="stylesheet" href="styles.css?v=20260705h" />
 </head>
 <body>
   <div id="app">
@@ -338,37 +338,39 @@
     <aside id="info-panel" class="hidden">
       <div id="panel-drag-bar" title="Drag to move"></div>
       <button id="close-panel" aria-label="Close">&times;</button>
-      <div id="panel-top-row">
-        <div id="panel-segment-badge" class="hidden"></div>
-        <a id="panel-email-btn" href="#" aria-label="Send email about this place" title="Send email about this place"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M2 7l8 5 8-5"/></svg></a>
-      </div>
-      <div id="panel-names">
-        <div id="panel-latin"></div>
-        <div id="panel-latin-transl" class="hidden"></div>
-        <div id="panel-modern"></div>
-      </div>
-      <div id="panel-country" class="hidden"></div>
-      <div id="panel-type"><span class="type-icon"></span><span class="type-dot"></span><span class="type-label"></span><span id="panel-province"></span></div>
-      <dl id="panel-details"></dl>
-      <div id="panel-seg1-note" class="hidden"></div>
-      <div id="panel-wiki-section">
-        <div id="panel-wiki-summary" class="hidden"></div>
-        <div id="panel-wiki-bottom">
-          <div id="panel-links">
-            <a id="panel-wiki-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Wikipedia ↗</a>
-            <a id="panel-tp-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Ulm DB ↗</a>
-          </div>
-          <img id="panel-wiki-img" class="hidden" alt="" loading="lazy" />
+      <div id="panel-scroll-body">
+        <div id="panel-top-row">
+          <div id="panel-segment-badge" class="hidden"></div>
+          <a id="panel-email-btn" href="#" aria-label="Send email about this place" title="Send email about this place"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M2 7l8 5 8-5"/></svg></a>
         </div>
+        <div id="panel-names">
+          <div id="panel-latin"></div>
+          <div id="panel-latin-transl" class="hidden"></div>
+          <div id="panel-modern"></div>
+        </div>
+        <div id="panel-country" class="hidden"></div>
+        <div id="panel-type"><span class="type-icon"></span><span class="type-dot"></span><span class="type-label"></span><span id="panel-province"></span></div>
+        <dl id="panel-details"></dl>
+        <div id="panel-seg1-note" class="hidden"></div>
+        <div id="panel-wiki-section">
+          <div id="panel-wiki-summary" class="hidden"></div>
+          <div id="panel-wiki-bottom">
+            <div id="panel-links">
+              <a id="panel-wiki-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Wikipedia ↗</a>
+              <a id="panel-tp-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Ulm DB ↗</a>
+            </div>
+            <img id="panel-wiki-img" class="hidden" alt="" loading="lazy" />
+          </div>
+        </div>
+        <div id="panel-map" class="hidden"></div>
+        <div id="panel-ulm-label" class="hidden" data-i18n="tabula_view_label">Original Tabula Peutingeriana view</div>
+        <div id="panel-ulm-section" class="hidden">
+          <a id="panel-ulm-link" href="#" target="_blank" rel="noopener" title="Open in Ulm Database">
+            <img id="panel-ulm-img" src="" alt="ULM database image" />
+          </a>
+        </div>
+        <div id="panel-sources">Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber) · <a href="https://tp-online.ku.de/" target="_blank" rel="noopener">tp-online.ku.de</a> (Univ. Ulm) · Image: <a href="https://commons.wikimedia.org/wiki/File:Tabula_Peutingeriana.jpg" target="_blank" rel="noopener">K. Miller, 1887</a> · Map: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
       </div>
-      <div id="panel-map" class="hidden"></div>
-      <div id="panel-ulm-label" class="hidden" data-i18n="tabula_view_label">Original Tabula Peutingeriana view</div>
-      <div id="panel-ulm-section" class="hidden">
-        <a id="panel-ulm-link" href="#" target="_blank" rel="noopener" title="Open in Ulm Database">
-          <img id="panel-ulm-img" src="" alt="ULM database image" />
-        </a>
-      </div>
-      <div id="panel-sources">Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber) · <a href="https://tp-online.ku.de/" target="_blank" rel="noopener">tp-online.ku.de</a> (Univ. Ulm) · Image: <a href="https://commons.wikimedia.org/wiki/File:Tabula_Peutingeriana.jpg" target="_blank" rel="noopener">K. Miller, 1887</a> · Map: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
     </aside>
 
     <!-- About modal backdrop -->
@@ -643,6 +645,6 @@
 
   <div id="latin-tip" style="display:none"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260705g"></script>
+  <script src="main.js?v=20260705h"></script>
 </body>
 </html>

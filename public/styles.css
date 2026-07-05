@@ -406,10 +406,18 @@ body, html {
   right: 20px; top: 60px; width: 280px;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
-  border-radius: 8px; padding: 16px 16px 12px; z-index: 30;
+  border-radius: 8px; padding: 0; z-index: 30;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   pointer-events: auto;
-  overflow: auto;
+  /* flex column: #panel-scroll-body fills height, resize handle stays outside scroll */
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+/* Inner scroll zone — keeps resize handle anchored to panel bottom, not content bottom */
+#panel-scroll-body {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 16px 16px 12px;
   max-height: calc(100vh - 80px);
 }
 #close-panel {
@@ -780,8 +788,8 @@ body, html {
   #info-panel::before { display: none; }
 
   #panel-latin, #panel-modern { font-size: 14px; }
-  /* Info panel: always scrollable on touch, especially after resize */
-  #info-panel { overflow-y: auto !important; }
+  /* On touch: scroll is in #panel-scroll-body; panel itself is overflow:hidden */
+  #panel-scroll-body { max-height: none !important; overflow-y: auto; }
   #panel-map:not(.hidden) {
     display: block !important;
     margin: 10px 0 0;
