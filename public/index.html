@@ -227,7 +227,7 @@
 
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260705c" />
+  <link rel="stylesheet" href="styles.css?v=20260705d" />
 </head>
 <body>
   <div id="app">
@@ -563,16 +563,16 @@
         </button>
       </div>
       <div id="locate-leaflet-map">
-        <div id="locate-legend"></div>
         <div id="locate-map-loading" class="hidden"></div>
-        <!-- Mobile-only: legend toggle at bottom-right, country label at bottom centre -->
-        <button id="locate-legend-btn" title="Show legend" aria-label="Show legend">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="5" y1="4" x2="13" y2="4"/><circle cx="2.5" cy="4" r="1.2" fill="currentColor"/><line x1="5" y1="8" x2="13" y2="8"/><circle cx="2.5" cy="8" r="1.2" fill="currentColor"/><line x1="5" y1="12" x2="13" y2="12"/><circle cx="2.5" cy="12" r="1.2" fill="currentColor"/></svg>
-        </button>
         <div id="locate-country-bar" class="hidden"></div>
       </div>
       <p id="locate-map-hint">Click map or drag marker to set location</p>
       <p id="locate-map-attr">Road data: <a href="https://omnesviae.org" target="_blank" rel="noopener">OmnesViae</a> · Map: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>
+      <!-- Legend moved outside #locate-leaflet-map so z-index 2000 is in #locate-map-popup context (above resize handle 1500) -->
+      <div id="locate-legend"></div>
+      <button id="locate-legend-btn" title="Show legend" aria-label="Show legend">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="5" y1="4" x2="13" y2="4"/><circle cx="2.5" cy="4" r="1.2" fill="currentColor"/><line x1="5" y1="8" x2="13" y2="8"/><circle cx="2.5" cy="8" r="1.2" fill="currentColor"/><line x1="5" y1="12" x2="13" y2="12"/><circle cx="2.5" cy="12" r="1.2" fill="currentColor"/></svg>
+      </button>
     </div>
 
     <!-- Mobile layout toggle — dev tool, visible on mobile only -->
@@ -643,6 +643,6 @@
 
   <div id="latin-tip" style="display:none"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260705c"></script>
+  <script src="main.js?v=20260705d"></script>
 </body>
 </html>

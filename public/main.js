@@ -4232,7 +4232,7 @@ function initResizablePanels() {
   }
   const infoPanel = document.getElementById("info-panel");
   if (infoPanel) {
-    makeHandle(infoPanel, "resize-bl", 260, 120, null);
+    makeHandle(infoPanel, "resize-bl", 180, 80, null);
     const dragBar = document.getElementById("panel-drag-bar");
     if (dragBar) makeDraggable(infoPanel, dragBar);
   }

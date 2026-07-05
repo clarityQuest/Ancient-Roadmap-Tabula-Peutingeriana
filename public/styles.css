@@ -787,19 +787,22 @@ body, html {
     margin: 10px 0 0;
     border-radius: 6px;
     overflow: hidden;
-    /* Proportional height so map shrinks when panel is resized smaller */
-    height: 30vh !important;
-    max-height: 200px !important;
-    min-height: 60px !important;
+    position: relative;
+    /* Aspect-ratio drives height from panel width, so map shrinks as panel is resized smaller */
+    height: auto !important;
+    aspect-ratio: 16 / 9;
+    max-height: 130px !important;
+    min-height: 36px !important;
     flex-shrink: 1;
   }
   #panel-map:not(.hidden) iframe {
-    width: 100%; height: 100% !important; min-height: 60px;
+    position: absolute; top: 0; left: 0;
+    width: 100% !important; height: 100% !important;
     display: block;
   }
   /* Larger map on tablets (wider touch screens) */
   @media (min-width: 601px) {
-    #panel-map:not(.hidden) { max-height: 260px !important; }
+    #panel-map:not(.hidden) { max-height: 180px !important; }
   }
   /* Slightly smaller fonts for narrow panel */
   #info-panel #panel-latin  { font-size: 14px; margin-bottom: 2px; }
@@ -1077,9 +1080,9 @@ body, html {
 #locate-map-close:hover { color: #fff; }
 #locate-leaflet-map { width: 100%; flex: 1; min-height: 0; position: relative; isolation: isolate; }
 
-/* Dot-color legend — bottom-left of locate map (bottom-right reserved for resize handle) */
+/* Dot-color legend — bottom-right of popup; z-index 2000 so it sits above resize handle (1500) */
 #locate-legend {
-  position: absolute; bottom: 26px; left: 8px; right: auto; top: auto; z-index: 500;
+  position: absolute; bottom: 26px; right: 8px; left: auto; top: auto; z-index: 2000;
   background: rgba(18,16,12,0.88);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 6px;
@@ -1087,12 +1090,14 @@ body, html {
   display: flex; flex-direction: column; gap: 3px;
   pointer-events: none;
 }
+/* When legend is open its panel should block taps reaching the map behind it */
+#locate-legend.legend-open { pointer-events: auto; }
 /* Mobile: hide by default, show when toggled; legend button visible */
 #locate-legend-btn { display: none; }
-/* Legend toggle button — bottom-left (bottom-right reserved for resize handle) */
+/* Legend toggle button — bottom-right, above resize handle and Leaflet marker pane */
 #locate-legend-btn {
   display: none;
-  position: absolute; bottom: 26px; left: 8px; right: auto; z-index: 501;
+  position: absolute; bottom: 26px; right: 8px; left: auto; z-index: 2001;
   opacity: 0.5;
   background: rgba(18,16,12,0.88);
   border: 1px solid rgba(255,255,255,0.18);
@@ -1117,9 +1122,10 @@ body, html {
   pointer-events: none;
 }
 @media (pointer: coarse), (max-width: 600px) {
-  #locate-legend { display: none; bottom: 36px; left: 8px; right: auto; }
+  /* Push both elements up to clear the 32px touch resize handle at bottom-right */
+  #locate-legend { display: none; bottom: 64px; right: 8px; left: auto; }
   #locate-legend.legend-open { display: flex !important; }
-  #locate-legend-btn { display: flex !important; }
+  #locate-legend-btn { display: flex !important; bottom: 38px; right: 8px; left: auto; }
   #locate-country-bar:not(.hidden) { display: flex !important; }
 }
 .ll-row { display: flex; align-items: center; gap: 5px; }
