@@ -279,6 +279,7 @@ const S = {
   highlightVp:     null,  // {vx,vy} viewport centre stored by panToPlace for fallback ring
   highlightLocate: false, // true when highlight was triggered by user locate snap
   highlightPlace:  null,  // the place record that is currently highlighted
+  // Blue crosshair — wherever the user last manually picked (map click / marker drag)
   userLocVp:      null,   // {vx,vy} viewport coords where crosshair is drawn
   userLocPlace:   null,   // nearest calibrated place from locate (permanent, not timer-gated)
   userLocLat:     null,
@@ -286,6 +287,12 @@ const S = {
   userLocLabel:   "",     // short label drawn near the crosshair
   userLocOutside: false,  // true when projected to Tabula edge
   userLocCentVp:  null,   // centroid viewport position (used for outside arrow direction)
+  // Red crosshair — the actual GPS fix; independent of the blue one, persists
+  // once acquired regardless of any later manual picks.
+  gpsVp:          null,
+  gpsLabel:       "",
+  gpsOutside:     false,
+  gpsCentVp:      null,
   lang: (() => { try { return localStorage.getItem("tp_lang") || "sys"; } catch { return "sys"; } })(),
   defaultLat: (() => { try { const v = Number(localStorage.getItem("tp_defaultLat")); return Number.isFinite(v) && v !== 0 ? v : 41.8902; } catch { return 41.8902; } })(),
   defaultLng: (() => { try { const v = Number(localStorage.getItem("tp_defaultLng")); return Number.isFinite(v) && v !== 0 ? v : 12.4922; } catch { return 12.4922; } })(),
@@ -659,12 +666,22 @@ function placeGpsMarker(lat, lng) {
   _gpsLat = lat; _gpsLng = lng;
   if (!_leafletMap || !_leafletL) return;
   if (!_gpsMarker) {
-    _gpsMarker = _leafletL.circleMarker([lat, lng], {
-      radius: 9, color: "#b91c1c", weight: 2.5,
-      fillColor: "#ef4444", fillOpacity: 0.88,
-      interactive: false,
+    // Own pane, above the draggable pin's markerPane (600) — the GPS pin must stay
+    // visible even when it exactly coincides with the (also draggable) location pin.
+    if (!_leafletMap.getPane("gpsPane")) {
+      _leafletMap.createPane("gpsPane");
+      _leafletMap.getPane("gpsPane").style.zIndex = "610";
+    }
+    const icon = _leafletL.divIcon({
+      className: "gps-pin-icon",
+      html: '<div class="gps-pin-pointer"></div>',
+      iconSize: [22, 30],
+      iconAnchor: [11, 29],
+    });
+    _gpsMarker = _leafletL.marker([lat, lng], {
+      icon, pane: "gpsPane", interactive: false, keyboard: false,
     }).addTo(_leafletMap);
-    _gpsMarker.bindTooltip("Your GPS location", { permanent: false, direction: "top" });
+    _gpsMarker.bindTooltip("Your GPS location", { permanent: false, direction: "top", offset: [0, -26] });
   } else {
     _gpsMarker.setLatLng([lat, lng]);
   }
@@ -755,25 +772,31 @@ function startHighlight(place, isLocate = false) {
   setTimeout(() => { S.highlightDataId = null; S.highlightLocate = false; renderMarkers(); }, 1000);
 }
 
-function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle = null) {
-  if (outsideAngle !== null) drawOutsideCrosshair(ctx, cx, cy, outsideAngle);
-  else drawUserCrosshair(ctx, cx, cy);
-  if (!S.userLocLabel) return;
+// theme: { ring, label } colors — red for the GPS crosshair, blue for the manually-picked one
+const CROSSHAIR_THEMES = {
+  gps:    { ring: "#FF2222", label: "#FF8080" },
+  manual: { ring: "#3B82F6", label: "#93C5FD" },
+};
+
+function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, theme, label) {
+  if (outsideAngle !== null) drawOutsideCrosshair(ctx, cx, cy, outsideAngle, theme.ring);
+  else drawUserCrosshair(ctx, cx, cy, theme.ring);
+  if (!label) return;
   ctx.save();
   ctx.font = "bold 16px 'Segoe UI', Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  const tw = ctx.measureText(S.userLocLabel).width;
+  const tw = ctx.measureText(label).width;
   const px = cx, py = cy + 76;
-  ctx.fillStyle = outsideAngle !== null ? "rgba(70,35,0,0.9)" : "rgba(0,0,0,0.78)";
+  ctx.fillStyle = "rgba(0,0,0,0.78)";
   ctx.fillRect(px - tw / 2 - 7, py - 3, tw + 14, 24);
   ctx.shadowColor = "rgba(0,0,0,0.0)";
-  ctx.fillStyle = outsideAngle !== null ? "#FFB040" : "#ffffff";
-  ctx.fillText(S.userLocLabel, px, py);
+  ctx.fillStyle = theme.label;
+  ctx.fillText(label, px, py);
   ctx.restore();
 }
 
-function drawOutsideCrosshair(ctx, cx, cy, arrowAngle) {
+function drawOutsideCrosshair(ctx, cx, cy, arrowAngle, color) {
   const R = 28, arm = 48;
   ctx.save();
   ctx.globalAlpha = 0.92;
@@ -787,8 +810,8 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle) {
   ctx.moveTo(cx, cy - arm); ctx.lineTo(cx, cy - R - 2);
   ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
   ctx.stroke();
-  // Orange ring + arms
-  ctx.strokeStyle = "#FF8800"; ctx.lineWidth = 3.5;
+  // Colored ring + arms
+  ctx.strokeStyle = color; ctx.lineWidth = 3.5;
   ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 8;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath();
@@ -805,9 +828,9 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle) {
   ctx.shadowBlur = 0;
   ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 7;
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-  ctx.strokeStyle = "#FF8800"; ctx.lineWidth = 3.5;
+  ctx.strokeStyle = color; ctx.lineWidth = 3.5;
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-  ctx.fillStyle = "#FF8800";
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(ex, ey);
   ctx.lineTo(ex - aHead * Math.cos(arrowAngle - aSpread), ey - aHead * Math.sin(arrowAngle - aSpread));
@@ -815,11 +838,11 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle) {
   ctx.closePath(); ctx.fill();
   // Center dot
   ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#FF8800"; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
-function drawUserCrosshair(ctx, cx, cy) {
+function drawUserCrosshair(ctx, cx, cy, color) {
   const R = 28, arm = 48;
   ctx.save();
   ctx.globalAlpha = 0.92;
@@ -837,8 +860,8 @@ function drawUserCrosshair(ctx, cx, cy) {
   ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
   ctx.stroke();
 
-  // Red crosshair on top
-  ctx.strokeStyle = "#FF2222";
+  // Colored crosshair on top
+  ctx.strokeStyle = color;
   ctx.lineWidth = 3.5;
   ctx.shadowColor = "rgba(0,0,0,0.8)";
   ctx.shadowBlur = 8;
@@ -1344,15 +1367,28 @@ function renderMarkers() {
 }
 
 function _drawUserCrosshair(ctx) {
-  if (!S.userLocVp) return;
-  if (S.countryFilter) return; // hide crosshair in country mode
-  const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
-  let outsideAngle = null;
-  if (S.userLocOutside && S.userLocCentVp) {
-    const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
-    outsideAngle = Math.atan2(cy - ccy, cx - ccx);
+  if (S.countryFilter) return; // hide crosshairs in country mode
+  // Red: the GPS fix. Always drawn once acquired — independent of any later manual pick.
+  if (S.gpsVp) {
+    const { cx, cy } = viewportToCanvas(S.gpsVp.vx, S.gpsVp.vy);
+    let outsideAngle = null;
+    if (S.gpsOutside && S.gpsCentVp) {
+      const { cx: ccx, cy: ccy } = viewportToCanvas(S.gpsCentVp.vx, S.gpsCentVp.vy);
+      outsideAngle = Math.atan2(cy - ccy, cx - ccx);
+    }
+    drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, CROSSHAIR_THEMES.gps, S.gpsLabel);
   }
-  drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle);
+  // Blue: wherever the user manually picked (map click / marker drag) — a second,
+  // independent crosshair alongside the red GPS one.
+  if (S.userLocVp) {
+    const { cx, cy } = viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy);
+    let outsideAngle = null;
+    if (S.userLocOutside && S.userLocCentVp) {
+      const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
+      outsideAngle = Math.atan2(cy - ccy, cx - ccx);
+    }
+    drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, CROSSHAIR_THEMES.manual, S.userLocLabel);
+  }
 }
 
 /* ============================================================
@@ -2066,7 +2102,11 @@ function panToLocVp(vx, vy, isOutside = false, place = null) {
   }
 }
 
-function setUserLocation(lat, lng, isDefault = false) {
+function setUserLocation(lat, lng, isDefault = false, isGps = false) {
+  // Crosshair state goes to the "gps" (red) track when this update came from an actual
+  // GPS fix, or the "userLoc" (blue) track for a manual pick (map click / marker drag) —
+  // the two are independent so a manual pick never erases the persistent GPS crosshair.
+  const P = isGps ? "gps" : "userLoc";
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
   let bestNonArea = null, bestNonAreaSq = Infinity;
   let bestArea = null, bestAreaSq = Infinity;
@@ -2129,12 +2169,12 @@ function setUserLocation(lat, lng, isDefault = false) {
     // Segment I place — crosshair at left edge of surviving Tabula, info panel + modal
     if (Number(best.tabula_segment) === 1) {
       const edgeResult = projectToTabulaEdge(lat, lng);
-      S.userLocVp = edgeResult.vp;
-      S.userLocCentVp = edgeResult.centVp;
-      S.userLocOutside = true;
-      S.userLocLabel = edgeResult.cLat && edgeResult.cLng
+      S[P + "Vp"] = edgeResult.vp;
+      S[P + "CentVp"] = edgeResult.centVp;
+      S[P + "Outside"] = true;
+      S[P + "Label"] = edgeResult.cLat && edgeResult.cLng
         ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map` : "W of map";
-      if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true, best);
+      if (S[P + "Vp"]) panToLocVp(S[P + "Vp"].vx, S[P + "Vp"].vy, true, best);
       if (!S.isMobile) showInfoPanel(best);
       showSeg1Modal();
       showLocateMarkerPopup(`${name} — Segment I (lost) (~${distRound} km)`);
@@ -2147,9 +2187,9 @@ function setUserLocation(lat, lng, isDefault = false) {
     if (distKm <= LOCATE_SNAP_KM) {
       // Snap: place is close enough — highlight the rect, no separate crosshair needed
       const snapVp = placeVp(best);
-      S.userLocVp = null; // suppress crosshair; highlighted rect is sufficient
-      S.userLocLabel = "";
-      S.userLocOutside = false; S.userLocCentVp = null;
+      S[P + "Vp"] = null; // suppress crosshair; highlighted rect is sufficient
+      S[P + "Label"] = "";
+      S[P + "Outside"] = false; S[P + "CentVp"] = null;
       startHighlight(best, true);
       if (snapVp) panToLocVp(snapVp.vx, snapVp.vy, false, best);
       if (!S.isMobile) showInfoPanel(best);
@@ -2165,12 +2205,12 @@ function setUserLocation(lat, lng, isDefault = false) {
         // Use IDW interpolation for crosshair (user's actual Tabula position between places)
         const idwVp = interpolateTabulaVp(lat, lng, LOCATE_IDW_KM);
         const nearestVp = placeVp(best);
-        S.userLocVp = idwVp || nearestVp;
-        S.userLocCentVp = null;
-        S.userLocOutside = false;
-        S.userLocLabel = "";
+        S[P + "Vp"] = idwVp || nearestVp;
+        S[P + "CentVp"] = null;
+        S[P + "Outside"] = false;
+        S[P + "Label"] = "";
         startHighlight(best, true);
-        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, false, best);
+        if (S[P + "Vp"]) panToLocVp(S[P + "Vp"].vx, S[P + "Vp"].vy, false, best);
         if (!S.isMobile) showInfoPanel(best);
         if (statusEl) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
         if (hint) hint.textContent = "Click map or drag marker to set location";
@@ -2185,20 +2225,20 @@ function setUserLocation(lat, lng, isDefault = false) {
           (distKm - LOCATE_IDW_KM) / (LOCATE_MAX_DIST_KM - LOCATE_IDW_KM)
         ));
         if (nearestVp && edgeVp) {
-          S.userLocVp = {
+          S[P + "Vp"] = {
             vx: nearestVp.vx + t * (edgeVp.vx - nearestVp.vx),
             vy: nearestVp.vy + t * (edgeVp.vy - nearestVp.vy),
           };
         } else {
-          S.userLocVp = edgeVp || nearestVp;
+          S[P + "Vp"] = edgeVp || nearestVp;
         }
-        S.userLocCentVp = edgeResult.centVp;
+        S[P + "CentVp"] = edgeResult.centVp;
         // Only show direction arrow when truly outside the geographic bbox
-        S.userLocOutside = !edgeResult.isInside;
-        S.userLocLabel = !edgeResult.isInside
+        S[P + "Outside"] = !edgeResult.isInside;
+        S[P + "Label"] = !edgeResult.isInside
           ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map`
           : "";
-        if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, !edgeResult.isInside, best);
+        if (S[P + "Vp"]) panToLocVp(S[P + "Vp"].vx, S[P + "Vp"].vy, !edgeResult.isInside, best);
 
         if (distKm <= LOCATE_MAX_DIST_KM) {
           startHighlight(best, true);
@@ -2223,8 +2263,11 @@ function setUserLocation(lat, lng, isDefault = false) {
 }
 
 function showLocateMarkerPopup(text) {
-  if (!_leafletMap || !_leafletMarker) return;
-  _leafletMarker.bindPopup(text, { closeButton: false, offset: [0, -8], className: "locate-popup", autoPan: false }).openPopup();
+  // Fixed at the map's bottom edge rather than anchored to the marker — a popup
+  // floating over the marker sat on top of the dense place-dot cluster and
+  // blocked clicking neighboring places underneath it.
+  const bar = document.getElementById("locate-result-bar");
+  if (bar) bar.textContent = text;
 }
 
 function loadLeaflet() {
@@ -2850,7 +2893,13 @@ function acquireGps(openAfter = false) {
   const done = () => { if (openAfter) openLocatePopup(); };
   const statusEl = document.getElementById("status");
   if (statusEl) statusEl.textContent = "Locating…";
+  const flashStatus = (msg) => {
+    if (!statusEl) return;
+    statusEl.textContent = msg;
+    setTimeout(() => { statusEl.textContent = ""; }, 6000);
+  };
   if (!navigator.geolocation) {
+    flashStatus("Geolocation not supported — using default location");
     setUserLocation(S.defaultLat, S.defaultLng, true);
     done();
     return;
@@ -2858,12 +2907,21 @@ function acquireGps(openAfter = false) {
   navigator.geolocation.getCurrentPosition(
     pos => {
       const { latitude, longitude } = pos.coords;
-      setUserLocation(latitude, longitude);
+      setUserLocation(latitude, longitude, false, true);
       placeGpsMarker(latitude, longitude);
       done();
     },
-    ()  => { setUserLocation(S.defaultLat, S.defaultLng, true); done(); },
-    { timeout: 8000 }
+    (err) => {
+      // Surface *why* GPS failed — silently falling back made it look like
+      // the GPS marker/crosshair feature was broken when GPS simply never fired.
+      const reason = err?.code === 1 ? "Permission denied"
+        : err?.code === 2 ? "Position unavailable"
+        : "Timed out";
+      flashStatus(`GPS: ${reason} — using default location`);
+      setUserLocation(S.defaultLat, S.defaultLng, true);
+      done();
+    },
+    { timeout: 12000, enableHighAccuracy: true, maximumAge: 60000 }
   );
 }
 
@@ -4121,7 +4179,9 @@ function initSettingsPanel() {
 function initResizablePanels() {
   // Detach a panel from its responsive CSS constraints so JS can freely position/size it.
   // Uses inline !important which always wins over stylesheet !important.
-  function detach(panel) {
+  // lockHeight=false leaves height on "auto" so it keeps tracking content size
+  // (used by the info panel, whose height is always content-driven, never user-set).
+  function detach(panel, lockHeight = true) {
     const pr = panel.getBoundingClientRect();
     const set = (p, v) => panel.style.setProperty(p, v, "important");
     set("position", "fixed");
@@ -4130,16 +4190,16 @@ function initResizablePanels() {
     set("right",  "auto");
     set("bottom", "auto");
     set("width",  pr.width  + "px");
-    set("height", pr.height + "px");
+    set("height", lockHeight ? pr.height + "px" : "auto");
     return { left: pr.left, top: pr.top, width: pr.width, height: pr.height };
   }
 
-  function makeHandle(panel, cls, minW, minH, onResize) {
+  function makeHandle(panel, cls, minW, minH, onResize, widthOnly = false) {
     const h = document.createElement("div");
     h.className = "resize-handle " + cls;
     panel.appendChild(h);
     function startResize(clientX, clientY) {
-      const s = detach(panel);
+      const s = detach(panel, !widthOnly);
       return { sx: clientX, sy: clientY, sw: s.width, sh: s.height, sl: s.left };
     }
     function doResize({ sx, sy, sw, sh, sl }, clientX, clientY) {
@@ -4152,7 +4212,7 @@ function initResizablePanels() {
       } else {
         set("width", Math.max(minW, sw + dx) + "px");
       }
-      set("height", Math.max(minH, sh + dy) + "px");
+      if (!widthOnly) set("height", Math.max(minH, sh + dy) + "px");
       if (onResize) onResize();
     }
     h.addEventListener("mousedown", e => {
@@ -4184,9 +4244,9 @@ function initResizablePanels() {
     }, { passive: false });
   }
 
-  function makeDraggable(panel, handle) {
+  function makeDraggable(panel, handle, lockHeight = true) {
     function startDrag(clientX, clientY) {
-      const s = detach(panel);
+      const s = detach(panel, lockHeight);
       return { initLeft: s.left, initTop: s.top, sx: clientX, sy: clientY };
     }
     const setPos = (left, top) => {
@@ -4232,9 +4292,10 @@ function initResizablePanels() {
   }
   const infoPanel = document.getElementById("info-panel");
   if (infoPanel) {
-    makeHandle(infoPanel, "resize-bl", 180, 80, null);
+    // Width-only: height always tracks content, never gets pinned to a fixed size
+    makeHandle(infoPanel, "resize-bl", 180, 80, null, true);
     const dragBar = document.getElementById("panel-drag-bar");
-    if (dragBar) makeDraggable(infoPanel, dragBar);
+    if (dragBar) makeDraggable(infoPanel, dragBar, false);
   }
 }
 

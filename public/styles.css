@@ -707,6 +707,26 @@ body, html {
 #attribution a { color: var(--accent); text-decoration: none; }
 #attribution a:hover { text-decoration: underline; }
 
+/* Transient status toast (locate/GPS feedback) — hides itself via :empty, no JS class needed */
+#status {
+  position: fixed; top: 62px; left: 50%; transform: translateX(-50%);
+  z-index: 250;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-size: 13px; color: var(--text-main);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: min(90vw, 420px);
+  overflow: hidden; text-overflow: ellipsis;
+}
+#status:empty { display: none; }
+@media (pointer: coarse), (max-width: 600px) {
+  #status { top: 46px; font-size: 11px; padding: 5px 12px; }
+}
+
 /* Utilities */
 .hidden { display: none !important; }
 
@@ -1002,6 +1022,14 @@ body, html {
   #locate-header-btns { gap: 2px !important; }
   /* Country bar: reduce padding so more map is visible (keep font/icon size) */
   #country-select-bar { padding: 2px 6px !important; gap: 4px !important; }
+  /* These buttons already declare small padding, but the generic .ctrl-btn 38px
+     touch-target floor (below) was overriding it, forcing dead space in the bar. */
+  #country-select-bar .ctrl-btn {
+    min-width: auto !important; min-height: auto !important;
+  }
+  #country-isolate-btn { padding: 3px 7px !important; }
+  #locate-toggle-all-labels { padding: 2px 6px !important; }
+  #country-filter-select { padding: 2px 5px !important; }
   /* Category popup: smaller fonts + icons on mobile */
   #category-popup { font-size: 11px; }
   #category-popup .toggle-btn-sm { font-size: 11px !important; padding: 5px 9px !important; min-height: 32px !important; gap: 4px !important; }
@@ -1072,7 +1100,8 @@ body, html {
   border-bottom-right-radius: 7px;
 }
 .resize-handle.resize-bl {
-  left: 0; cursor: sw-resize;
+  /* Info panel: width-only resize (height tracks content) — horizontal cursor */
+  left: 0; cursor: ew-resize;
   background: linear-gradient(225deg, transparent 52%, rgba(200,160,80,0.7) 52%);
   border-bottom-left-radius: 7px;
 }
@@ -1132,6 +1161,22 @@ body, html {
   white-space: nowrap;
   pointer-events: none;
 }
+/* Nearest-place result — fixed at the map's bottom edge (not anchored to the marker) so it
+   never sits on top of the place-dot cluster and blocks clicking neighboring places. */
+#locate-result-bar {
+  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+  z-index: 500;
+  background: rgba(18,16,12,0.93);
+  border: 1px solid rgba(200,160,80,0.45);
+  border-radius: 14px;
+  padding: 5px 14px;
+  color: #e8d8a8; font-size: 13px; font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  max-width: calc(100% - 20px);
+  overflow: hidden; text-overflow: ellipsis;
+}
+#locate-result-bar:empty { display: none; }
 @media (pointer: coarse), (max-width: 600px) {
   /* Push both elements up to clear the 32px touch resize handle at bottom-right */
   #locate-legend { display: none; bottom: 64px; right: 8px; left: auto; }
@@ -1157,27 +1202,6 @@ body, html {
 }
 #locate-map-attr a { color: var(--accent); text-decoration: none; }
 #locate-map-attr a:hover { text-decoration: underline; }
-/* Compact Leaflet popup for locate marker */
-.locate-popup .leaflet-popup-content-wrapper {
-  padding: 0 !important;
-  min-width: 0 !important;
-  width: auto !important;
-  background: rgba(18,16,12,0.93) !important;
-  border: 1px solid rgba(200,160,80,0.45) !important;
-  border-radius: 4px !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.55) !important;
-}
-.locate-popup .leaflet-popup-content {
-  margin: 6px 11px !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  line-height: 1.3 !important;
-  color: #e8d8a8 !important;
-  white-space: nowrap !important;
-  min-width: 0 !important;
-}
-.locate-popup .leaflet-popup-tip-container { display: none !important; }
-
 /* ── Developer settings panel ───────────────────────────────── */
 #settings-panel {
   position: fixed;
@@ -1315,7 +1339,27 @@ body, html {
   }
 }
 
-/* GPS icon is rendered via L.icon (SVG data URI) — no extra CSS needed */
+/* GPS location pin — red teardrop (CSS-shaped) so it reads as "a location icon",
+   distinct from the draggable blue pin the user can drag to adjust their position. */
+.gps-pin-icon { background: transparent !important; border: none !important; }
+.gps-pin-pointer {
+  position: absolute; left: 50%; top: 50%;
+  width: 20px; height: 20px;
+  margin: -19px 0 0 -10px;
+  background: #e11d1d;
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.55);
+}
+.gps-pin-pointer::after {
+  content: "";
+  position: absolute;
+  width: 8px; height: 8px;
+  margin: 5px 0 0 5px;
+  background: #fff;
+  border-radius: 50%;
+}
 
 /* ── Tile loading spinner for locate map ─────────────────── */
 #locate-map-loading {

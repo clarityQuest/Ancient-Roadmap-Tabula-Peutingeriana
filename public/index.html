@@ -637,6 +637,7 @@
       <div id="locate-leaflet-map">
         <div id="locate-map-loading" class="hidden"></div>
         <div id="locate-country-bar" class="hidden"></div>
+        <div id="locate-result-bar"></div>
       </div>
       <p id="locate-map-hint">Click map or drag marker to set location</p>
       <p id="locate-map-attr">Road data: <a href="https://omnesviae.org" target="_blank" rel="noopener">OmnesViae</a> · Map: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>
@@ -649,6 +650,9 @@
 
     <!-- Mobile layout toggle — dev tool, visible on mobile only -->
     <button id="mobile-layout-toggle" title="Toggle mobile panel layout (compact/full)" aria-label="Toggle mobile panel layout">⊞</button>
+
+    <!-- Transient status message (GPS acquisition / locate-me feedback) -->
+    <div id="status" aria-live="polite"></div>
 
     <!-- Attribution -->
     <div id="attribution">
