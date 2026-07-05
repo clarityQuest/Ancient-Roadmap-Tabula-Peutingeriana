@@ -780,20 +780,26 @@ body, html {
   #info-panel::before { display: none; }
 
   #panel-latin, #panel-modern { font-size: 14px; }
+  /* Info panel: always scrollable on touch, especially after resize */
+  #info-panel { overflow-y: auto !important; }
   #panel-map:not(.hidden) {
     display: block !important;
     margin: 10px 0 0;
     border-radius: 6px;
     overflow: hidden;
+    /* Proportional height so map shrinks when panel is resized smaller */
+    height: 30vh !important;
+    max-height: 200px !important;
+    min-height: 60px !important;
+    flex-shrink: 1;
   }
   #panel-map:not(.hidden) iframe {
-    width: 100%;
-    height: 150px;
+    width: 100%; height: 100% !important; min-height: 60px;
     display: block;
   }
   /* Larger map on tablets (wider touch screens) */
   @media (min-width: 601px) {
-    #panel-map:not(.hidden) iframe { height: 240px; }
+    #panel-map:not(.hidden) { max-height: 260px !important; }
   }
   /* Slightly smaller fonts for narrow panel */
   #info-panel #panel-latin  { font-size: 14px; margin-bottom: 2px; }
@@ -813,6 +819,11 @@ body, html {
   #panel-drag-bar { display: block; }
   /* Larger tap target on touch — 32px keeps it unobtrusive while still tappable */
   .resize-handle { width: 32px !important; height: 32px !important; }
+  /* Leaflet zoom +/- in locate map: reduce by ~30% (default 26px → 18px) */
+  #locate-leaflet-map .leaflet-control-zoom a {
+    width: 18px !important; height: 18px !important;
+    line-height: 18px !important; font-size: 14px !important;
+  }
 }
 
 /* Mobile: "Tabula Peutingeriana" label appears on load then slides away */
@@ -839,9 +850,8 @@ body, html {
     border-radius: 10px 10px 0 0 !important;
     box-shadow: 0 -4px 24px rgba(0,0,0,0.6) !important;
   }
-  /* Panel map in portrait bottom sheet */
-  #panel-map { height: 130px !important; }
-  #panel-map iframe { height: 158px !important; }
+  /* Panel map in portrait: tighter cap for narrow bottom sheet */
+  #panel-map { max-height: 110px !important; height: 110px !important; }
   /* Category popup: max 70% screen height, scrollable */
   #category-popup {
     max-height: 70svh;
@@ -1016,7 +1026,7 @@ body, html {
     width: 18px !important;
     height: 18px !important;
   }
-  #modern-state-solo-btn { font-size: 11px; padding: 3px 5px; }
+  #modern-state-solo-btn { font-size: 11px; padding: 2px 3px; gap: 2px !important; }
   #locate-map-close { width: 36px !important; height: 36px !important; min-width: auto !important; min-height: auto !important; font-size: 28px !important; }
   /* Info panel: right side, 30vw, full height */
   #info-panel {
@@ -1027,9 +1037,8 @@ body, html {
     border-radius: 12px 0 0 12px !important;
     box-shadow: -4px 0 24px rgba(0,0,0,0.6) !important;
   }
-  /* Panel map in landscape right panel */
-  #panel-map { height: 140px !important; }
-  #panel-map iframe { height: 168px !important; }
+  /* Panel map in landscape right panel: proportional height */
+  #panel-map { height: 140px !important; max-height: 140px !important; }
   /* Category popup: constrain to 80% screen height to prevent overflow off-screen */
   #category-popup {
     max-height: 80svh !important;
@@ -1068,9 +1077,9 @@ body, html {
 #locate-map-close:hover { color: #fff; }
 #locate-leaflet-map { width: 100%; flex: 1; min-height: 0; position: relative; isolation: isolate; }
 
-/* Dot-color legend — bottom-right of locate map, above the attribution credit */
+/* Dot-color legend — bottom-left of locate map (bottom-right reserved for resize handle) */
 #locate-legend {
-  position: absolute; bottom: 26px; right: 8px; top: auto; z-index: 500;
+  position: absolute; bottom: 26px; left: 8px; right: auto; top: auto; z-index: 500;
   background: rgba(18,16,12,0.88);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 6px;
@@ -1080,10 +1089,10 @@ body, html {
 }
 /* Mobile: hide by default, show when toggled; legend button visible */
 #locate-legend-btn { display: none; }
-/* Legend toggle button — inside Leaflet map, mobile only, bottom-right above attribution */
+/* Legend toggle button — bottom-left (bottom-right reserved for resize handle) */
 #locate-legend-btn {
   display: none;
-  position: absolute; bottom: 26px; right: 8px; z-index: 501;
+  position: absolute; bottom: 26px; left: 8px; right: auto; z-index: 501;
   opacity: 0.5;
   background: rgba(18,16,12,0.88);
   border: 1px solid rgba(255,255,255,0.18);
@@ -1108,7 +1117,7 @@ body, html {
   pointer-events: none;
 }
 @media (pointer: coarse), (max-width: 600px) {
-  #locate-legend { display: none; bottom: 36px; }
+  #locate-legend { display: none; bottom: 36px; left: 8px; right: auto; }
   #locate-legend.legend-open { display: flex !important; }
   #locate-legend-btn { display: flex !important; }
   #locate-country-bar:not(.hidden) { display: flex !important; }
