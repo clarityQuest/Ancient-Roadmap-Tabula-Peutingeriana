@@ -804,10 +804,11 @@ body, html {
     flex-shrink: 1;
   }
   #panel-map:not(.hidden) iframe {
-    position: absolute; top: 0; left: 0;
+    position: absolute; top: -25px; left: 0;
     width: 100% !important;
-    /* 25px taller than container — attribution bar falls below overflow:hidden clip */
-    height: calc(100% + 25px) !important;
+    /* Shift up 25px (hides +/- zoom buttons & top chrome) + 85px taller total
+       so 60px extra below the container clips the multi-line attribution bar */
+    height: calc(100% + 85px) !important;
     display: block;
   }
   /* Larger map on tablets (wider touch screens) */
