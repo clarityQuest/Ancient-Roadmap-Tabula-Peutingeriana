@@ -4,13 +4,37 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- Favicon — SVG (all modern browsers) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%231a1612'/><path d='M8 24C20 20 44 20 56 24' stroke='%23b8913a' stroke-width='3.5' fill='none' stroke-linecap='round'/><path d='M8 33C20 29 44 29 56 33' stroke='%23b8913a' stroke-width='3.5' fill='none' stroke-linecap='round'/><path d='M8 42C20 38 44 38 56 42' stroke='%23b8913a' stroke-width='3.5' fill='none' stroke-linecap='round'/><circle cx='32' cy='33' r='6' fill='%23dc2626' stroke='%23fca5a5' stroke-width='1.5'/></svg>" type="image/svg+xml" />
+
+  <!-- PWA / native device integration -->
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#1a1612" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Tabula" />
+  <meta name="application-name" content="Tabula Peutingeriana" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
   <!-- Primary SEO -->
   <title>Tabula Peutingeriana — Find Yourself on the Ancient Roman Map</title>
   <meta name="description" content="Where were you in the Roman Empire? Tap the compass to locate yourself on the 1,700-year-old Roman road map. See your country as it looked in 300 AD, read AI-translated Latin inscriptions, and explore 3,900+ ancient places — free, no login, works on any phone or desktop." />
   <meta name="keywords" content="Tabula Peutingeriana, Roman road map, find yourself on ancient map, where was I in Roman Empire, locate me on Roman map, ancient Rome, see your country in antiquity, experience ancient map, Roman cartography, medieval map, Roman roads, via romana, ancient geography, Roman Empire map, Peutinger map, Peutingersche Tafel, antique map viewer, OmnesViae, Roman places, ancient cities, GPS ancient map, ancient Roman GPS, Latin AI translation, country filter, interactive ancient map, ancient world explorer, Roman Empire interactive, explore Roman Empire, ancient map mobile, ancient map for beginners, ancient history accessible" />
   <meta name="author" content="three-mills.com" />
+  <meta name="rating" content="general" />
   <link rel="canonical" href="https://tabula-peutingeriana.com/" />
   <meta name="robots" content="index, follow" />
+
+  <!-- hreflang — bilingual DE/EN content -->
+  <link rel="alternate" hreflang="en" href="https://tabula-peutingeriana.com/" />
+  <link rel="alternate" hreflang="de" href="https://tabula-peutingeriana.com/" />
+  <link rel="alternate" hreflang="x-default" href="https://tabula-peutingeriana.com/" />
+
+  <!-- Preconnect to external origins used at runtime -->
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+  <link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin />
+  <link rel="preconnect" href="https://en.wikipedia.org" crossorigin />
+  <link rel="preconnect" href="https://de.wikipedia.org" crossorigin />
 
   <!-- Open Graph (Facebook, LinkedIn, WhatsApp, AI crawlers) -->
   <meta property="og:type" content="website" />
@@ -20,6 +44,7 @@
   <meta property="og:image" content="https://tabula-peutingeriana.com/og-image.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Tabula Peutingeriana — the 1,700-year-old Roman road map showing roads and settlements from Britain to India" />
   <meta property="og:locale" content="en_GB" />
   <meta property="og:locale:alternate" content="de_DE" />
   <meta property="og:site_name" content="Tabula Peutingeriana" />
@@ -29,6 +54,7 @@
   <meta name="twitter:title" content="Tabula Peutingeriana — Find Yourself on the Ancient Roman Map" />
   <meta name="twitter:description" content="Where were YOU in the Roman Empire? Tap to find out. See your country in 300 AD, read the Latin inscriptions, explore 3,900+ ancient places. Free. Works on any phone." />
   <meta name="twitter:image" content="https://tabula-peutingeriana.com/og-image.jpg" />
+  <meta name="twitter:image:alt" content="Tabula Peutingeriana — the 1,700-year-old Roman road map showing roads and settlements from Britain to India" />
 
   <!-- Structured data — WebApplication -->
   <script type="application/ld+json">
@@ -221,6 +247,50 @@
         "urlTemplate": "https://tabula-peutingeriana.com/?q={search_term_string}"
       },
       "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+
+  <!-- Structured data — Dataset (Google Dataset Search) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "name": "Tabula Peutingeriana Place Database",
+    "alternateName": ["Peutinger Map Database", "Roman Road Map Places", "Peutingersche Tafel Ortsdatenbank"],
+    "description": "3,974 annotated ancient places from the Tabula Peutingeriana (Roman road map, c. 300–400 AD): road stations, cities, rivers, mountains, islands, Roman provinces, peoples and more. Each record includes the Latin name, modern equivalent, geographic coordinates, place type, Tabula segment reference, and links to Wikipedia and academic databases (tabula-peutingeriana.de, tp-online.ku.de).",
+    "url": "https://tabula-peutingeriana.com/",
+    "creator": { "@type": "Organization", "name": "three-mills.com", "url": "https://three-mills.com" },
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "temporalCoverage": "0300/0400",
+    "dateModified": "2026-07-05",
+    "inLanguage": ["la", "en", "de"],
+    "spatialCoverage": {
+      "@type": "Place",
+      "name": "Roman Empire and beyond",
+      "description": "From the British Isles and Atlantic coast to India and Sri Lanka (c. 300 AD)"
+    },
+    "variableMeasured": [
+      "Latin place name (latin_std)",
+      "Modern equivalent name",
+      "Geographic coordinates (latitude/longitude)",
+      "Place type (road_station, major_city, minor_city, river, mountain, island, region, province, people, spa, temple, port, lake)",
+      "Tabula segment II–XII",
+      "Wikipedia article URL",
+      "AI-translated Latin inscription (English and German)"
+    ],
+    "measurementTechnique": "Primary source: Tabula Peutingeriana parchment scroll (c. 1200 AD copy of c. 300–400 AD original, Österreichische Nationalbibliothek, Vienna). Coordinates from tabula-peutingeriana.de (M. Weber), tp-online.ku.de (Univ. Ulm), Wikipedia API, Nominatim/OpenStreetMap, and AI-assisted geocoding.",
+    "includedInDataCatalog": {
+      "@type": "DataCatalog",
+      "name": "tabula-peutingeriana.de",
+      "url": "https://www.tabula-peutingeriana.de/"
+    },
+    "isBasedOn": {
+      "@type": "CreativeWork",
+      "name": "Tabula Peutingeriana",
+      "description": "Medieval parchment copy (c. 1200 AD) of a late-antique Roman road map",
+      "locationCreated": { "@type": "Place", "name": "Colmar, Alsace" },
+      "holdingArchive": { "@type": "ArchiveOrganization", "name": "Österreichische Nationalbibliothek", "address": { "@type": "PostalAddress", "addressLocality": "Vienna", "addressCountry": "AT" } }
     }
   }
   </script>

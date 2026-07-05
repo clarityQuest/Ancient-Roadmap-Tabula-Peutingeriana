@@ -1,0 +1,28 @@
+{
+  "name": "Tabula Peutingeriana",
+  "short_name": "Tabula",
+  "description": "Interactive Ancient Roman Road Map — find yourself on the 1,700-year-old Peutinger map, explore 3,900+ ancient places, GPS locate, country mode. Free, no login.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1612",
+  "theme_color": "#1a1612",
+  "lang": "en",
+  "categories": ["education", "history", "travel", "reference"],
+  "icons": [
+    {
+      "src": "/og-image.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Tabula Peutingeriana interactive viewer"
+    }
+  ]
+}
