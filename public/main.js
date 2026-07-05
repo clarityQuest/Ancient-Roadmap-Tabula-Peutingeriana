@@ -134,6 +134,9 @@ const I18N = {
     province: "Province",
     wiki_link: "Wiki ↗", ulm_link: "Scientific Info ↗",
     unknown_modern: "(unknown modern name)",
+    crosshair_gps: "You are here",
+    crosshair_picked: "Picked Location",
+    bigger_screen_tip: "This site is best explored on a larger screen — visit on a tablet or desktop for the full experience.",
     wiki_lang: "en",
     jump_to_segment: "Jump to Segment",
     tabula_view_label: "Original Tabula Peutingeriana view",
@@ -165,6 +168,9 @@ const I18N = {
     province: "Provinz",
     wiki_link: "Wiki ↗", ulm_link: "Wiss. Info ↗",
     unknown_modern: "(moderner Name unbekannt)",
+    crosshair_gps: "Sie befinden sich hier",
+    crosshair_picked: "Gewählter Ort",
+    bigger_screen_tip: "Diese Seite eignet sich am besten für größere Bildschirme — besuchen Sie sie auf einem Tablet oder Desktop für das volle Erlebnis.",
     wiki_lang: "de",
     jump_to_segment: "Zum Segment",
     tabula_view_label: "Originalansicht der Tabula Peutingeriana",
@@ -780,13 +786,14 @@ function startHighlight(place, isLocate = false) {
 
 // theme: { ring, label } colors — red for the GPS crosshair, blue for the manually-picked one
 const CROSSHAIR_THEMES = {
-  gps:    { ring: "#FF2222", label: "#FF8080" },
-  manual: { ring: "#3B82F6", label: "#93C5FD" },
+  gps:    { ring: "#FF2222", label: "#FF8080", tagKey: "crosshair_gps" },
+  manual: { ring: "#3B82F6", label: "#93C5FD", tagKey: "crosshair_picked" },
 };
 
 function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, theme, label) {
   if (outsideAngle !== null) drawOutsideCrosshair(ctx, cx, cy, outsideAngle, theme.ring);
   else drawUserCrosshair(ctx, cx, cy, theme.ring);
+  drawCrosshairTag(ctx, cx, cy, getText(theme.tagKey), theme.label);
   if (!label) return;
   ctx.save();
   ctx.font = "bold 16px 'Segoe UI', Arial, sans-serif";
@@ -799,6 +806,22 @@ function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, theme, label) {
   ctx.shadowColor = "rgba(0,0,0,0.0)";
   ctx.fillStyle = theme.label;
   ctx.fillText(label, px, py);
+  ctx.restore();
+}
+
+// Small "GPS" / "Picked" tag at the bottom-right of a crosshair so the two are
+// distinguishable by more than color alone.
+function drawCrosshairTag(ctx, cx, cy, text, color) {
+  ctx.save();
+  ctx.font = "600 11px 'Segoe UI', Arial, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  const tx = cx + 22, ty = cy + 20;
+  const tw = ctx.measureText(text).width;
+  ctx.fillStyle = "rgba(0,0,0,0.72)";
+  ctx.fillRect(tx - 4, ty - 2, tw + 8, 15);
+  ctx.fillStyle = color;
+  ctx.fillText(text, tx, ty);
   ctx.restore();
 }
 
@@ -1373,8 +1396,8 @@ function renderMarkers() {
 }
 
 function _drawUserCrosshair(ctx) {
-  if (S.countryFilter) return; // hide crosshairs in country mode
-  // Red: the GPS fix. Always drawn once acquired — independent of any later manual pick.
+  // Red: the GPS fix. Always drawn once acquired — independent of any later manual pick
+  // (and independent of country-filter mode, which used to hide both crosshairs entirely).
   if (S.gpsVp) {
     const { cx, cy } = viewportToCanvas(S.gpsVp.vx, S.gpsVp.vy);
     let outsideAngle = null;
@@ -1583,6 +1606,20 @@ function showInfoPanel(place) {
   syncLeafletSelectedMarker(place);
   renderMarkers();
   infoPanelOpenedAt = Date.now();
+
+  // Auto-clear the selection 20s after it was (re-)opened. Re-selecting the same or a
+  // different place bumps infoPanelOpenedAt / selectedDataId, which invalidates this
+  // specific timeout so it won't cut short a fresher selection.
+  if (S.selectedDataId != null) {
+    const thisId = S.selectedDataId, openedAt = infoPanelOpenedAt;
+    setTimeout(() => {
+      if (S.selectedDataId === thisId && infoPanelOpenedAt === openedAt) {
+        S.selectedDataId = null;
+        hideInfoPanel();
+        renderMarkers();
+      }
+    }, 20000);
+  }
 
   // Enrich with allRecords data (places.json lacks ulm_img_url / ulm_id).
   // Skip for Seg I: they're OVPlace records with no ULM data, and data_id collides with TPPlace IDs.
@@ -1941,6 +1978,7 @@ let _leafletRoadsLayer = null;
 let _leafletRoadsOn = false;
 let _leafletSelectedMarker = null;
 let _gpsMarker = null, _gpsLat = null, _gpsLng = null;
+let _locateResultBarTimer = null;
 let _omnesViaeData = null;
 let _countriesGeoJSON = null;
 let _leafletCountriesLayer = null;
@@ -2108,7 +2146,7 @@ function panToLocVp(vx, vy, isOutside = false, place = null) {
   }
 }
 
-function setUserLocation(lat, lng, isDefault = false, isGps = false) {
+function setUserLocation(lat, lng, isDefault = false, isGps = false, showPanel = true) {
   // Crosshair state goes to the "gps" (red) track when this update came from an actual
   // GPS fix, or the "userLoc" (blue) track for a manual pick (map click / marker drag) —
   // the two are independent so a manual pick never erases the persistent GPS crosshair.
@@ -2182,7 +2220,7 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false) {
       S[P + "Label"] = edgeResult.cLat && edgeResult.cLng
         ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, lat, lng)} of map` : "W of map";
       if (S[P + "Vp"]) panToLocVp(S[P + "Vp"].vx, S[P + "Vp"].vy, true, best);
-      if (!S.isMobile) showInfoPanel(best);
+      if (!S.isMobile && showPanel) showInfoPanel(best);
       showSeg1Modal();
       showLocateMarkerPopup(`${name} — Segment I (lost) (~${distRound} km)`);
       if (statusEl && !isDefault) { statusEl.textContent = `Nearest: ${name} (Segment I — lost, ~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
@@ -2192,14 +2230,18 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false) {
     }
 
     if (distKm <= LOCATE_SNAP_KM) {
-      // Snap: place is close enough — highlight the rect, no separate crosshair needed
+      // Snap: place is close enough that the highlighted rect alone is normally enough,
+      // no separate crosshair needed. But the GPS/red track can't rely on that rect --
+      // it's the shared "selected place" highlight, which a later manual pick would
+      // overwrite, so the red indicator would vanish entirely. Keep an explicit red
+      // crosshair right on the place instead.
       const snapVp = placeVp(best);
-      S[P + "Vp"] = null; // suppress crosshair; highlighted rect is sufficient
+      S[P + "Vp"] = isGps ? snapVp : null;
       S[P + "Label"] = "";
       S[P + "Outside"] = false; S[P + "CentVp"] = null;
       startHighlight(best, true);
       if (snapVp) panToLocVp(snapVp.vx, snapVp.vy, false, best);
-      if (!S.isMobile) showInfoPanel(best);
+      if (!S.isMobile && showPanel) showInfoPanel(best);
       if (statusEl && !isDefault) { statusEl.textContent = `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
       if (hint) hint.textContent = "Click map or drag marker to set location";
       showLocateMarkerPopup(`${name} (~${distRound} km)`);
@@ -2218,7 +2260,7 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false) {
         S[P + "Label"] = "";
         startHighlight(best, true);
         if (S[P + "Vp"]) panToLocVp(S[P + "Vp"].vx, S[P + "Vp"].vy, false, best);
-        if (!S.isMobile) showInfoPanel(best);
+        if (!S.isMobile && showPanel) showInfoPanel(best);
         if (statusEl && !isDefault) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
         if (hint) hint.textContent = "Click map or drag marker to set location";
         showLocateMarkerPopup(`~${name} (~${distRound} km)`);
@@ -2249,7 +2291,7 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false) {
 
         if (distKm <= LOCATE_MAX_DIST_KM) {
           startHighlight(best, true);
-          if (!S.isMobile) showInfoPanel(best);
+          if (!S.isMobile && showPanel) showInfoPanel(best);
           if (statusEl && !isDefault) { statusEl.textContent = `Nearest: ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
           if (hint) hint.textContent = "Click map or drag marker to set location";
           showLocateMarkerPopup(`~${name} (~${distRound} km)`);
@@ -2274,7 +2316,12 @@ function showLocateMarkerPopup(text) {
   // floating over the marker sat on top of the dense place-dot cluster and
   // blocked clicking neighboring places underneath it.
   const bar = document.getElementById("locate-result-bar");
-  if (bar) bar.textContent = text;
+  if (!bar) return;
+  bar.textContent = text;
+  clearTimeout(_locateResultBarTimer);
+  _locateResultBarTimer = setTimeout(() => {
+    if (bar.textContent === text) bar.textContent = "";
+  }, 15000);
 }
 
 function loadLeaflet() {
@@ -2731,9 +2778,11 @@ function closeLocatePopup() {
 function updateLeafletZoomStyles() {
   if (!_leafletMap) return;
   const z = _leafletMap.getZoom();
-  const cFactor = S.countrySelectMode ? 0.55 : 1.0;
+  // Touch input is much less precise than a mouse pointer, so shrink country-mode dots
+  // less aggressively on touch devices -- otherwise they're too small to reliably tap.
+  const cFactor = S.countrySelectMode ? (S.isMobile ? 0.8 : 0.55) : 1.0;
   const dotR  = (z <= 3 ? 2.0 : z <= 5 ? 3.2 : z <= 7 ? 4.8 : 6.0) * cFactor;
-  const roadW = z <= 3 ? 0.7 : z <= 5 ? 1.2 : z <= 7 ? 1.8 : 2.5;
+  const roadW = (z <= 3 ? 0.7 : z <= 5 ? 1.2 : z <= 7 ? 1.8 : 2.5) * 1.2; // 20% thicker
   if (_leafletPlacesLayer) {
     _leafletPlacesLayer.getLayers().forEach(m => { if (m.setRadius) m.setRadius(dotR); });
   }
@@ -2776,7 +2825,7 @@ async function toggleLeafletRoads() {
         const isSeg1Road = isInSeg1Area(midLat, midLng);
 
         let color   = isSeg1Road ? "#888899" : "#EA580C";
-        let weight  = 2.5;
+        let weight  = 3.0; // 20% thicker than the original 2.5 (updateLeafletZoomStyles takes over after)
         let dash    = null;
         let opacity = isSeg1Road ? 0.45 : 0.51;
 
@@ -2871,7 +2920,9 @@ function toggleLeafletPlaces() {
           }
           if (S.countrySelectMode && r.type !== "roman_province") {
             const zoom = _leafletMap ? _leafletMap.getZoom() : 0;
-            if (zoom < 5) {
+            // Touch devices start zoomed further out and zooming in is more effort than
+            // a mouse scroll, so let a direct tap on a dot select the place much sooner.
+            if (zoom < (S.isMobile ? 3 : 5)) {
               const iso2 = guessCountryFromLatLng(r.lat, r.lng);
               if (iso2) setCountryFilter(iso2);
               return;
@@ -2896,29 +2947,48 @@ function toggleLeafletPlaces() {
   }
 }
 
-function acquireGps(openAfter = false) {
+async function acquireGps(openAfter = false, showPanel = true) {
   const done = () => { if (openAfter) openLocatePopup(); };
   const statusEl = document.getElementById("status");
   if (statusEl) statusEl.textContent = "Locating…";
-  const flashStatus = (msg) => {
+  const flashStatus = (msg, ms = 6000) => {
     if (!statusEl) return;
     statusEl.textContent = msg;
-    setTimeout(() => { statusEl.textContent = ""; }, 6000);
+    setTimeout(() => { statusEl.textContent = ""; }, ms);
+  };
+  const useDefault = () => {
+    setUserLocation(S.defaultLat, S.defaultLng, true, true, showPanel);
+    placeGpsMarker(S.defaultLat, S.defaultLng);
+    done();
   };
   // No GPS available at all: the red marker/crosshair still needs *somewhere* to be,
   // so treat the configured default coordinates as the "GPS" fix (isDefault=true only
   // suppresses the routine status text, which would otherwise clobber the message below).
   if (!navigator.geolocation) {
     flashStatus("Geolocation not supported — using default location");
-    setUserLocation(S.defaultLat, S.defaultLng, true, true);
-    placeGpsMarker(S.defaultLat, S.defaultLng);
-    done();
+    useDefault();
     return;
+  }
+  // A browser never re-shows its native permission prompt once denied — clicking GPS
+  // again would otherwise just silently fail with the same generic error every time.
+  // Detect that state up front and point the user at their browser's site settings.
+  if (navigator.permissions?.query) {
+    try {
+      const status = await navigator.permissions.query({ name: "geolocation" });
+      if (status.state === "denied") {
+        flashStatus("Location is blocked for this site — enable it in your browser's site settings, then try again", 9000);
+        useDefault();
+        return;
+      }
+    } catch {
+      // Permissions API doesn't support querying "geolocation" in this browser (e.g. older
+      // Safari) — fall through to getCurrentPosition, which will still work normally.
+    }
   }
   navigator.geolocation.getCurrentPosition(
     pos => {
       const { latitude, longitude } = pos.coords;
-      setUserLocation(latitude, longitude, false, true);
+      setUserLocation(latitude, longitude, false, true, showPanel);
       placeGpsMarker(latitude, longitude);
       done();
     },
@@ -2929,9 +2999,7 @@ function acquireGps(openAfter = false) {
         : err?.code === 2 ? "Position unavailable"
         : "Timed out";
       flashStatus(`GPS: ${reason} — using default location`);
-      setUserLocation(S.defaultLat, S.defaultLng, true, true);
-      placeGpsMarker(S.defaultLat, S.defaultLng);
-      done();
+      useDefault();
     },
     { timeout: 12000, enableHighAccuracy: true, maximumAge: 60000 }
   );
@@ -3032,7 +3100,10 @@ function setupControls() {
   document.addEventListener("click", (e) => {
     const panel = document.getElementById("info-panel");
     if (!panel.classList.contains("hidden")) {
-      if (Date.now() - infoPanelOpenedAt < 4000) return;
+      // Grace period only needs to outlast the same click that opened the panel
+      // (the generic document listener below also fires for that click) -- a real
+      // follow-up click is always well beyond this, so keep it short and responsive.
+      if (Date.now() - infoPanelOpenedAt < 300) return;
       if (!e.target.closest("#info-panel")) hideInfoPanel();
     }
   });
@@ -3289,6 +3360,8 @@ function setupTypeFilters() {
     closeAbout?.addEventListener("click", closeAboutPanel);
     aboutBackdrop?.addEventListener("click", closeAboutPanel);
   }
+
+  document.getElementById("replay-demo-btn")?.addEventListener("click", runFullTour);
 }
 
 function setupMobileMenu() {
@@ -3534,9 +3607,15 @@ function setupInteraction() {
       return;
     }
 
-    // Nothing hit — close info panel only after the 4s grace period
-    const panel = document.getElementById("info-panel");
-    if (panel && !panel.classList.contains("hidden") && Date.now() - infoPanelOpenedAt >= 4000) hideInfoPanel();
+    // Nothing hit — clear the current place selection (short grace period only to
+    // outlast the very click that opened it, not a deliberate follow-up click). Unlike
+    // hideInfoPanel() alone, this also drops the selection frame on the Tabula map,
+    // not just the info panel.
+    if (S.selectedDataId !== null && Date.now() - infoPanelOpenedAt >= 300) {
+      S.selectedDataId = null;
+      hideInfoPanel();
+      renderMarkers();
+    }
   });
 }
 
@@ -4202,7 +4281,16 @@ function initResizablePanels() {
     set("right",  "auto");
     set("bottom", "auto");
     set("width",  pr.width  + "px");
-    set("height", lockHeight ? pr.height + "px" : "auto");
+    if (lockHeight) {
+      set("height", pr.height + "px");
+    } else {
+      // height:auto alone has nothing left to cap it -- mobile's #panel-scroll-body
+      // deliberately sets max-height:none (the *outer* panel's fixed height, e.g. 33vh
+      // in portrait, is normally what bounds it). Once that outer height becomes auto,
+      // full content can be taller than the screen and push the panel off the bottom.
+      set("height", "auto");
+      set("max-height", `calc(100vh - ${pr.top}px - 10px)`);
+    }
     return { left: pr.left, top: pr.top, width: pr.width, height: pr.height };
   }
 
@@ -4333,10 +4421,11 @@ function initOrientationHandler() {
   function savePanel(el, orient) {
     if (!isDetached(el)) return;
     saved[el.id][orient] = {
-      left:   el.style.getPropertyValue("left"),
-      top:    el.style.getPropertyValue("top"),
-      width:  el.style.getPropertyValue("width"),
-      height: el.style.getPropertyValue("height"),
+      left:      el.style.getPropertyValue("left"),
+      top:       el.style.getPropertyValue("top"),
+      width:     el.style.getPropertyValue("width"),
+      height:    el.style.getPropertyValue("height"),
+      maxHeight: el.style.getPropertyValue("max-height"),
     };
   }
 
@@ -4351,9 +4440,11 @@ function initOrientationHandler() {
       set("bottom", "auto");
       set("width",  pos.width);
       set("height", pos.height);
+      if (pos.maxHeight) set("max-height", pos.maxHeight);
+      else el.style.removeProperty("max-height");
     } else {
       // No saved position for this orientation — let CSS take over
-      ["position", "left", "top", "right", "bottom", "width", "height"]
+      ["position", "left", "top", "right", "bottom", "width", "height", "max-height"]
         .forEach(p => el.style.removeProperty(p));
     }
   }
@@ -4479,11 +4570,12 @@ async function init() {
   S.viewer.addHandler("animation", renderMarkers);
   S.viewer.addHandler("animation-finish", renderMarkers);
   S.viewer.addHandler("resize", () => { sizeCanvas(); renderMarkers(); });
-  function showAboutPanelOnStartup() {
-    const ap = document.getElementById("about-panel");
-    const bd = document.getElementById("about-modal-backdrop");
-    ap?.classList.remove("hidden");
-    bd?.classList.remove("hidden");
+
+  // Every visit: briefly pulse the About/Locate/Category buttons to hint they're
+  // there (without forcing any panel open), and silently pan to the user's location.
+  function runStartupSequence() {
+    flashOnboardingHints();
+    autoLocateOnStartup();
   }
 
   S.viewer.addHandler("open", () => {
@@ -4495,8 +4587,7 @@ async function init() {
       if (!initialFocused) {
         focusStartup(true);
         initialFocused = true;
-        showAboutPanelOnStartup();
-        setTimeout(runStartupDemo, 1000);
+        setTimeout(runStartupSequence, 1000);
       }
       renderMarkers();
     });
@@ -4517,7 +4608,7 @@ async function init() {
     if (initialFocused || !S.viewer.viewport) return;
     focusStartup(true);
     initialFocused = true;
-    showAboutPanelOnStartup();
+    setTimeout(runStartupSequence, 1000);
     renderMarkers();
   }, 500);
 
@@ -4662,25 +4753,40 @@ async function reloadDb() {
   });
 }
 
-// ── Landscape/fullscreen tip for mobile portrait ────────────────────────────
+// ── Landscape/fullscreen/screen-size tip for mobile ─────────────────────────
 (function () {
   const tip    = document.getElementById("landscape-tip");
+  const label  = document.getElementById("landscape-tip-text");
   const fsBtn  = document.getElementById("landscape-tip-fs");
   const closeB = document.getElementById("landscape-tip-close");
-  if (!tip) return;
+  if (!tip || !label) return;
 
   function isPortraitTouch() {
     return window.matchMedia("(pointer: coarse) and (orientation: portrait)").matches;
+  }
+  function isPhoneSized() {
+    return window.matchMedia("(pointer: coarse) and (max-width: 700px)").matches;
   }
   function dismiss() {
     tip.classList.add("hidden");
     sessionStorage.setItem("landscapeTipDismissed", "1");
   }
 
-  function maybeShow() {
+  // Re-evaluated (not just dismissed) on rotate/resize so it can switch from the
+  // rotate suggestion to the bigger-screen one instead of just disappearing.
+  function refresh() {
     if (sessionStorage.getItem("landscapeTipDismissed")) return;
-    if (isPortraitTouch()) tip.classList.remove("hidden");
-    else                   tip.classList.add("hidden");
+    if (isPortraitTouch()) {
+      label.textContent = "↺ Rotate to landscape for best experience";
+      fsBtn?.classList.remove("hidden");
+      tip.classList.remove("hidden");
+    } else if (isPhoneSized()) {
+      label.textContent = getText("bigger_screen_tip");
+      fsBtn?.classList.add("hidden");
+      tip.classList.remove("hidden");
+    } else {
+      tip.classList.add("hidden");
+    }
   }
 
   if (fsBtn) {
@@ -4693,16 +4799,11 @@ async function reloadDb() {
   }
   if (closeB) closeB.addEventListener("click", dismiss);
 
-  // Hide automatically when the user rotates to landscape
-  window.addEventListener("orientationchange", () => {
-    setTimeout(() => { if (!isPortraitTouch()) dismiss(); }, 200);
-  });
-  window.matchMedia("(orientation: portrait)").addEventListener("change", e => {
-    if (!e.matches) dismiss();
-  });
+  window.addEventListener("orientationchange", () => setTimeout(refresh, 200));
+  window.matchMedia("(orientation: portrait)").addEventListener("change", refresh);
+  window.addEventListener("resize", refresh);
 
-  // Show on first load if portrait touch
-  maybeShow();
+  refresh();
 })();
 
 // centered=true for panels using transform:translate(-50%,-50%) for centering (e.g. about modal)
@@ -4739,71 +4840,87 @@ function demoFlyToButton(panel, btnId, duration, onDone, centered = false) {
   }, duration);
 }
 
-function runStartupDemo() {
-  const aboutPanelEl    = document.getElementById("about-panel");
-  const aboutBackdropEl = document.getElementById("about-modal-backdrop");
-  const locPopup        = document.getElementById("locate-map-popup");
-  if (!locPopup) return;
+// Silently try GPS and pan the Tabula map to the result, without forcing the locate
+// popup or the info panel open. Reused for the on-load auto-locate and skips quietly
+// if it fails.
+function autoLocateOnStartup() {
+  acquireGps(false, false);
+}
+
+// Briefly pulse the About / Locate / Category buttons in turn, purely visual --
+// no panels opened, no app state touched, nothing to abort or clean up. Runs on
+// every startup as an ambient reminder that those features exist.
+function flashOnboardingHints() {
+  const pulse = (btn, delay) => {
+    setTimeout(() => {
+      if (!btn) return;
+      btn.classList.add("demo-btn-pulse");
+      setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
+    }, delay);
+  };
+  pulse(document.getElementById("about-btn"), 0);
+  pulse(document.getElementById("control-locate"), 500);
+  pulse(document.getElementById("cat-popup-btn"), 1000);
+}
+
+// The actual guided tour (triggered by the "Tour" button): About panel, then the
+// user-location map demonstrating country mode + isolate, then category filters +
+// place names -- the full original walkthrough. Any interaction cancels it in place.
+function runFullTour() {
+  const aboutPanel    = document.getElementById("about-panel");
+  const aboutBackdrop = document.getElementById("about-modal-backdrop");
+  const locPopup      = document.getElementById("locate-map-popup");
+  const catPopup      = document.getElementById("category-popup");
   const demoInitialBounds = S.viewer?.viewport?.getBounds(true);
 
-  // Abort controller — all demo timeouts register here so any interaction can cancel them
   const ctrl = { aborted: false, ids: [] };
-  const T = (fn, delay) => {
-    const id = setTimeout(() => { if (!ctrl.aborted) fn(); }, delay);
-    ctrl.ids.push(id);
-  };
-
-  const demoCleanup = () => {
+  const T = (fn, delay) => { const id = setTimeout(() => { if (!ctrl.aborted) fn(); }, delay); ctrl.ids.push(id); };
+  const stop = () => {
     ctrl.aborted = true;
     ctrl.ids.forEach(clearTimeout);
-    ctrl.ids = [];
     document.removeEventListener("click",      onInteract, true);
     document.removeEventListener("touchstart", onInteract, true);
     document.removeEventListener("keydown",    onInteract, true);
     document.removeEventListener("wheel",      onInteract, true);
   };
-
-  // Full state reset used both by normal demo end and by abort
-  const resetDemoState = () => {
+  // Full state reset -- used both on natural end and on abort, so an interrupted tour
+  // never leaves country mode / isolate / labels toggled on behind it.
+  const resetTourState = () => {
     if (S.countrySelectMode) toggleCountryMode().catch(() => {});
     S.countryIsolate = false;
     document.getElementById("country-isolate-btn")?.classList.remove("active");
     try { localStorage.setItem("tp_country_isolate", "0"); } catch {}
-    locPopup.style.transition = ""; locPopup.style.transform = ""; locPopup.style.opacity = "";
-    locPopup.classList.add("hidden"); locPopup.classList.remove("demo-panel-in");
-    document.getElementById("category-popup")?.classList.add("hidden");
+    locPopup.classList.add("hidden");
+    catPopup?.classList.add("hidden");
     S.activeTypes = new Set(); S.latinLabelsOn = false; S.modernLabelsOn = false;
     try { localStorage.setItem("tp_latin_labels",  "0"); } catch {}
     try { localStorage.setItem("tp_modern_labels", "0"); } catch {}
-    ["toggle-all-labels","locate-toggle-all-labels"].forEach(id =>
+    ["toggle-all-labels", "locate-toggle-all-labels"].forEach(id =>
       document.getElementById(id)?.classList.remove("active"));
     document.getElementById("toggle-all-types")?.classList.remove("active");
     document.querySelectorAll(".type-filter-btn").forEach(b => b.classList.remove("active"));
     renderMarkers();
   };
-
-  // Any user interaction cancels the demo immediately
   const onInteract = (e) => {
     if (e.type === "keydown" && ["Control","Shift","Alt","Meta"].includes(e.key)) return;
-    demoCleanup();
-    resetDemoState();
+    stop();
+    resetTourState();
   };
   document.addEventListener("click",      onInteract, { capture: true });
   document.addEventListener("touchstart", onInteract, { capture: true });
   document.addEventListener("keydown",    onInteract, { capture: true });
   document.addEventListener("wheel",      onInteract, { capture: true });
 
-  const pulseBtn = btn => {
+  const pulse = btn => {
     if (!btn) return;
     btn.classList.add("demo-btn-pulse");
     setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
   };
 
-  const finishDemo = () => {
+  const finishTour = () => {
     T(() => {
-      const catBtn   = document.getElementById("cat-popup-btn");
-      const catPopup = document.getElementById("category-popup");
-      pulseBtn(catBtn);
+      const catBtn = document.getElementById("cat-popup-btn");
+      pulse(catBtn);
       T(() => {
         catPopup?.classList.remove("hidden");
         const demoTypes = ["city", "temple", "spa"];
@@ -4814,19 +4931,16 @@ function runStartupDemo() {
         document.getElementById("toggle-all-types")?.classList.remove("active");
         renderMarkers();
         T(() => {
-          const namesBtn2 = document.getElementById("toggle-all-labels");
-          pulseBtn(namesBtn2);
+          const namesBtn = document.getElementById("toggle-all-labels");
+          pulse(namesBtn);
           T(() => {
-            S.latinLabelsOn  = true; S.modernLabelsOn = true;
+            S.latinLabelsOn = true; S.modernLabelsOn = true;
             try { localStorage.setItem("tp_latin_labels",  "1"); } catch {}
             try { localStorage.setItem("tp_modern_labels", "1"); } catch {}
-            namesBtn2?.classList.add("active");
+            namesBtn?.classList.add("active");
             document.getElementById("locate-toggle-all-labels")?.classList.add("active");
             renderMarkers();
-            T(() => {
-              demoCleanup();
-              resetDemoState();
-            }, 1500);
+            T(() => { stop(); resetTourState(); }, 1500);
           }, 700);
         }, 700);
       }, 700);
@@ -4835,19 +4949,18 @@ function runStartupDemo() {
 
   const showLocate = () => {
     T(() => {
-      locPopup.classList.add("demo-panel-in");
       openLocatePopup().catch(() => {});
       if (!S.countrySelectMode) {
         const countryBtn = document.getElementById("modern-state-solo-btn");
         const isolateBtn = document.getElementById("country-isolate-btn");
         T(() => {
-          pulseBtn(countryBtn);
+          pulse(countryBtn);
           T(() => {
             toggleCountryMode().then(() => {
               if (ctrl.aborted) return;
               setCountryFilter("DE");
               T(() => {
-                pulseBtn(isolateBtn);
+                pulse(isolateBtn);
                 T(() => {
                   S.countryIsolate = true;
                   isolateBtn?.classList.add("active");
@@ -4861,9 +4974,8 @@ function runStartupDemo() {
                     if (S.countrySelectMode) toggleCountryMode().catch(() => {});
                     T(() => {
                       if (demoInitialBounds) S.viewer?.viewport?.fitBounds(demoInitialBounds);
-                      locPopup.classList.remove("demo-panel-in");
                       demoFlyToButton(locPopup, "control-locate", 420,
-                        () => { if (!ctrl.aborted) finishDemo(); });
+                        () => { if (!ctrl.aborted) finishTour(); }, false);
                     }, 400);
                   }, 1500);
                 }, 700);
@@ -4873,28 +4985,23 @@ function runStartupDemo() {
         }, 1500);
       } else {
         T(() => {
-          locPopup.classList.remove("demo-panel-in");
-          demoFlyToButton(locPopup, "control-locate", 420, () => {});
+          demoFlyToButton(locPopup, "control-locate", 420, () => { if (!ctrl.aborted) finishTour(); }, false);
         }, 980);
       }
     }, 50);
   };
 
-  const preShowLocate = () => {
-    T(() => {
-      const locBtn = document.getElementById("control-locate");
-      pulseBtn(locBtn);
+  aboutBackdrop?.classList.remove("hidden");
+  aboutPanel?.classList.remove("hidden");
+  T(() => {
+    const locBtn = document.getElementById("control-locate");
+    demoFlyToButton(aboutPanel, "about-btn", 380, () => {
+      aboutBackdrop?.classList.add("hidden");
+      if (ctrl.aborted) return;
+      pulse(locBtn);
       showLocate();
-    }, 200);
-  };
-
-  aboutBackdropEl?.classList.add("hidden");
-  if (aboutPanelEl && !aboutPanelEl.classList.contains("hidden")) {
-    demoFlyToButton(aboutPanelEl, "about-btn", 380,
-      () => { if (!ctrl.aborted) preShowLocate(); }, true);
-  } else {
-    preShowLocate();
-  }
+    }, true);
+  }, 1800);
 }
 
 window.addEventListener("DOMContentLoaded", init);

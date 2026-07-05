@@ -68,7 +68,7 @@
     "operatingSystem": "Any",
     "browserRequirements": "Requires JavaScript",
     "featureList": [
-      "Locate yourself: tap the compass to find your nearest Roman road station, city or province — works from anywhere on Earth",
+      "Locate yourself automatically on load: a persistent red \"You are here\" marker shows your real GPS position on the ancient map, while a separate blue marker tracks any other location you pick — compare two places on Earth at once",
       "See your country in antiquity: select from 58 modern countries to highlight its ancient places on the map",
       "Accessible to non-experts: modern place names, Wikipedia links, AI-translated Latin inscriptions",
       "3,974 annotated ancient places: cities, road stations, rivers, mountains, islands, provinces",
@@ -146,7 +146,7 @@
         "name": "Can I find my own location on the ancient Roman map?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes — that is one of the most popular features. Press the crosshair (locate) button in the viewer. It uses your GPS or lets you tap any point on an interactive modern map, then flies straight to the nearest ancient Roman road station, city, or province on the Tabula Peutingeriana. Works for any location on Earth, including places outside the Roman Empire. No sign-up or account needed."
+          "text": "Yes — this is the viewer's signature feature. Press the crosshair (locate) button to drop a persistent red \"You are here\" marker on the Tabula Peutingeriana at your real GPS position, and fly straight to the nearest ancient Roman road station, city, or province. You can then tap anywhere else on the interactive modern map to drop a second, independent blue \"Picked Location\" marker — so you can compare your home to any other point on Earth on the same ancient map at once. Works for any location on Earth, including places outside the Roman Empire. No sign-up or account needed."
         }
       },
       {
@@ -226,7 +226,7 @@
         "name": "What is the fastest way to experience the Tabula Peutingeriana?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Open tabula-peutingeriana.com on any device — phone, tablet, or computer. When the map loads, tap the compass/crosshair button and allow location access. The viewer instantly flies to the nearest ancient Roman place to where you are right now and shows its Latin name, modern equivalent, and Wikipedia entry. No account, no download, no prior knowledge needed. The built-in demo also gives you a 30-second guided tour automatically on first visit."
+          "text": "Open tabula-peutingeriana.com on any device — phone, tablet, or computer. It locates you automatically on load, instantly flying to the nearest ancient Roman place to where you are right now and marking your real position with a persistent red \"You are here\" marker — no tap needed. Click any place to see its Latin name, modern equivalent, and Wikipedia entry. No account, no download, no prior knowledge needed. Click the small 'Tour' button beneath the About icon any time for a full guided walkthrough of the main features."
         }
       }
     ]
@@ -297,7 +297,7 @@
 
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260705l" />
+  <link rel="stylesheet" href="styles.css?v=20260705z" />
 </head>
 <body>
   <div id="app">
@@ -348,10 +348,16 @@
         <a id="feedback-btn" class="ctrl-btn" href="mailto:info@three-mills.com?subject=Tabula%20Peutingeriana%20Feedback" aria-label="Send feedback" title="Send feedback to info@three-mills.com">
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M2 7l8 5 8-5"/></svg>
         </a>
-        <button id="about-btn" class="ctrl-btn" aria-label="About the Tabula Peutingeriana" title="About the Tabula Peutingeriana">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7.5"/><line x1="9" y1="8" x2="9" y2="14" stroke-width="2"/><circle cx="9" cy="5.5" r="1" fill="currentColor" stroke="none"/></svg>
-          <span class="about-btn-label">The Tabula Peutingeriana</span>
-        </button>
+        <div id="about-btn-col">
+          <button id="about-btn" class="ctrl-btn" aria-label="About the Tabula Peutingeriana" title="About the Tabula Peutingeriana">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7.5"/><line x1="9" y1="8" x2="9" y2="14" stroke-width="2"/><circle cx="9" cy="5.5" r="1" fill="currentColor" stroke="none"/></svg>
+            <span class="about-btn-label">The Tabula Peutingeriana</span>
+          </button>
+          <button id="replay-demo-btn" class="ctrl-btn" type="button" title="Quick tour of the main features" aria-label="Quick tour of the main features">
+            <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 5.5A6.5 6.5 0 1 0 17 10"/><path d="M17 4v4h-4"/></svg>
+            Tour
+          </button>
+        </div>
       </div>
     </header>
 
@@ -719,6 +725,6 @@
 
   <div id="latin-tip" style="display:none"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260705l"></script>
+  <script src="main.js?v=20260705z"></script>
 </body>
 </html>

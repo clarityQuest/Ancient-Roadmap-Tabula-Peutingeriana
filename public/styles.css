@@ -112,6 +112,13 @@ body, html {
   align-items: flex-start;
 }
 #left-controls { flex: 1; min-width: 0; }
+#about-btn-col { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+#replay-demo-btn {
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  padding: 3px 6px; font-size: 10px; font-weight: 600;
+  min-width: 0; height: auto;
+}
+#replay-demo-btn svg { flex-shrink: 0; }
 #search-container {
   pointer-events: auto;
   display: flex;
@@ -643,7 +650,7 @@ body, html {
 .about-footer { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted); line-height: 1.5; }
 .about-footer a { color: var(--accent); text-decoration: none; }
 #about-settings-row { margin-top: 10px; display: flex; justify-content: flex-end; }
-.about-settings-btn { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-size: 11px; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+.about-settings-btn { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-size: 11px; font-family: inherit; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
 .about-settings-btn:hover { color: var(--text-main); border-color: rgba(255,255,255,0.3); }
 
 /* Country mode floating bar */
@@ -730,9 +737,7 @@ body, html {
 /* Utilities */
 .hidden { display: none !important; }
 
-/* Startup demo animations */
-@keyframes demoPanelIn { from { opacity: 0; transform: scale(0.92) translateY(8px); } to { opacity: 1; transform: none; } }
-.demo-panel-in { animation: demoPanelIn 0.35s ease-out forwards; }
+/* Onboarding hint pulse (flashOnboardingHints) + panel fly-to-button flourish (demoFlyToButton) */
 @keyframes demoBtnPulse {
   0%   { transform: scale(1);    box-shadow: none; }
   45%  { transform: scale(1.45); box-shadow: 0 0 14px 5px rgba(200,160,80,0.75); }
@@ -801,7 +806,9 @@ body, html {
     width: min(210px, 41vw) !important;
     max-height: none !important;
     border-radius: 0 12px 12px 0 !important;
-    padding: 12px 14px 24px;
+    /* Left/right stay 0 here -- #panel-scroll-body's own 10px matches the desktop gap;
+       adding padding here too was nearly 2.5x the desktop side margin. */
+    padding: 12px 0 24px;
     box-shadow: 4px 0 24px rgba(0,0,0,0.6);
     overflow-y: auto;
   }
@@ -1148,10 +1155,11 @@ body, html {
   align-items: center; justify-content: center;
   pointer-events: auto;
 }
-/* Mobile country label — bottom-centre of Leaflet map */
+/* Mobile country label — bottom-centre of Leaflet map, stacked above #locate-result-bar
+   (same horizontal spot) so the two don't render on top of each other. */
 #locate-country-bar {
   display: none;
-  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 66px; left: 50%; transform: translateX(-50%);
   z-index: 501;
   background: rgba(18,14,8,0.88);
   border: 1px solid rgba(200,160,80,0.45);
@@ -1168,9 +1176,9 @@ body, html {
   z-index: 500;
   background: rgba(18,16,12,0.93);
   border: 1px solid rgba(200,160,80,0.45);
-  border-radius: 14px;
-  padding: 5px 14px;
-  color: #e8d8a8; font-size: 13px; font-weight: 600;
+  border-radius: 10px;
+  padding: 4px 11px;
+  color: #e8d8a8; font-size: 11px; font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
   max-width: calc(100% - 20px);
@@ -1373,15 +1381,28 @@ body, html {
   }
   /* Locate map icons slightly larger on tablet */
   #locate-gps-btn, #locate-places-btn, #locate-roads-btn, #locate-my-country-btn {
-    width: 32px !important; height: 32px !important;
+    width: 35px !important; height: 35px !important;
   }
   #locate-gps-btn svg, #locate-places-btn svg, #locate-roads-btn svg, #locate-my-country-btn svg {
-    width: 20px !important; height: 20px !important;
+    width: 22px !important; height: 22px !important;
   }
   /* Tablet search field 50% bigger than base mobile (7px → 11px) */
   #search-input { font-size: 11px !important; height: 28px !important; }
   #search-results .search-item { font-size: 11px !important; }
   #search-results .si-modern { font-size: 9px !important; }
+
+  /* Touch screens this large aren't as space-constrained as a phone -- the base
+     mobile sizing below reads too small. Bump general buttons/icons ~10%. */
+  .ctrl-btn { min-width: 42px !important; min-height: 42px !important; }
+  #nav-square .ctrl-btn { width: 24px !important; height: 24px !important; min-width: 24px !important; min-height: 24px !important; }
+  #locate-leaflet-map .leaflet-control-zoom a {
+    width: 22px !important; height: 22px !important; line-height: 22px !important; font-size: 15px !important;
+  }
+  #category-popup { font-size: 12px; }
+  #category-popup .toggle-btn-sm { font-size: 12px !important; padding: 6px 10px !important; min-height: 35px !important; }
+  #category-popup .toggle-btn-sm svg { width: 17px !important; height: 17px !important; }
+  #category-popup .type-filter-btn { font-size: 12px !important; padding: 4px 8px !important; }
+  #category-popup .tf-dot { width: 14px !important; height: 14px !important; }
 }
 
 /* Tablet portrait: info panel starts at 25% of screen width, goes full right */

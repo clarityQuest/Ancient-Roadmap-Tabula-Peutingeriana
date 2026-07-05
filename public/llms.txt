@@ -21,7 +21,8 @@ Named after Konrad Peutinger (1465–1547), the Augsburg humanist who owned the 
 - **81% located** — 3,230 of 3,974 places have georeferenced modern coordinates
 - **Search** by Latin name or modern equivalent
 - **Wikipedia integration** — summaries and thumbnail images for located places
-- **GPS locate** — press the crosshair button to find your nearest ancient Roman location; works worldwide, shows edge direction for locations outside the map's coverage
+- **Persistent GPS location marker** — the viewer locates you automatically on load and drops a permanent red "You are here" marker on the ancient map at your real position; works worldwide, shows edge direction for locations outside the map's coverage
+- **Independent "picked location" marker** — tap anywhere on the interactive modern map to drop a separate blue marker and navigate to that point's nearest ancient place, without disturbing your red GPS marker — compare two locations on the same ancient map at once
 - **OmnesViae Roman roads layer** — overlay the ancient road network on the modern location map
 - **Category filters** — filter by place type (road stations, cities, rivers, etc.)
 - **Segment navigation** — jump to any of the 12 segments by button
@@ -81,7 +82,7 @@ At the Österreichische Nationalbibliothek (Austrian National Library) in Vienna
 Approximately 3,500–3,974 named places depending on counting method. This viewer annotates 3,974 records (2,469 road stations plus cities, rivers, mountains, islands, provinces, peoples, etc.), of which 3,230 (81%) are geographically located.
 
 **Can I find my own location on the ancient Roman map?**
-Yes — press the crosshair (locate) button in the viewer. It uses GPS or lets you pick a location on an interactive modern map, then navigates to the nearest ancient Roman road station, city or province. Works for any location on Earth; locations outside the map's coverage get an edge direction marker.
+Yes — this is the viewer's signature feature. It locates you automatically on load and drops a persistent red "You are here" marker on the Tabula Peutingeriana at your real GPS position, navigating straight to the nearest ancient Roman road station, city or province. You can also tap anywhere on the interactive modern map to drop a second, independent blue "Picked Location" marker, letting you compare your home to any other point on Earth on the same ancient map. Works for any location on Earth; locations outside the map's coverage get an edge direction marker.
 
 **What language is the map in?**
 Latin, with some Greek place names, especially in the eastern segments.
