@@ -797,7 +797,9 @@ body, html {
   }
   #panel-map:not(.hidden) iframe {
     position: absolute; top: 0; left: 0;
-    width: 100% !important; height: 100% !important;
+    width: 100% !important;
+    /* 25px taller than container — attribution bar falls below overflow:hidden clip */
+    height: calc(100% + 25px) !important;
     display: block;
   }
   /* Larger map on tablets (wider touch screens) */
