@@ -1000,8 +1000,8 @@ function renderMillerOverlay(ctx) {
       ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
       ctx.restore();
     }
-    // Non-isolated country mode: draw every place filled + outlined in its country color
-    if (S.countrySelectMode && !S.countryIsolate && item.country) {
+    // Non-isolated country mode WITH active filter: tint non-matching places in their country color
+    if (S.countrySelectMode && S.countryFilter && !S.countryIsolate && item.country) {
       const iso2 = dbCodesToIso2(item.country)[0];
       const cc = iso2 ? (_countryColorMap[iso2] || null) : null;
       if (cc && !isCountryMatch) {
@@ -2580,6 +2580,7 @@ async function toggleCountryMode() {
     if (cpBtn) { cpBtn.setAttribute("disabled", "true"); cpBtn.classList.add("disabled"); }
     document.getElementById("category-popup")?.classList.add("hidden");
     document.getElementById("country-deactivate-btn")?.classList.remove("hidden");
+    updateLeafletZoomStyles();
     renderMarkers();
   } else {
     exitCountryFilter();
@@ -2607,6 +2608,7 @@ async function toggleCountryMode() {
     const cpBtn = document.getElementById("cat-popup-btn");
     if (cpBtn) { cpBtn.removeAttribute("disabled"); cpBtn.classList.remove("disabled"); }
     document.getElementById("country-deactivate-btn")?.classList.add("hidden");
+    updateLeafletZoomStyles();
     // Restore persisted label settings
     try { S.latinLabelsOn = localStorage.getItem("tp_latin_labels") === "1"; } catch { S.latinLabelsOn = false; }
     try { S.modernLabelsOn = localStorage.getItem("tp_modern_labels") === "1"; } catch { S.modernLabelsOn = false; }
@@ -2679,7 +2681,8 @@ function closeLocatePopup() {
 function updateLeafletZoomStyles() {
   if (!_leafletMap) return;
   const z = _leafletMap.getZoom();
-  const dotR  = z <= 3 ? 2.0 : z <= 5 ? 3.2 : z <= 7 ? 4.8 : 6.0;
+  const cFactor = S.countrySelectMode ? 0.55 : 1.0;
+  const dotR  = (z <= 3 ? 2.0 : z <= 5 ? 3.2 : z <= 7 ? 4.8 : 6.0) * cFactor;
   const roadW = z <= 3 ? 0.7 : z <= 5 ? 1.2 : z <= 7 ? 1.8 : 2.5;
   if (_leafletPlacesLayer) {
     _leafletPlacesLayer.getLayers().forEach(m => { if (m.setRadius) m.setRadius(dotR); });

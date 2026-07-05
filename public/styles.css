@@ -68,7 +68,7 @@ body, html {
 #zoom-top-row {
   display: flex;
   gap: 4px;
-  align-items: center;
+  align-items: stretch;
 }
 #nav-btns-row {
   display: flex;
@@ -88,7 +88,7 @@ body, html {
 }
 #control-fullpage {
   width: 40px;
-  height: 59px;
+  height: auto;   /* stretches to match #nav-square combined height via align-items: stretch */
   padding: 8px;
   border-radius: 6px;
   display: flex;
@@ -811,8 +811,8 @@ body, html {
   /* Drag/resize are enabled on touch via JS detach — show controls */
   .resize-handle { display: block; }
   #panel-drag-bar { display: block; }
-  /* Larger tap target on touch (44×44 min recommended) */
-  .resize-handle { width: 44px !important; height: 44px !important; }
+  /* Larger tap target on touch — 32px keeps it unobtrusive while still tappable */
+  .resize-handle { width: 32px !important; height: 32px !important; }
 }
 
 /* Mobile: "Tabula Peutingeriana" label appears on load then slides away */
