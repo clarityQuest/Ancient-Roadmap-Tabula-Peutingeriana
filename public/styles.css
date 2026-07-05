@@ -805,7 +805,10 @@ body, html {
   }
   #panel-map:not(.hidden) iframe {
     position: absolute; top: 0; left: 0;
-    width: 100% !important; height: 100% !important;
+    /* Scale iframe to 70% so the +/- Leaflet buttons inside are 30% smaller.
+       Compensate size so the scaled result still fills the container exactly. */
+    width: calc(100% / 0.7) !important; height: calc(100% / 0.7) !important;
+    transform: scale(0.7); transform-origin: top left;
     display: block;
   }
   /* Larger map on tablets (wider touch screens) */
