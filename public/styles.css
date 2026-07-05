@@ -468,7 +468,8 @@ body, html {
 /* Drag bar at top of info panel */
 #panel-drag-bar {
   position: absolute; top: 0; left: 0; right: 0; height: 22px;
-  cursor: move; z-index: 1; border-radius: 8px 8px 0 0;
+  cursor: move; z-index: 1500; border-radius: 8px 8px 0 0;
+  touch-action: none; pointer-events: all;
   background: linear-gradient(to bottom, rgba(255,255,255,0.04), transparent);
 }
 /* Drag pill indicator — visible on touch devices */
@@ -483,7 +484,7 @@ body, html {
 @media (pointer: coarse) {
   #panel-drag-bar::before { display: block; }
 }
-#locate-map-header { cursor: move; }
+#locate-map-header { cursor: move; touch-action: none; }
 #panel-country { font-size: 14px; margin: 6px 0 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 #panel-country img { height: 1em; vertical-align: middle; border-radius: 1px; }
 #panel-type { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-weight: 600; font-size: 16px; }
@@ -810,6 +811,8 @@ body, html {
   /* Drag/resize are enabled on touch via JS detach — show controls */
   .resize-handle { display: block; }
   #panel-drag-bar { display: block; }
+  /* Larger tap target on touch (44×44 min recommended) */
+  .resize-handle { width: 44px !important; height: 44px !important; }
 }
 
 /* Mobile: "Tabula Peutingeriana" label appears on load then slides away */
@@ -1034,7 +1037,12 @@ body, html {
   }
 }
 /* Custom resize handles */
-.resize-handle { position: absolute; bottom: 0; width: 20px; height: 20px; z-index: 10; }
+.resize-handle {
+  position: absolute; bottom: 0; width: 20px; height: 20px;
+  z-index: 1500;         /* above Leaflet's highest pane (700) */
+  touch-action: none;    /* prevents scroll/pan gestures from stealing the touch */
+  pointer-events: all;
+}
 .resize-handle.resize-br {
   right: 0; cursor: se-resize;
   background: linear-gradient(135deg, transparent 52%, rgba(200,160,80,0.7) 52%);
@@ -1058,7 +1066,7 @@ body, html {
   width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 #locate-map-close:hover { color: #fff; }
-#locate-leaflet-map { width: 100%; flex: 1; min-height: 0; position: relative; }
+#locate-leaflet-map { width: 100%; flex: 1; min-height: 0; position: relative; isolation: isolate; }
 
 /* Dot-color legend — bottom-right of locate map, above the attribution credit */
 #locate-legend {
