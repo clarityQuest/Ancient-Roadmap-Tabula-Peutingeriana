@@ -4239,6 +4239,69 @@ function initResizablePanels() {
 }
 
 /* ============================================================
+   Orientation handler — save/restore panel positions per orientation
+   so dragged/resized panels land correctly after portrait↔landscape flip
+   ============================================================ */
+function initOrientationHandler() {
+  const panelIds = ["info-panel", "locate-map-popup"];
+  // Saved positions keyed by panelId → { portrait: {…} | null, landscape: {…} | null }
+  const saved = {};
+  panelIds.forEach(id => { saved[id] = { portrait: null, landscape: null }; });
+
+  function orientation() {
+    return window.innerWidth > window.innerHeight ? "landscape" : "portrait";
+  }
+
+  function isDetached(el) {
+    // detach() sets position via inline !important; check if it's been applied
+    return !!el.style.getPropertyValue("left");
+  }
+
+  function savePanel(el, orient) {
+    if (!isDetached(el)) return;
+    saved[el.id][orient] = {
+      left:   el.style.getPropertyValue("left"),
+      top:    el.style.getPropertyValue("top"),
+      width:  el.style.getPropertyValue("width"),
+      height: el.style.getPropertyValue("height"),
+    };
+  }
+
+  function applyPanel(el, pos) {
+    if (pos) {
+      // Restore saved position for this orientation
+      const set = (p, v) => el.style.setProperty(p, v, "important");
+      set("position", "fixed");
+      set("left",   pos.left);
+      set("top",    pos.top);
+      set("right",  "auto");
+      set("bottom", "auto");
+      set("width",  pos.width);
+      set("height", pos.height);
+    } else {
+      // No saved position for this orientation — let CSS take over
+      ["position", "left", "top", "right", "bottom", "width", "height"]
+        .forEach(p => el.style.removeProperty(p));
+    }
+  }
+
+  let prevOrient = orientation();
+  window.addEventListener("resize", () => {
+    const newOrient = orientation();
+    if (newOrient === prevOrient) return;
+    // Orientation flipped: save current, restore/reset for new orientation
+    panelIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      savePanel(el, prevOrient);
+      applyPanel(el, saved[id][newOrient]);
+    });
+    prevOrient = newOrient;
+    if (_leafletMap) setTimeout(() => _leafletMap.invalidateSize(), 150);
+  });
+}
+
+/* ============================================================
    Initialisation
    ============================================================ */
 async function init() {
@@ -4397,6 +4460,7 @@ async function init() {
   setupInteraction();
   initSettingsPanel();
   initResizablePanels();
+  initOrientationHandler();
   applyI18n(); // apply language to About panel content and type filter labels
 
   console.log(`Tabula Peutingeriana loaded: ${S.places.length} calibrated places, ${S.millerCalib.length} Miller calibrations`);
