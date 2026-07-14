@@ -796,13 +796,14 @@ function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, theme, label) {
   drawCrosshairTag(ctx, cx, cy, getText(theme.tagKey), theme.label);
   if (!label) return;
   ctx.save();
-  ctx.font = "bold 16px 'Segoe UI', Arial, sans-serif";
+  const labelPx = S.isMobile ? 20 : 16;
+  ctx.font = `bold ${labelPx}px 'Segoe UI', Arial, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   const tw = ctx.measureText(label).width;
-  const px = cx, py = cy + 76;
+  const px = cx, py = cy + 61;
   ctx.fillStyle = "rgba(0,0,0,0.78)";
-  ctx.fillRect(px - tw / 2 - 7, py - 3, tw + 14, 24);
+  ctx.fillRect(px - tw / 2 - 7, py - 3, tw + 14, labelPx + 8);
   ctx.shadowColor = "rgba(0,0,0,0.0)";
   ctx.fillStyle = theme.label;
   ctx.fillText(label, px, py);
@@ -813,20 +814,21 @@ function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, theme, label) {
 // distinguishable by more than color alone.
 function drawCrosshairTag(ctx, cx, cy, text, color) {
   ctx.save();
-  ctx.font = "600 11px 'Segoe UI', Arial, sans-serif";
+  const tagPx = S.isMobile ? 15 : 11;
+  ctx.font = `600 ${tagPx}px 'Segoe UI', Arial, sans-serif`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  const tx = cx + 22, ty = cy + 20;
+  const tx = cx + 18, ty = cy + 16;
   const tw = ctx.measureText(text).width;
   ctx.fillStyle = "rgba(0,0,0,0.72)";
-  ctx.fillRect(tx - 4, ty - 2, tw + 8, 15);
+  ctx.fillRect(tx - 4, ty - 2, tw + 8, tagPx + 4);
   ctx.fillStyle = color;
   ctx.fillText(text, tx, ty);
   ctx.restore();
 }
 
 function drawOutsideCrosshair(ctx, cx, cy, arrowAngle, color) {
-  const R = 28, arm = 48;
+  const R = 22, arm = 38;
   ctx.save();
   ctx.globalAlpha = 0.92;
   // White halo
@@ -872,7 +874,7 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle, color) {
 }
 
 function drawUserCrosshair(ctx, cx, cy, color) {
-  const R = 28, arm = 48;
+  const R = 22, arm = 38;
   ctx.save();
   ctx.globalAlpha = 0.92;
 
@@ -1997,6 +1999,17 @@ function locDistKm(lat1, lng1, lat2, lng2) {
   return Math.sqrt(dlat * dlat + dlng * dlng) * 111.32;
 }
 
+// Same metric as locDistKm but squared and without the final sqrt/scale — cheap to call
+// per-candidate in nearest-neighbor searches. Plain (lat-lat)^2+(lng-lng)^2 (used previously)
+// ignores longitude convergence at higher latitudes and can rank an east/west-displaced
+// candidate as "closer" than a true-distance-closer one — the root cause of picks across
+// the Mediterranean landing on the wrong coast.
+function locDistSqApprox(lat1, lng1, lat2, lng2) {
+  const dlat = lat1 - lat2;
+  const dlng = (lng1 - lng2) * Math.cos((lat1 + lat2) / 2 * Math.PI / 180);
+  return dlat * dlat + dlng * dlng;
+}
+
 // maxDistKm: when set, only use places within that radius for IDW (B: keeps edge crosshair
 // on the map's visual perimeter by excluding distant interior places from the weight pool).
 // Rivers and mountains have extreme vx/vy positions that distort IDW averages —
@@ -2146,26 +2159,28 @@ function panToLocVp(vx, vy, isOutside = false, place = null) {
   }
 }
 
-function setUserLocation(lat, lng, isDefault = false, isGps = false, showPanel = true) {
-  // Crosshair state goes to the "gps" (red) track when this update came from an actual
-  // GPS fix, or the "userLoc" (blue) track for a manual pick (map click / marker drag) —
-  // the two are independent so a manual pick never erases the persistent GPS crosshair.
-  const P = isGps ? "gps" : "userLoc";
+// Nearest-place search used by setUserLocation. restrictIso2, when given, only considers
+// places whose DB country matches — used to bias sea clicks onto the correct coast.
+function findNearestPlaces(lat, lng, restrictIso2) {
   const pool = S.mapMode === "old" ? S.millerCalib : S.places;
   let bestNonArea = null, bestNonAreaSq = Infinity;
   let bestArea = null, bestAreaSq = Infinity;
+  const consider = (p, plat, plng) => {
+    if (restrictIso2 && !dbCodesToIso2Arr(p.country).includes(restrictIso2)) return;
+    const dsq = locDistSqApprox(lat, lng, plat, plng);
+    if (LOCATE_AREA_TYPES.has(p.type)) {
+      if (dsq < bestAreaSq) { bestAreaSq = dsq; bestArea = p; }
+    } else {
+      if (dsq < bestNonAreaSq) { bestNonAreaSq = dsq; bestNonArea = p; }
+    }
+  };
   // Search surviving Tabula places (Seg II+)
   for (const p of pool) {
     if (p.lat == null || p.lng == null) continue;
     if (S.mapMode !== "old" && (p.px == null || p.py == null)) continue;
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-    const dsq = (lat - plat) ** 2 + (lng - plng) ** 2;
-    if (LOCATE_AREA_TYPES.has(p.type)) {
-      if (dsq < bestAreaSq) { bestAreaSq = dsq; bestArea = p; }
-    } else {
-      if (dsq < bestNonAreaSq) { bestNonAreaSq = dsq; bestNonArea = p; }
-    }
+    consider(p, plat, plng);
   }
   // Also search Segment I places by their modern geocoordinates
   for (const p of S.allRecords) {
@@ -2173,12 +2188,24 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false, showPanel =
     if (p.lat == null || p.lng == null) continue;
     const plat = Number(p.lat), plng = Number(p.lng);
     if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
-    const dsq = (lat - plat) ** 2 + (lng - plng) ** 2;
-    if (LOCATE_AREA_TYPES.has(p.type)) {
-      if (dsq < bestAreaSq) { bestAreaSq = dsq; bestArea = p; }
-    } else {
-      if (dsq < bestNonAreaSq) { bestNonAreaSq = dsq; bestNonArea = p; }
-    }
+    consider(p, plat, plng);
+  }
+  return { bestArea, bestNonArea };
+}
+
+function setUserLocation(lat, lng, isDefault = false, isGps = false, showPanel = true) {
+  // Crosshair state goes to the "gps" (red) track when this update came from an actual
+  // GPS fix, or the "userLoc" (blue) track for a manual pick (map click / marker drag) —
+  // the two are independent so a manual pick never erases the persistent GPS crosshair.
+  const P = isGps ? "gps" : "userLoc";
+  const biasIso2 = nearestCountryIso2(lat, lng);
+  let { bestArea, bestNonArea } = biasIso2 ? findNearestPlaces(lat, lng, biasIso2) : { bestArea: null, bestNonArea: null };
+  if (!bestArea || !bestNonArea) {
+    // Nothing nearby on the biased landmass for one or both categories (e.g. a country
+    // with no Tabula places) — fill in from the unrestricted global search.
+    const fallback = findNearestPlaces(lat, lng, null);
+    if (!bestArea) bestArea = fallback.bestArea;
+    if (!bestNonArea) bestNonArea = fallback.bestNonArea;
   }
   const nonAreaDistKm = bestNonArea
     ? locDistKm(lat, lng, Number(bestNonArea.lat), Number(bestNonArea.lng))
@@ -2624,6 +2651,35 @@ function pointInGeoJSONFeature(pt, feature) {
   return polys.some(poly => poly.length > 0 && pointInRing(pt, poly[0]));
 }
 
+// Which modern country's territory (or, failing that, nearest coastline) a lat/lng falls
+// closest to. Used to bias the user-location nearest-place search onto the correct
+// landmass/coast — without it, a click in open water (e.g. mid-Mediterranean) picks
+// whichever DB place happens to be nearest in raw distance, which is often the wrong
+// coast entirely (Africa instead of Europe or vice versa).
+function nearestCountryIso2(lat, lng) {
+  if (!_countriesGeoJSON) return null;
+  const pt = [lng, lat];
+  for (const f of _countriesGeoJSON.features) {
+    if (pointInGeoJSONFeature(pt, f)) return f.properties.ISO_A2;
+  }
+  // Not on any landmass (open water) — fall back to nearest coastline vertex as a cheap
+  // proxy for "closest land", so a sea click still biases toward the near shore.
+  let bestIso2 = null, bestDsq = Infinity;
+  for (const f of _countriesGeoJSON.features) {
+    const geom = f.geometry;
+    if (!geom) continue;
+    const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+    for (const poly of polys) {
+      const ring = poly[0];
+      for (const [plng, plat] of ring) {
+        const dsq = locDistSqApprox(lat, lng, plat, plng);
+        if (dsq < bestDsq) { bestDsq = dsq; bestIso2 = f.properties.ISO_A2; }
+      }
+    }
+  }
+  return bestIso2;
+}
+
 function locateMyCountry() {
   if (!S.userLocLat || !_countriesGeoJSON) return;
   const pt = [S.userLocLng, S.userLocLat];
@@ -2900,7 +2956,13 @@ function toggleLeafletPlaces() {
           tipLines.push(`<span style="font-size:11px">${tdot}${flag ? flag + " " : ""}${escHtml(typeLabel)}</span>`);
         }
         if (isSeg1) tipLines.push(`<em style="font-size:10px;opacity:0.7">Segment I — lost</em>`);
-        m.bindTooltip(tipLines.join("<br>"), { direction: "top", offset: [0, -6], className: "ltt" });
+        // Desktop only: Leaflet opens non-permanent tooltips on tap as a hover substitute
+        // on touch devices, but a tap here already opens the full info panel (below) —
+        // the tooltip is redundant there, and can be left stranded open if a pan/drag
+        // starts on the marker without a normal mouseout to close it.
+        if (!S.isMobile) {
+          m.bindTooltip(tipLines.join("<br>"), { direction: "top", offset: [0, -6], className: "ltt" });
+        }
         // Click: navigate Tabula; in country mode also allows country selection
         m.on("click", (e) => {
           e.originalEvent?.stopPropagation();
@@ -3104,6 +3166,10 @@ function setupControls() {
       // (the generic document listener below also fires for that click) -- a real
       // follow-up click is always well beyond this, so keep it short and responsive.
       if (Date.now() - infoPanelOpenedAt < 300) return;
+      // A drag/resize that ends with the pointer outside the panel fires a native
+      // "click" targeting whatever's under the pointer at mouseup (the map, typically)
+      // — without this guard, every resize/reposition would immediately close the panel.
+      if (_panelInteracting) return;
       if (!e.target.closest("#info-panel")) hideInfoPanel();
     }
   });
@@ -3273,8 +3339,15 @@ function setupTypeFilters() {
     };
     const openCat  = () => { if (S.countrySelectMode) return; clearTimeout(catTimer); catPopup.classList.remove("hidden"); };
     const closeCat = () => { catTimer = setTimeout(() => catPopup.classList.add("hidden"), 250); };
-    catWrapper.addEventListener("mouseenter", openCat);
-    catWrapper.addEventListener("mouseleave", closeCat);
+    // Hover-to-open is desktop-only. On touch devices a tap synthesizes a "mouseenter"
+    // immediately before "click" — that mouseenter would open the popup and then the
+    // click's toggle below would instantly close it again, making the very first tap
+    // appear to do nothing (it only starts working on the 2nd tap, once the browser
+    // stops re-synthesizing mouseenter for the same element).
+    if (!S.isMobile) {
+      catWrapper.addEventListener("mouseenter", openCat);
+      catWrapper.addEventListener("mouseleave", closeCat);
+    }
     catBtn?.addEventListener("click", () => {
       if (S.countrySelectMode) return;
       catPopup.classList.toggle("hidden");
@@ -3826,7 +3899,36 @@ function applyWikiData(data, summaryEl) {
   }
 }
 
-// Fetches Wikipedia summary directly from a known wiki_url in the DB.
+// Generic (non-Latin) text translation via the same free MyMemory API used for Latin
+// inscriptions — used to translate Wikipedia extracts into the UI's selected language
+// when the stored article is in a different one.
+const _wikiTranslCache = {};
+async function translateWikiExtract(text, sourceLang, targetLang) {
+  if (!text || sourceLang === targetLang) return text;
+  const cacheKey = `${sourceLang}|${targetLang}::${text}`;
+  if (_wikiTranslCache[cacheKey] !== undefined) return _wikiTranslCache[cacheKey];
+  try {
+    // MyMemory's anonymous tier caps request length around 500 chars — trim on a word
+    // boundary rather than cutting the API call off mid-sentence.
+    const clipped = text.length > 480 ? text.slice(0, 480).replace(/\s+\S*$/, "") : text;
+    const resp = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clipped)}&langpair=${sourceLang}|${targetLang}`,
+      { cache: "default" }
+    );
+    const j = await resp.json();
+    const t = j?.responseData?.translatedText;
+    if (t && !t.includes("MYMEMORY WARNING")) {
+      _wikiTranslCache[cacheKey] = t;
+      return t;
+    }
+  } catch {}
+  _wikiTranslCache[cacheKey] = text; // fall back to the original extract on failure
+  return text;
+}
+
+// Fetches Wikipedia summary directly from a known wiki_url in the DB. Most stored
+// wiki_urls point at English Wikipedia regardless of the UI language, so the extract
+// is translated to the currently selected language when they differ.
 async function resolveWikiSummaryFromUrl(reqId, summaryEl, url) {
   if (!summaryEl) return;
   const m = url.match(/https?:\/\/([a-z]+)\.wikipedia\.org\/wiki\/(.+)/);
@@ -3834,6 +3936,13 @@ async function resolveWikiSummaryFromUrl(reqId, summaryEl, url) {
   const lang = m[1], title = decodeURIComponent(m[2].replace(/_/g, ' '));
   const data = await fetchWikiData(title, lang);
   if (wikiRequestId !== reqId) return;
+  const targetLang = getLang();
+  if (data?.extract && lang !== targetLang) {
+    const translated = await translateWikiExtract(data.extract, lang, targetLang);
+    if (wikiRequestId !== reqId) return;
+    applyWikiData({ ...data, extract: translated }, summaryEl);
+    return;
+  }
   applyWikiData(data, summaryEl);
 }
 
@@ -4267,11 +4376,23 @@ function initSettingsPanel() {
 /* ============================================================
    Resizable panels
    ============================================================ */
+// True for the duration of a resize/drag interaction (plus one tick after mouseup/touchend)
+// so the document-level "click outside closes the info panel" listener can ignore the
+// synthetic click that a drag/resize ending outside the panel's bounds always fires.
+let _panelInteracting = false;
+function clearPanelInteractingSoon() {
+  setTimeout(() => { _panelInteracting = false; }, 0);
+}
+
 function initResizablePanels() {
+  // Keep a couple of px of margin so shadows/borders don't get clipped flush against
+  // the viewport edge.
+  const VP_MARGIN = 4;
+
   // Detach a panel from its responsive CSS constraints so JS can freely position/size it.
   // Uses inline !important which always wins over stylesheet !important.
-  // lockHeight=false leaves height on "auto" so it keeps tracking content size
-  // (used by the info panel, whose height is always content-driven, never user-set).
+  // lockHeight=false leaves height on "auto" so it keeps tracking content size (used for
+  // the info panel until the user explicitly resizes it — see makeHandle below).
   function detach(panel, lockHeight = true) {
     const pr = panel.getBoundingClientRect();
     const set = (p, v) => panel.style.setProperty(p, v, "important");
@@ -4283,13 +4404,15 @@ function initResizablePanels() {
     set("width",  pr.width  + "px");
     if (lockHeight) {
       set("height", pr.height + "px");
+      set("max-height", "");
     } else {
-      // height:auto alone has nothing left to cap it -- mobile's #panel-scroll-body
-      // deliberately sets max-height:none (the *outer* panel's fixed height, e.g. 33vh
-      // in portrait, is normally what bounds it). Once that outer height becomes auto,
-      // full content can be taller than the screen and push the panel off the bottom.
+      // height:auto alone has nothing left to cap it -- the max-height below bounds it
+      // to the remaining space under the panel's *current* top. Recomputed on every drag
+      // step (see makeDraggable) so it always matches the live position, not just the
+      // position at drag-start — otherwise dragging the panel down leaves this stale and
+      // the panel (and its resize handle) can end up rendered off the bottom of the screen.
       set("height", "auto");
-      set("max-height", `calc(100vh - ${pr.top}px - 10px)`);
+      set("max-height", `calc(100vh - ${pr.top}px - ${VP_MARGIN + 6}px)`);
     }
     return { left: pr.left, top: pr.top, width: pr.width, height: pr.height };
   }
@@ -4300,34 +4423,45 @@ function initResizablePanels() {
     panel.appendChild(h);
     function startResize(clientX, clientY) {
       const s = detach(panel, !widthOnly);
-      return { sx: clientX, sy: clientY, sw: s.width, sh: s.height, sl: s.left };
+      return { sx: clientX, sy: clientY, sw: s.width, sh: s.height, sl: s.left, st: s.top };
     }
-    function doResize({ sx, sy, sw, sh, sl }, clientX, clientY) {
+    function doResize({ sx, sy, sw, sh, sl, st }, clientX, clientY) {
       const dx = clientX - sx, dy = clientY - sy;
       const set = (p, v) => panel.style.setProperty(p, v, "important");
+      // Both handles are bottom-anchored (top stays fixed) — cap height so the bottom
+      // edge (and the resize handle that lives there) never runs past the viewport.
+      const maxH = Math.max(minH, window.innerHeight - st - VP_MARGIN);
       if (cls === "resize-bl") {
-        const newW = Math.max(minW, sw - dx);
+        // Right edge stays fixed; the left edge — and the handle itself — moves, so it
+        // must never be dragged past the left edge of the viewport.
+        const right = sl + sw;
+        let newW = Math.max(minW, Math.min(sw - dx, right - VP_MARGIN));
         set("width", newW + "px");
-        set("left",  Math.max(0, sl + dx) + "px");
+        set("left",  (right - newW) + "px");
       } else {
-        set("width", Math.max(minW, sw + dx) + "px");
+        // Left edge stays fixed; cap width so the right edge stays on-screen.
+        const newW = Math.max(minW, Math.min(sw + dx, window.innerWidth - sl - VP_MARGIN));
+        set("width", newW + "px");
       }
-      if (!widthOnly) set("height", Math.max(minH, sh + dy) + "px");
+      if (!widthOnly) set("height", Math.min(Math.max(minH, sh + dy), maxH) + "px");
       if (onResize) onResize();
     }
     h.addEventListener("mousedown", e => {
       e.preventDefault();
+      _panelInteracting = true;
       const state = startResize(e.clientX, e.clientY);
       const onMove = e => doResize(state, e.clientX, e.clientY);
       const onUp = () => {
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup",   onUp);
+        clearPanelInteractingSoon();
       };
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup",   onUp);
     });
     h.addEventListener("touchstart", e => {
       e.preventDefault();
+      _panelInteracting = true;
       const t0 = e.touches[0];
       const state = startResize(t0.clientX, t0.clientY);
       const onMove = e => {
@@ -4338,6 +4472,7 @@ function initResizablePanels() {
       const onEnd = () => {
         document.removeEventListener("touchmove", onMove);
         document.removeEventListener("touchend",  onEnd);
+        clearPanelInteractingSoon();
       };
       document.addEventListener("touchmove", onMove, { passive: false });
       document.addEventListener("touchend",  onEnd);
@@ -4347,20 +4482,32 @@ function initResizablePanels() {
   function makeDraggable(panel, handle, lockHeight = true) {
     function startDrag(clientX, clientY) {
       const s = detach(panel, lockHeight);
-      return { initLeft: s.left, initTop: s.top, sx: clientX, sy: clientY };
+      return { initLeft: s.left, initTop: s.top, sx: clientX, sy: clientY, width: s.width, height: s.height };
     }
-    const setPos = (left, top) => {
-      panel.style.setProperty("left", Math.max(0, left) + "px", "important");
-      panel.style.setProperty("top",  Math.max(0, top)  + "px", "important");
+    const setPos = (left, top, width, height) => {
+      left = Math.max(0, Math.min(left, window.innerWidth  - width  - VP_MARGIN));
+      // When height tracks content (lockHeight=false) the true rendered height isn't
+      // known up front, so just keep the top on-screen — max-height (recomputed below)
+      // is what actually guarantees the bottom edge stays within the viewport.
+      top  = lockHeight
+        ? Math.max(0, Math.min(top, window.innerHeight - height - VP_MARGIN))
+        : Math.max(0, top);
+      panel.style.setProperty("left", left + "px", "important");
+      panel.style.setProperty("top",  top  + "px", "important");
+      if (!lockHeight) {
+        panel.style.setProperty("max-height", `calc(100vh - ${top}px - ${VP_MARGIN + 6}px)`, "important");
+      }
     };
     handle.addEventListener("mousedown", e => {
       if (e.target.closest("button, a, input, select")) return;
       e.preventDefault();
-      const { initLeft, initTop, sx, sy } = startDrag(e.clientX, e.clientY);
-      const onMove = e => setPos(initLeft + e.clientX - sx, initTop + e.clientY - sy);
+      _panelInteracting = true;
+      const { initLeft, initTop, sx, sy, width, height } = startDrag(e.clientX, e.clientY);
+      const onMove = e => setPos(initLeft + e.clientX - sx, initTop + e.clientY - sy, width, height);
       const onUp = () => {
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup",   onUp);
+        clearPanelInteractingSoon();
       };
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup",   onUp);
@@ -4368,16 +4515,18 @@ function initResizablePanels() {
     handle.addEventListener("touchstart", e => {
       if (e.target.closest("button, a, input, select")) return;
       e.preventDefault();
+      _panelInteracting = true;
       const t0 = e.touches[0];
-      const { initLeft, initTop, sx, sy } = startDrag(t0.clientX, t0.clientY);
+      const { initLeft, initTop, sx, sy, width, height } = startDrag(t0.clientX, t0.clientY);
       const onMove = e => {
         e.preventDefault();
         const t = e.touches[0];
-        setPos(initLeft + t.clientX - sx, initTop + t.clientY - sy);
+        setPos(initLeft + t.clientX - sx, initTop + t.clientY - sy, width, height);
       };
       const onEnd = () => {
         document.removeEventListener("touchmove", onMove);
         document.removeEventListener("touchend",  onEnd);
+        clearPanelInteractingSoon();
       };
       document.addEventListener("touchmove", onMove, { passive: false });
       document.addEventListener("touchend",  onEnd);
@@ -4392,8 +4541,10 @@ function initResizablePanels() {
   }
   const infoPanel = document.getElementById("info-panel");
   if (infoPanel) {
-    // Width-only: height always tracks content, never gets pinned to a fixed size
-    makeHandle(infoPanel, "resize-bl", 180, 80, null, true);
+    // Full corner resize: width and height. Height starts out content-driven (see
+    // makeDraggable's lockHeight=false below) but becomes an explicit, user-set size
+    // as soon as the user drags this handle — same convention as the location popup.
+    makeHandle(infoPanel, "resize-bl", 180, 80, null, false);
     const dragBar = document.getElementById("panel-drag-bar");
     if (dragBar) makeDraggable(infoPanel, dragBar, false);
   }
@@ -4498,6 +4649,14 @@ async function init() {
 
   await reloadDb();
   buildCountryColorMap();
+  // Fire-and-forget: get country boundaries loading immediately so they're ready by the
+  // time GPS/auto-locate or a manual map click needs the land-aware nearest-place bias
+  // (see nearestCountryIso2), well before the user ever opens country-filter mode.
+  loadJSONOptional("data/countries.geojson", null).then(data => {
+    if (!data) return;
+    _countriesGeoJSON = data;
+    for (const f of data.features) _countryNameMap[f.properties.ISO_A2] = f.properties.NAME || f.properties.ISO_A2;
+  });
 
   // Original tile source (Miller full image)
   const isFile = window.location.protocol === "file:";
@@ -4991,6 +5150,14 @@ function runFullTour() {
     }, 50);
   };
 
+  // Close whatever the user already had open so the tour starts from a clean slate
+  // instead of stacking its own panels on top of them.
+  hideInfoPanel();
+  closeLocatePopup();
+  catPopup?.classList.add("hidden");
+  document.getElementById("settings-panel")?.classList.add("hidden");
+  document.getElementById("seg1-modal")?.classList.add("hidden");
+
   aboutBackdrop?.classList.remove("hidden");
   aboutPanel?.classList.remove("hidden");
   T(() => {
@@ -5001,7 +5168,7 @@ function runFullTour() {
       pulse(locBtn);
       showLocate();
     }, true);
-  }, 1800);
+  }, 1260); // 30% shorter about-panel dwell time (was 1800ms)
 }
 
 window.addEventListener("DOMContentLoaded", init);

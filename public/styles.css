@@ -1035,6 +1035,7 @@ body, html {
     min-width: auto !important; min-height: auto !important;
   }
   #country-isolate-btn { padding: 3px 7px !important; }
+  #country-deactivate-btn { padding: 2px 4px !important; margin-top: 1px !important; }
   #locate-toggle-all-labels { padding: 2px 6px !important; }
   #country-filter-select { padding: 2px 5px !important; }
   /* Category popup: smaller fonts + icons on mobile */
@@ -1107,8 +1108,8 @@ body, html {
   border-bottom-right-radius: 7px;
 }
 .resize-handle.resize-bl {
-  /* Info panel: width-only resize (height tracks content) — horizontal cursor */
-  left: 0; cursor: ew-resize;
+  /* Info panel: width + height resize (bottom-left corner) */
+  left: 0; cursor: sw-resize;
   background: linear-gradient(225deg, transparent 52%, rgba(200,160,80,0.7) 52%);
   border-bottom-left-radius: 7px;
 }

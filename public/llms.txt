@@ -1,6 +1,6 @@
 # Tabula Peutingeriana — Interactive Ancient Roman Road Map
 
-> Interactive zoomable viewer of the Tabula Peutingeriana — the world's most complete surviving Roman road map (c. 4th–5th century AD, medieval copy c. 1200 AD). Covers the Roman Empire and beyond, from Britain to India, with 3,974 annotated places and GPS-locate functionality. Free, no login required.
+> Interactive zoomable viewer of the Tabula Peutingeriana — the world's most complete surviving Roman road map (c. 4th–5th century AD, medieval copy c. 1200 AD). Covers the Roman Empire and beyond, from Britain to India, with 4,344 annotated places and GPS-locate functionality. Free, no login required.
 
 URL: https://tabula-peutingeriana.com/
 
@@ -17,8 +17,8 @@ Named after Konrad Peutinger (1465–1547), the Augsburg humanist who owned the 
 ## Viewer Features
 
 - **High-resolution zoomable map** — stitched 12-segment image, panned/zoomed with OpenSeadragon
-- **3,974 annotated places** with Latin names and modern equivalents: road stations, cities, rivers, mountains, islands, regions, Roman provinces, modern states, spas/thermal baths, temples, ports, lakes
-- **81% located** — 3,230 of 3,974 places have georeferenced modern coordinates
+- **4,344 annotated places** with Latin names and modern equivalents: road stations, cities, rivers, mountains, islands, regions, Roman provinces, modern states, spas/thermal baths, temples, ports, lakes
+- **86% located** — 3,736 of 4,344 places have georeferenced modern coordinates
 - **Search** by Latin name or modern equivalent
 - **Wikipedia integration** — summaries and thumbnail images for located places
 - **Persistent GPS location marker** — the viewer locates you automatically on load and drops a permanent red "You are here" marker on the ancient map at your real position; works worldwide, shows edge direction for locations outside the map's coverage
@@ -33,20 +33,20 @@ Named after Konrad Peutinger (1465–1547), the Augsburg humanist who owned the 
 
 | Type | Total | Located |
 |---|---|---|
-| Road stations | 2,469 | 2,000 (81.0%) |
-| Cities | 466 | ~440 |
-| Rivers | 252 | most |
-| Mountains | 162 | most |
-| Peoples / tribes | 148 | most |
-| Islands | 130 | most |
-| Regions | 108 | most |
-| Modern states | 46 | all |
-| Roman provinces | 37 | all |
-| Spas / thermal baths | 36 | ~30 |
-| Water bodies | 34 | most |
-| Ports | 31 | ~25 |
-| Temples | 30 | ~20 |
-| Lakes | 25 | most |
+| Road stations | 2,854 | 2,521 (88.3%) |
+| Cities | 491 | 489 (99.6%) |
+| Rivers | 252 | 187 (74.2%) |
+| Mountains | 162 | 44 (27.2%) |
+| Peoples / tribes | 148 | 135 (91.2%) |
+| Islands | 130 | 95 (73.1%) |
+| Regions | 108 | 97 (89.8%) |
+| Modern states | 46 | 46 (all) |
+| Roman provinces | 37 | 34 (91.9%) |
+| Spas / thermal baths | 41 | 41 (all) |
+| Water bodies | 34 | 22 (64.7%) |
+| Ports | 31 | 20 (64.5%) |
+| Temples | 31 | 29 (93.5%) |
+| Lakes | 25 | 22 (88.0%) |
 
 ## Geographic Coverage (Segments II–XII)
 
@@ -79,7 +79,7 @@ A medieval parchment copy (c. 1200 AD) of a late-antique Roman road map original
 At the Österreichische Nationalbibliothek (Austrian National Library) in Vienna, Austria. It has been there since 1738.
 
 **How many places are on the Tabula Peutingeriana?**
-Approximately 3,500–3,974 named places depending on counting method. This viewer annotates 3,974 records (2,469 road stations plus cities, rivers, mountains, islands, provinces, peoples, etc.), of which 3,230 (81%) are geographically located.
+Approximately 3,500–4,344 named places depending on counting method. This viewer annotates 4,344 records (2,854 road stations plus cities, rivers, mountains, islands, provinces, peoples, etc.), of which 3,736 (86%) are geographically located.
 
 **Can I find my own location on the ancient Roman map?**
 Yes — this is the viewer's signature feature. It locates you automatically on load and drops a persistent red "You are here" marker on the Tabula Peutingeriana at your real GPS position, navigating straight to the nearest ancient Roman road station, city or province. You can also tap anywhere on the interactive modern map to drop a second, independent blue "Picked Location" marker, letting you compare your home to any other point on Earth on the same ancient map. Works for any location on Earth; locations outside the map's coverage get an edge direction marker.

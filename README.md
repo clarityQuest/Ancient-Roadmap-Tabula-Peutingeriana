@@ -16,7 +16,7 @@ The [Tabula Peutingeriana](https://en.wikipedia.org/wiki/Tabula_Peutingeriana) i
 Press the crosshair button — on phone or desktop. The viewer uses your GPS (or lets you tap any point on an interactive modern map) to find the nearest ancient Roman road station, city, or province, then flies straight to it on the Tabula. People in Germany land near *Augusta Treverorum* (Trier). People in Egypt find *Alexandria*. People in India find the eastern edge of the known world. Works from anywhere on Earth — no account, no install.
 
 ### See Your Country as It Looked in 300 AD
-Tap **Countries** in the location panel. Coloured polygons for 58 modern countries appear on the map. Tap yours — Germany, France, Egypt, Japan — and the Tabula instantly highlights every ancient place in that territory and zooms to fit. Tap **My Country** for automatic GPS-based detection. Then switch on labels to read the Latin place names.
+Tap **Countries** in the location panel. Coloured polygons for 64 modern countries appear on the map. Tap yours — Germany, France, Egypt, Japan — and the Tabula instantly highlights every ancient place in that territory and zooms to fit. Tap **My Country** for automatic GPS-based detection. Then switch on labels to read the Latin place names.
 
 > *"What was Germany in the Roman world?"  "Click Germany → see ~220 ancient places light up across Gaul, Germania, and Raetia."*
 
@@ -48,9 +48,9 @@ No prior knowledge needed. The built-in demo gives you a guided tour on first vi
 | Feature | Detail |
 |---|---|
 | Deep-zoom map viewer | K. Miller 1887 facsimile via OpenSeadragon; 11 segments |
-| Place database | 3,974 records; 81% georeferenced with lat/lng |
+| Place database | 4,344 records; 86% georeferenced with lat/lng |
 | GPS location | Find nearest ancient place from your real-world position |
-| Country mode | 58 countries, coloured polygon overlay, GPS auto-select |
+| Country mode | 64 countries, coloured polygon overlay, GPS auto-select |
 | AI translations | 1,100+ Latin inscriptions → English + German (offline) |
 | Wikipedia integration | Inline summary + thumbnail for all linked places |
 | Search | Latin name or modern name |
@@ -69,11 +69,11 @@ public/
   index.html                          Main viewer
   calibrate.html                      Calibration tool (requires local server)
   database_viewer.html                Place database browser
-  main.js                             Viewer logic (single file, ~4500 lines)
+  main.js                             Viewer logic (single file, ~5200 lines)
   styles.css                          Styles
   data/
-    review_places_db.json             Primary place database (~3,974 records)
-    countries.geojson                 Country polygons for country mode (58 countries)
+    review_places_db.json             Primary place database (~4,344 records)
+    countries.geojson                 Country polygons for country mode (64 countries)
     map_segment_bounds.json           Segment viewport bounds
     label_params.json                 Persisted label / opacity settings
     places.json                       Derived place positions (SegIV)
