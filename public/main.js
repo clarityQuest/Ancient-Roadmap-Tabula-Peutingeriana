@@ -2005,6 +2005,12 @@ let _leafletPlacesOn = false;
 let _leafletRoadsLayer = null;
 let _leafletRoadsOn = false;
 let _leafletSelectedMarker = null;
+// Tracks whichever hover-bound layer (place dot, country polygon, ...) currently has an
+// open tooltip. A layer whose position moves out from under a stationary real cursor
+// never gets a native mouseout — see the movestart/zoomstart handler in openLocatePopup,
+// which force-closes this the instant *any* pan/zoom begins (Follow-triggered or manual)
+// so a stale tooltip can't resurface once the pan-hiding CSS class is lifted again.
+let _leafletHoveredTooltipLayer = null;
 let _gpsMarker = null, _gpsLat = null, _gpsLng = null;
 let _locateResultBarTimer = null;
 let _omnesViaeData = null;
@@ -2466,8 +2472,12 @@ function renderCountryLayer() {
         _leafletL.DomEvent.stopPropagation(e);  // prevent map click from firing
         setCountryFilter(iso2);  // zoomLeafletToCountry is called inside setCountryFilter
       });
-      layer.on("mouseover", e => { if (S.countryFilter !== iso2) e.target.setStyle({ fillOpacity: 0.55, weight: 2 }); });
+      layer.on("mouseover", e => {
+        _leafletHoveredTooltipLayer = layer;
+        if (S.countryFilter !== iso2) e.target.setStyle({ fillOpacity: 0.55, weight: 2 });
+      });
       layer.on("mouseout", () => {
+        if (_leafletHoveredTooltipLayer === layer) _leafletHoveredTooltipLayer = null;
         if (!_leafletCountriesLayer) return;
         if (S.countryFilter === iso2) {
           // Re-assert selected style explicitly — adding markers above can trigger spurious mouseouts
@@ -3023,12 +3033,18 @@ async function openLocatePopup() {
     // Panning/zooming sweeps the cursor across many dense place/road markers, opening a
     // burst of hover tooltips — some left stranded since the marker moves out from under
     // a stationary cursor rather than firing a normal mouseout. Hide tooltips for the
-    // duration of the move plus a short settle debounce so they don't flicker or stick.
+    // duration of the move plus a short settle debounce so they don't flicker or stick,
+    // and actually close (not just hide) whichever tooltip is currently open — otherwise
+    // a stale one just reappears, still open, once the CSS hide is lifted. This matters
+    // most for Follow mode: it re-pans the map on every Tabula-view settle, so a tooltip
+    // opened by a real hover minutes ago would otherwise keep resurfacing indefinitely
+    // with the cursor nowhere near the map.
     let _leafletPanDebounce = null;
     const mapEl = document.getElementById("locate-leaflet-map");
     _leafletMap.on("movestart zoomstart", () => {
       clearTimeout(_leafletPanDebounce);
       mapEl?.classList.add("tp-panning");
+      _leafletHoveredTooltipLayer?.closeTooltip();
     });
     _leafletMap.on("moveend zoomend", () => {
       clearTimeout(_leafletPanDebounce);
@@ -3222,6 +3238,8 @@ function toggleLeafletPlaces() {
         // starts on the marker without a normal mouseout to close it.
         if (!S.isMobile) {
           m.bindTooltip(tipLines.join("<br>"), { direction: "top", offset: [0, -6], className: "ltt" });
+          m.on("mouseover", () => { _leafletHoveredTooltipLayer = m; });
+          m.on("mouseout", () => { if (_leafletHoveredTooltipLayer === m) _leafletHoveredTooltipLayer = null; });
         }
         // Click: navigate Tabula; in country mode also allows country selection
         m.on("click", (e) => {
