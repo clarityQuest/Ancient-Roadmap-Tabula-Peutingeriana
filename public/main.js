@@ -3013,19 +3013,23 @@ function followTabulaView() {
   // an honestly huge visible area (e.g. Segment XI/XII's Black-Sea-to-India spread) and
   // must be honored, not overridden — clamping those regardless of groundedness was
   // itself the bug: it silently re-zoomed-in past a box the data had already earned.
-  // Guards the reverse direction (followLeafletView) from reacting to the Leaflet move
-  // this function is about to trigger — cleared once that move actually settles, not on
-  // a fixed timer, since this animates (duration 0.4) and reverse-sync must stay blocked
-  // for the move's real duration, not an approximation of it.
-  _followSyncing = true;
-  _leafletMap.once("moveend zoomend", () => { _followSyncing = false; });
-
-  if (!groundedByVisiblePoints && previewZoom < FOLLOW_MIN_ZOOM) {
-    _leafletMap.setView([centerEst.lat, centerEst.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
-    return;
-  }
-
-  _leafletMap.fitBounds(box, { animate: true, duration: 0.4, padding: [24, 24], maxZoom: 13 });
+  // Guards the reverse direction (followLeafletView, a *permanent* listener on this map's
+  // own moveend/zoomend) from reacting to the Leaflet move this function is about to
+  // trigger. This is timeout-based rather than event-based on purpose: a single
+  // fitBounds/setView call that changes both position and zoom fires 'zoomend' and
+  // 'moveend' as two SEPARATE events (confirmed live, ~10ms apart) — clearing the guard
+  // on whichever fires first still leaves it open for the second, which is exactly
+  // enough for followLeafletView (listening to both) to see it already false and fire
+  // back at the Tabula view, cascading into the two sides fighting each other
+  // indefinitely (confirmed live via tracing). A timeout that safely outlasts the
+  // animation (0.4s) plus that inter-event gap sidesteps the ordering question entirely.
+  withFollowSyncGuard(600, () => {
+    if (!groundedByVisiblePoints && previewZoom < FOLLOW_MIN_ZOOM) {
+      _leafletMap.setView([centerEst.lat, centerEst.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
+    } else {
+      _leafletMap.fitBounds(box, { animate: true, duration: 0.4, padding: [24, 24], maxZoom: 13 });
+    }
+  });
 }
 
 // Reverse direction of followTabulaView: when Follow is on and the user pans/zooms the
