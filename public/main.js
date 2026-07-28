@@ -2935,7 +2935,8 @@ function followTabulaView() {
   let w = Math.min(...rowSamples.map(p => p.lng)), e = Math.max(...rowSamples.map(p => p.lng));
 
   const visible = pool.filter(p => p.vx >= bx0 && p.vx <= bx1 && p.vy >= by0 && p.vy <= by1);
-  if (visible.length >= FOLLOW_MIN_VISIBLE_POINTS) {
+  const groundedByVisiblePoints = visible.length >= FOLLOW_MIN_VISIBLE_POINTS;
+  if (groundedByVisiblePoints) {
     const vLats = visible.map(p => p.lat).sort((a, b) => a - b);
     const vLngs = visible.map(p => p.lng).sort((a, b) => a - b);
     s = Math.min(s, percentile(vLats, FOLLOW_TRIM_PCT));
@@ -2950,7 +2951,14 @@ function followTabulaView() {
   // whether honoring the box would zoom out too far (real-world size or aspect ratio
   // mismatch both show up here as "the zoom this needs is very low").
   const previewZoom = _leafletMap.getBoundsZoom(box, false, [24, 24]);
-  if (previewZoom < FOLLOW_MIN_ZOOM) {
+  // The floor only guards the *ungrounded* case (multi-row IDW extrapolating with no
+  // real anchors actually on screen to check it against) — that's the only situation
+  // where a very low previewZoom is more likely a sparse-data artifact than a genuinely
+  // huge real area. Once enough real visible points back the box up, a low zoom reflects
+  // an honestly huge visible area (e.g. Segment XI/XII's Black-Sea-to-India spread) and
+  // must be honored, not overridden — clamping those regardless of groundedness was
+  // itself the bug: it silently re-zoomed-in past a box the data had already earned.
+  if (!groundedByVisiblePoints && previewZoom < FOLLOW_MIN_ZOOM) {
     _leafletMap.setView([centerEst.lat, centerEst.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
     return;
   }
