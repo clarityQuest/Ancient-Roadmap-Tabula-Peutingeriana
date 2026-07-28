@@ -2822,85 +2822,127 @@ async function toggleCountryMode() {
 }
 
 // Broad-area records — a single lat/lng "representing" an entire people's territory, a
-// province, or a sea — aren't points and would distort the interpolation below.
+// province, or a sea — aren't points and would distort either estimate below.
 const FOLLOW_AREA_TYPES = new Set(["region", "roman_province", "modern_state", "people", "water"]);
 
 // Floor on how far Follow will zoom the Leaflet map out. Below this, honoring the full
-// interpolated extent would zoom out further than a "Follow" view should — the real
-// spread is genuinely huge (a compressed part of the Tabula scroll) or calibration is
-// too sparse nearby for a tight estimate.
+// box would zoom out further than a "Follow" view should — the real spread is genuinely
+// huge (a compressed part of the Tabula scroll) or calibration is too sparse nearby for
+// a tight estimate.
 const FOLLOW_MIN_ZOOM = 5;
 
 // Neighbors averaged per interpolated point — matches LOCATE_IDW_K's convention.
 const FOLLOW_IDW_K = 8;
 
-// Estimates the real-world lat/lng that a Tabula-pixel position (vx,vy) corresponds to,
-// by inverse-distance-weighting the K nearest calibrated places. The Miller ("old") view
-// and stitched ("new") view use two different coordinate systems for the same physical
-// places — Miller items are pixel rects normalized by MILLER_W (see renderMillerOverlay),
-// stitched-mode S.places carry OSD-viewport-normalized vx/vy (see the S.places loader) —
-// so vx/vy is only ever compared within the currently active mode. Same interpolation
-// technique "Locate Me" already uses in the opposite direction (real lat/lng → Tabula
-// position) — see interpolateTabulaVp.
-function idwLatLngAt(vx, vy) {
-  const cands = [];
+// Fractions (0=top edge, 1=bottom edge) of the viewport height sampled at the *horizontal
+// center only* to sweep vertical coverage — see followTabulaView for why these never pair
+// with the left/right edges.
+const FOLLOW_ROW_FRACTIONS = [0, 0.25, 0.5, 0.75, 1];
+
+// A visible-points box is only trusted once at least this many real anchors are on
+// screen — below that, a couple of stray points can't outweigh a bad calibration outlier.
+const FOLLOW_MIN_VISIBLE_POINTS = 6;
+const FOLLOW_TRIM_PCT = 0.05; // percentile trim applied to the visible-points box
+
+// Returns every calibrated, non-area-type place as a flat {vx, vy, lat, lng} anchor for
+// the active map mode. Miller ("old") items are pixel rects normalized by MILLER_W (see
+// renderMillerOverlay); stitched-mode S.places carry OSD-viewport-normalized vx/vy (see
+// the S.places loader) — the two are never compared against each other.
+function followAnchorPool() {
+  const out = [];
   if (S.mapMode === "old") {
     for (const item of S.millerCalib) {
       if (item.lat == null || item.lng == null) continue;
       if (FOLLOW_AREA_TYPES.has(item.type)) continue;
-      const ivx = (item.rect_x1 + item.rect_x2) / 2 / MILLER_W;
-      const ivy = (item.rect_y1 + item.rect_y2) / 2 / MILLER_W;
-      cands.push({ d2: (ivx - vx) ** 2 + (ivy - vy) ** 2, lat: Number(item.lat), lng: Number(item.lng) });
+      out.push({
+        vx: (item.rect_x1 + item.rect_x2) / 2 / MILLER_W,
+        vy: (item.rect_y1 + item.rect_y2) / 2 / MILLER_W,
+        lat: Number(item.lat), lng: Number(item.lng),
+      });
     }
   } else {
     for (const p of S.places) {
       if (p.vx == null || p.vy == null || p.lat == null || p.lng == null) continue;
       if (FOLLOW_AREA_TYPES.has(p.type)) continue;
-      cands.push({ d2: (p.vx - vx) ** 2 + (p.vy - vy) ** 2, lat: Number(p.lat), lng: Number(p.lng) });
+      out.push({ vx: Number(p.vx), vy: Number(p.vy), lat: Number(p.lat), lng: Number(p.lng) });
     }
   }
-  if (!cands.length) return null;
-  cands.sort((a, b) => a.d2 - b.d2);
-  const top = cands.slice(0, FOLLOW_IDW_K);
+  return out;
+}
+
+// Estimates the real-world lat/lng that a Tabula-pixel position (vx,vy) corresponds to,
+// by inverse-distance-weighting the K nearest anchors in `pool`. Same interpolation
+// technique "Locate Me" already uses in the opposite direction (real lat/lng → Tabula
+// position) — see interpolateTabulaVp.
+function idwLatLngAt(vx, vy, pool) {
+  const cands = pool
+    .map(p => ({ d2: (p.vx - vx) ** 2 + (p.vy - vy) ** 2, lat: p.lat, lng: p.lng }))
+    .sort((a, b) => a.d2 - b.d2)
+    .slice(0, FOLLOW_IDW_K);
   let sumW = 0, sumLat = 0, sumLng = 0;
-  for (const c of top) {
+  for (const c of cands) {
     const w = 1 / Math.max(c.d2, 1e-8);
     sumW += w; sumLat += w * c.lat; sumLng += w * c.lng;
   }
   return { lat: sumLat / sumW, lng: sumLng / sumW };
 }
 
+function percentile(sortedArr, p) {
+  return sortedArr[Math.floor(p * (sortedArr.length - 1))];
+}
+
 // Pans/zooms the user-location (Leaflet) map to track the Tabula view — called whenever
-// the Tabula view settles while Follow is on. Interpolates the real-world coordinate at
-// the viewport's left edge, center, and right edge — all at the vertical mid-line (see
-// idwLatLngAt) — and fits to those, rather than aggregating whichever calibrated places
-// happen to fall inside the viewport rectangle: "inside the box" is a discrete yes/no
-// test that flips abruptly as you pan, which made the previous bounding-box version
-// teleport between distant clusters and get stuck at the zoom floor almost everywhere —
-// see the Follow-mode algorithm v2 analysis.
+// the Tabula view settles while Follow is on. A Tabula segment stacks multiple real,
+// unrelated geographic bands within one narrow vertical strip (e.g. one column can hold
+// Germania above Italy above Africa); a first version of Follow only sampled the
+// viewport's vertical center, which silently dropped every band except whichever one the
+// center happened to land in — that's why Follow used to end up too zoomed in on tall,
+// band-heavy views (confirmed on Segment II and segments X+). This version combines two
+// independent estimates of the real-world area behind the visible viewport, then fits to
+// the union of both:
 //
-// Left/right-at-center-height only, not full corner sampling: each Tabula segment
-// stacks multiple real, unrelated geographic bands within one narrow vertical strip
-// (e.g. one column can hold Germania above Italy above Africa), so top/bottom corners
-// can land in a totally different region than the center for a perfectly ordinary
-// viewport — confirmed live near Greece, where the bottom two corners of a modest
-// window interpolated to Libya, ~800km away. Real-world distance varies smoothly along
-// the horizontal (vx) axis within a band; it doesn't along the vertical (vy) axis, so
-// only vx is sampled at multiple points.
+// 1. Multi-row IDW: interpolates the real-world coordinate along a "plus" shape — several
+//    rows swept at the horizontal center (FOLLOW_ROW_FRACTIONS), plus the original
+//    left/center/right sweep at the vertical center. No sample ever pairs an extreme
+//    horizontal position with an extreme vertical one (i.e. an actual viewport corner) —
+//    that combination once interpolated ~800km from the true area (confirmed live near
+//    Greece, landing in Libya), so corners are avoided entirely, not just de-prioritized.
+// 2. Visible-points box: the real lat/lng bounding box (5th-95th percentile trimmed, to
+//    shrug off one stray mis-calibrated point) of every calibrated anchor whose own
+//    vx/vy actually falls inside the current viewport. This is the most literal reading
+//    of "what's on screen" and is what actually fixes the reported bug (there are usually
+//    plenty of real anchors visible in a zoomed-out, band-heavy view) — but on its own,
+//    with few anchors visible, it's unstable: an earlier version relying only on this
+//    made Follow teleport between distant clusters and get stuck at the zoom floor almost
+//    everywhere. So it's only trusted (and unioned into the final box) once at least
+//    FOLLOW_MIN_VISIBLE_POINTS anchors are actually in view; otherwise the multi-row
+//    estimate alone stands.
 function followTabulaView() {
   if (!S.followTabula || !_leafletMap || !S.viewer || !S.viewer.viewport) return;
   const bounds = S.viewer.viewport.getBounds(true);
   const bx0 = bounds.x, bx1 = bounds.x + bounds.width;
   const by0 = bounds.y, by1 = bounds.y + bounds.height;
   const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
+  const pool = followAnchorPool();
+  if (!pool.length) return; // no calibrated data anywhere in this map mode
 
-  const center = idwLatLngAt(cx, cy);
-  if (!center) return; // no calibrated data anywhere in this map mode
-  const samples = [center, idwLatLngAt(bx0, cy), idwLatLngAt(bx1, cy)].filter(Boolean);
+  const centerEst = idwLatLngAt(cx, cy, pool);
+  const rowSamples = [];
+  for (const f of FOLLOW_ROW_FRACTIONS) rowSamples.push(idwLatLngAt(cx, by0 + f * (by1 - by0), pool));
+  for (const rx of [bx0, bx1]) rowSamples.push(idwLatLngAt(rx, cy, pool));
 
-  const lats = samples.map(s => s.lat), lngs = samples.map(s => s.lng);
-  const s = Math.min(...lats), n = Math.max(...lats);
-  const w = Math.min(...lngs), e = Math.max(...lngs);
+  let s = Math.min(...rowSamples.map(p => p.lat)), n = Math.max(...rowSamples.map(p => p.lat));
+  let w = Math.min(...rowSamples.map(p => p.lng)), e = Math.max(...rowSamples.map(p => p.lng));
+
+  const visible = pool.filter(p => p.vx >= bx0 && p.vx <= bx1 && p.vy >= by0 && p.vy <= by1);
+  if (visible.length >= FOLLOW_MIN_VISIBLE_POINTS) {
+    const vLats = visible.map(p => p.lat).sort((a, b) => a - b);
+    const vLngs = visible.map(p => p.lng).sort((a, b) => a - b);
+    s = Math.min(s, percentile(vLats, FOLLOW_TRIM_PCT));
+    n = Math.max(n, percentile(vLats, 1 - FOLLOW_TRIM_PCT));
+    w = Math.min(w, percentile(vLngs, FOLLOW_TRIM_PCT));
+    e = Math.max(e, percentile(vLngs, 1 - FOLLOW_TRIM_PCT));
+  }
   const box = [[s, w], [n, e]];
 
   // getBoundsZoom previews the zoom fitBounds would pick for this box in the *current*
@@ -2909,7 +2951,7 @@ function followTabulaView() {
   // mismatch both show up here as "the zoom this needs is very low").
   const previewZoom = _leafletMap.getBoundsZoom(box, false, [24, 24]);
   if (previewZoom < FOLLOW_MIN_ZOOM) {
-    _leafletMap.setView([center.lat, center.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
+    _leafletMap.setView([centerEst.lat, centerEst.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
     return;
   }
 
