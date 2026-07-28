@@ -1617,7 +1617,7 @@ function syncLeafletSelectedMarker(place) {
     _leafletSelectedMarker.setRadius(z >= 6 ? 15 : 9);
   };
   _leafletMap.on("zoomend", _leafletSelectedMarker._onZoomEnd);
-  _leafletMap.panTo([lat, lng]);
+  withFollowSyncGuard(80, () => _leafletMap.panTo([lat, lng]));
 }
 
 function showInfoPanel(place) {
@@ -2011,6 +2011,25 @@ let _leafletSelectedMarker = null;
 // which force-closes this the instant *any* pan/zoom begins (Follow-triggered or manual)
 // so a stale tooltip can't resurface once the pan-hiding CSS class is lifted again.
 let _leafletHoveredTooltipLayer = null;
+// Reentrancy guard for Follow's two-way sync (see followTabulaView / followLeafletView):
+// true for the duration of any programmatic view change — on either the Tabula or the
+// Leaflet side — that Follow itself (or any other code path) triggers, so the *other*
+// side's own settle handler knows to ignore it instead of syncing back and ping-ponging
+// the two views against each other forever.
+let _followSyncing = false;
+let _followSyncClearTimer = null;
+// Wraps a programmatic Leaflet view change that Follow must not react to (country-mode
+// zoom, marker-click pan, popup-reopen pan, ...) — these are always instant
+// (animate:false), so their moveend/zoomend fires synchronously inside fn(); the short
+// timeout just outlives that synchronous dispatch before Follow's Leaflet listener is
+// re-armed. Follow's own two directions use a longer, event-precise guard instead (see
+// followTabulaView / followLeafletView), since those animate and settle asynchronously.
+function withFollowSyncGuard(durationMs, fn) {
+  _followSyncing = true;
+  fn();
+  clearTimeout(_followSyncClearTimer);
+  _followSyncClearTimer = setTimeout(() => { _followSyncing = false; }, durationMs);
+}
 let _gpsMarker = null, _gpsLat = null, _gpsLng = null;
 let _locateResultBarTimer = null;
 let _omnesViaeData = null;
@@ -2592,9 +2611,11 @@ function zoomLeafletToCountry(iso2) {
             [Math.min(cb.getNorth(), 58), Math.min(cb.getEast(), 105)]
           )
         : tabulaBounds;
-      _leafletMap.fitBounds(bounded.pad(0.08), { maxZoom: 8, animate: false });
-      const tightZoom = _leafletMap.getZoom();
-      _leafletMap.setZoom(Math.max(_leafletMap.getMinZoom(), tightZoom - COUNTRY_CONTEXT_ZOOM_OUT), { animate: false });
+      withFollowSyncGuard(80, () => {
+        _leafletMap.fitBounds(bounded.pad(0.08), { maxZoom: 8, animate: false });
+        const tightZoom = _leafletMap.getZoom();
+        _leafletMap.setZoom(Math.max(_leafletMap.getMinZoom(), tightZoom - COUNTRY_CONTEXT_ZOOM_OUT), { animate: false });
+      });
     } catch {}
   });
 }
@@ -2676,7 +2697,7 @@ function populateCountryDropdown() {
 function fitLeafletToCountries() {
   if (!_leafletMap) return;
   // Zoom to the Tabula Peutingeriana coverage: Portugal to India
-  _leafletMap.fitBounds([[10, -15], [58, 85]], { animate: false });
+  withFollowSyncGuard(80, () => _leafletMap.fitBounds([[10, -15], [58, 85]], { animate: false }));
 }
 
 function pointInRing(pt, ring) {
@@ -2952,7 +2973,7 @@ function madFilterOutliers(values, multiplier = FOLLOW_MAD_MULTIPLIER) {
 //    only trusted (and unioned into the final box) once at least FOLLOW_MIN_VISIBLE_POINTS
 //    anchors are actually in view; otherwise the multi-row estimate alone stands.
 function followTabulaView() {
-  if (!S.followTabula || !_leafletMap || !S.viewer || !S.viewer.viewport) return;
+  if (!S.followTabula || _followSyncing || !_leafletMap || !S.viewer || !S.viewer.viewport) return;
   const bounds = S.viewer.viewport.getBounds(true);
   const bx0 = bounds.x, bx1 = bounds.x + bounds.width;
   const by0 = bounds.y, by1 = bounds.y + bounds.height;
@@ -2992,12 +3013,58 @@ function followTabulaView() {
   // an honestly huge visible area (e.g. Segment XI/XII's Black-Sea-to-India spread) and
   // must be honored, not overridden — clamping those regardless of groundedness was
   // itself the bug: it silently re-zoomed-in past a box the data had already earned.
+  // Guards the reverse direction (followLeafletView) from reacting to the Leaflet move
+  // this function is about to trigger — cleared once that move actually settles, not on
+  // a fixed timer, since this animates (duration 0.4) and reverse-sync must stay blocked
+  // for the move's real duration, not an approximation of it.
+  _followSyncing = true;
+  _leafletMap.once("moveend zoomend", () => { _followSyncing = false; });
+
   if (!groundedByVisiblePoints && previewZoom < FOLLOW_MIN_ZOOM) {
     _leafletMap.setView([centerEst.lat, centerEst.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
     return;
   }
 
   _leafletMap.fitBounds(box, { animate: true, duration: 0.4, padding: [24, 24], maxZoom: 13 });
+}
+
+// Reverse direction of followTabulaView: when Follow is on and the user pans/zooms the
+// Leaflet (locate) map directly — drag, scroll-wheel, +/- buttons, pinch — moves the
+// Tabula view to match. Guarded by _followSyncing so Follow's own Tabula-driven Leaflet
+// moves, and every other programmatic Leaflet move elsewhere in the app (see
+// withFollowSyncGuard's call sites), don't immediately bounce back and re-trigger this —
+// which would otherwise ping-pong the two views against each other indefinitely.
+// Samples the Leaflet viewport's four corners plus center through interpolateTabulaVp
+// (the same real-lat/lng → Tabula-position interpolation "Locate Me" already uses) and
+// fits the Tabula view to the union. Corners are safe in *this* direction — unlike
+// followTabulaView's own corner avoidance — because interpolateTabulaVp picks neighbors
+// by real-world distance, an unambiguous metric, rather than by Tabula-pixel distance
+// (where two genuinely nearby pixels can belong to unrelated compressed geographic bands).
+function followLeafletView() {
+  if (!S.followTabula || _followSyncing || !_leafletMap || !S.viewer?.viewport) return;
+  const b = _leafletMap.getBounds();
+  const c = b.getCenter();
+  const samples = [
+    [b.getSouth(), b.getWest()], [b.getSouth(), b.getEast()],
+    [b.getNorth(), b.getWest()], [b.getNorth(), b.getEast()],
+    [c.lat, c.lng],
+  ].map(([lat, lng]) => interpolateTabulaVp(lat, lng)).filter(Boolean);
+  if (!samples.length) return; // no calibrated data anywhere in this map mode
+
+  const vx0 = Math.min(...samples.map(p => p.vx)), vx1 = Math.max(...samples.map(p => p.vx));
+  const vy0 = Math.min(...samples.map(p => p.vy)), vy1 = Math.max(...samples.map(p => p.vy));
+  const pad = 0.01;
+
+  // Guards followTabulaView from reacting to the Tabula move this triggers — cleared on
+  // the real "animation-finish" (OSD's own settle event), which is also what would have
+  // invoked followTabulaView in the first place.
+  _followSyncing = true;
+  S.viewer.addOnceHandler("animation-finish", () => { _followSyncing = false; });
+
+  S.viewer.viewport.fitBounds(
+    new OpenSeadragon.Rect(vx0 - pad, vy0 - pad, (vx1 - vx0) + pad * 2, (vy1 - vy0) + pad * 2),
+    false
+  );
 }
 
 async function openLocatePopup() {
@@ -3074,6 +3141,19 @@ async function openLocatePopup() {
       clearTimeout(_leafletPanDebounce);
       _leafletPanDebounce = setTimeout(() => mapEl?.classList.remove("tp-panning"), 180);
     });
+    // A tooltip also survives indefinitely if the OS focus switches away (alt-tab,
+    // clicking another window/IDE) without the cursor ever crossing back out over the
+    // map: the browser only fires mouseout when the pointer actually moves across an
+    // element's boundary, and jumping focus elsewhere doesn't move the pointer at all —
+    // it just stops being visible. Whatever's open when the page stops being the active
+    // one is no longer a real hover, so close it.
+    window.addEventListener("blur", () => _leafletHoveredTooltipLayer?.closeTooltip());
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) _leafletHoveredTooltipLayer?.closeTooltip();
+    });
+    // Reciprocal half of Follow: dragging/zooming this map moves the Tabula view to
+    // match, symmetric with followTabulaView doing the reverse — see followLeafletView.
+    _leafletMap.on("moveend zoomend", followLeafletView);
     _leafletMap.on("click", (e) => {
       if (S.countrySelectMode) return;
       _leafletMarker.setLatLng(e.latlng);
@@ -3111,7 +3191,7 @@ async function openLocatePopup() {
     // cached size *before* panning, otherwise the centering math uses the stale size
     // and the marker lands off-center (e.g. pinned toward one edge).
     _leafletMap.invalidateSize();
-    if (S.userLocLat != null) _leafletMap.panTo([lat, lng], { animate: false });
+    if (S.userLocLat != null) withFollowSyncGuard(80, () => _leafletMap.panTo([lat, lng], { animate: false }));
   }
   setTimeout(() => _leafletMap.invalidateSize(), 60);
 }
