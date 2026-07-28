@@ -69,6 +69,7 @@
     "browserRequirements": "Requires JavaScript",
     "featureList": [
       "Locate yourself automatically on load: a persistent red \"You are here\" marker shows your real GPS position on the ancient map, while a separate blue marker tracks any other location you pick — compare two places on Earth at once",
+      "\"Follow\" mode: keep the real-world location map and the ancient Tabula view in sync as you explore either one — pan or zoom either map and the other automatically reframes to match",
       "See your country in antiquity: select from 64 modern countries to highlight its ancient places on the map",
       "Accessible to non-experts: modern place names, Wikipedia links, AI-translated Latin inscriptions",
       "4,344 annotated ancient places: cities, road stations, rivers, mountains, islands, provinces",
@@ -215,6 +216,14 @@
       },
       {
         "@type": "Question",
+        "name": "Can the location map follow the ancient map as I explore it, or the other way round?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Switch on \"Follow\" (top-right button on the location map panel) and the two views stay linked in both directions: pan or zoom the Tabula Peutingeriana and the real-world OpenStreetMap location map automatically reframes to the matching modern geography, and panning or zooming the location map moves the ancient map to match in return. Explore either the ancient or the modern world and the other side stays lined up with it."
+        }
+      },
+      {
+        "@type": "Question",
         "name": "Does the Tabula Peutingeriana viewer work on mobile phones?",
         "acceptedAnswer": {
           "@type": "Answer",
@@ -263,7 +272,7 @@
     "creator": { "@type": "Organization", "name": "three-mills.com", "url": "https://three-mills.com" },
     "license": "https://creativecommons.org/licenses/by/4.0/",
     "temporalCoverage": "0300/0400",
-    "dateModified": "2026-07-05",
+    "dateModified": "2026-07-28",
     "inLanguage": ["la", "en", "de"],
     "spatialCoverage": {
       "@type": "Place",
@@ -297,7 +306,7 @@
 
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260705z" />
+  <link rel="stylesheet" href="styles.css?v=20260728a" />
 </head>
 <body>
   <div id="app">

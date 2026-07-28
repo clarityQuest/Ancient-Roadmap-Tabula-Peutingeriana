@@ -20,6 +20,9 @@ Tap **Countries** in the location panel. Coloured polygons for 64 modern countri
 
 > *"What was Germany in the Roman world?"  "Click Germany → see ~220 ancient places light up across Gaul, Germania, and Raetia."*
 
+### Follow the Ancient World, Live
+Switch on **Follow** (top-right of the location map) and the two maps stay in sync as you explore — pan or zoom the Tabula Peutingeriana and the real-world OpenStreetMap location map automatically reframes to the matching modern geography, and panning or zooming the location map moves the ancient map back to match. Explore either side and the other always lines up with it.
+
 ### Read the Latin Without Knowing Latin
 Over 1,100 multi-word Latin inscriptions have been translated into English and German by Claude AI and stored in the database. They appear instantly on hover and in the info panel — no internet call needed at runtime. Famous examples:
 - *"Hic Alexander responsum accepit: usque quo Alexander?"* — Here Alexander received the answer: how far, Alexander?
@@ -50,6 +53,7 @@ No prior knowledge needed. The built-in demo gives you a guided tour on first vi
 | Deep-zoom map viewer | K. Miller 1887 facsimile via OpenSeadragon; 11 segments |
 | Place database | 4,344 records; 86% georeferenced with lat/lng |
 | GPS location | Find nearest ancient place from your real-world position |
+| Follow mode | Two-way live sync between the ancient Tabula view and the real-world location map |
 | Country mode | 64 countries, coloured polygon overlay, GPS auto-select |
 | AI translations | 1,100+ Latin inscriptions → English + German (offline) |
 | Wikipedia integration | Inline summary + thumbnail for all linked places |
