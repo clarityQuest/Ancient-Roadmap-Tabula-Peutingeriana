@@ -584,6 +584,11 @@ body, html {
 /* Rich tooltip for Leaflet place dots */
 .ltt.leaflet-tooltip { background: rgba(18,16,12,0.93); border: 1px solid rgba(255,255,255,0.12); color: rgba(220,215,200,0.95); border-radius: 5px; padding: 5px 9px; font-size: 12px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.5); max-width: 220px; }
 .ltt.leaflet-tooltip::before { border-top-color: rgba(18,16,12,0.93) !important; }
+/* Suppress hover tooltips/popups while panning or zooming — a moving map sweeps the
+   cursor across many dense markers, opening a flickery burst that can also strand a
+   tooltip open with no mouseout to close it. */
+#locate-leaflet-map.tp-panning .leaflet-tooltip,
+#locate-leaflet-map.tp-panning .leaflet-popup { display: none !important; }
 /* Country mode: country layer shows country name tooltip; place dots show their own tooltip.
    No blanket suppression — Leaflet handles tooltip priority by hover proximity. */
 
@@ -1035,7 +1040,12 @@ body, html {
     min-width: auto !important; min-height: auto !important;
   }
   #country-isolate-btn { padding: 3px 7px !important; }
-  #country-deactivate-btn { padding: 2px 4px !important; margin-top: 1px !important; }
+  /* The generic .ctrl-btn touch-target floor (38px min-height) was forcing dead
+     space above/below this button's small icon+text despite the tight padding. */
+  #country-deactivate-btn {
+    padding: 2px 4px !important; margin-top: 1px !important;
+    min-width: auto !important; min-height: auto !important;
+  }
   #locate-toggle-all-labels { padding: 2px 6px !important; }
   #country-filter-select { padding: 2px 5px !important; }
   /* Category popup: smaller fonts + icons on mobile */
@@ -1127,6 +1137,23 @@ body, html {
 }
 #locate-map-close:hover { color: #fff; }
 #locate-leaflet-map { width: 100%; flex: 1; min-height: 0; position: relative; isolation: isolate; }
+
+/* Follow toggle — top-right overlay on the map itself, translucent until active.
+   Text is always dark: the map underneath (OSM land tiles) is light-colored, so light
+   text on a transparent background was unreadable. */
+#locate-follow-btn {
+  position: absolute; top: 8px; right: 8px; z-index: 1000;
+  display: flex; align-items: center; gap: 3px;
+  padding: 2px 5px; font-size: 10px; font-weight: 600;
+  background: rgba(255,255,255,0.55); border: 1px solid rgba(0,0,0,0.25);
+  border-radius: 5px; color: #14120e;
+  cursor: pointer;
+}
+#locate-follow-btn:hover { background: rgba(255,255,255,0.75); }
+#locate-follow-btn.active {
+  background: rgba(200,160,80,0.9); border-color: var(--accent);
+  color: #14120e;
+}
 
 /* Dot-color legend — bottom-right of popup; z-index 2000 so it sits above resize handle (1500) */
 #locate-legend {

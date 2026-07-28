@@ -157,6 +157,8 @@ const I18N = {
     about_lost_p: "Segment I — covering Britain (except the southeast), the Iberian Peninsula, and the Atlantic coast of Morocco — has been lost since at least the 16th century. The remaining eleven segments survive intact, making this viewer's collection complete for Segments II through XII.",
     about_hist_h: "History of the Document",
     about_hist_p: "The map was copied around 1200 AD by a monk in Colmar (Alsace), likely from an earlier Carolingian copy of a late antique original. Konrad Celtes discovered it in 1494 and passed it to Konrad Peutinger of Augsburg, who gave it its modern name. After Peutinger's death it passed through various hands before entering the Imperial Library in Vienna in 1738, where it remains today.",
+    about_caveat_h: "A Best Estimate, Not a Certainty",
+    about_caveat_p: "Placing a 1,600-year-old road map onto modern coordinates is scholarly reconstruction, not measurement. Many identifications of ancient place names with modern towns are debated among historians, and some road stations are only approximately located — interpolated from neighbouring places and travel distances rather than pinpointed by archaeology. Treat every marker here as the current best-supported estimate, not an exact or final answer.",
     about_learn_h: "Learn More",
   },
   de: {
@@ -191,6 +193,8 @@ const I18N = {
     about_lost_p: "Segment I — das Britannien (außer dem Südosten), die iberische Halbinsel und die atlantische Küste Marokkos umfasste — ist seit mindestens dem 16. Jahrhundert verloren. Die übrigen elf Segmente sind vollständig erhalten, sodass diese Sammlung für die Segmente II bis XII vollständig ist.",
     about_hist_h: "Geschichte des Dokuments",
     about_hist_p: "Die Karte wurde um 1200 n. Chr. von einem Mönch in Colmar (Elsass) kopiert, wahrscheinlich nach einer früheren karolingischen Kopie eines spätantiken Originals. Konrad Celtes entdeckte sie 1494 und übergab sie Konrad Peutinger aus Augsburg, der ihr ihren heutigen Namen gab. Nach Peutingers Tod gelangte sie über verschiedene Hände in die Kaiserliche Bibliothek in Wien (1738), wo sie bis heute aufbewahrt wird.",
+    about_caveat_h: "Eine bestmögliche Schätzung, keine Gewissheit",
+    about_caveat_p: "Eine 1.600 Jahre alte Straßenkarte auf moderne Koordinaten zu übertragen ist wissenschaftliche Rekonstruktion, keine Messung. Viele Identifikationen antiker Ortsnamen mit heutigen Orten sind unter Historikern umstritten, und manche Straßenstationen sind nur näherungsweise verortet — interpoliert aus benachbarten Orten und Reiseentfernungen, nicht archäologisch punktgenau bestimmt. Betrachten Sie jede Markierung hier als die derzeit am besten belegte Schätzung, nicht als exakte oder endgültige Antwort.",
     about_learn_h: "Mehr erfahren",
   },
 };
@@ -203,6 +207,7 @@ const LP_KEY = "tp_label_params_v1";
 const LP_DEFAULTS = {
   countryModeOpacity: 0.35, // opacity of roads/places panes when country mode is active (0=invisible, 1=full)
   countryMarkerAlpha: 0.5,  // intensity of country-colour fills on Tabula canvas (0=invisible, 1=full)
+  countryDotSizeFactor: 1.0, // extra scale on locate-map place dot radius while country mode is active
   markerAlpha:       1.0,   // marker fill/stroke opacity multiplier
   fontScale:         1.0,   // marker screen size × fontScale = secondary font ceiling
   maxFontDesktop:  999,    // effectively uncapped — zoom curve drives max font
@@ -304,6 +309,7 @@ const S = {
   defaultLng: (() => { try { const v = Number(localStorage.getItem("tp_defaultLng")); return Number.isFinite(v) && v !== 0 ? v : 12.4922; } catch { return 12.4922; } })(),
   isMobile: window.matchMedia("(pointer: coarse), (max-width: 600px)").matches,
   isTablet: window.matchMedia("(pointer: coarse) and (min-width: 768px)").matches,
+  followTabula: false,   // when true, the user-location map pans to track the Tabula view
   canvas:       null,
   ctx:          null,
   originalTile: null,
@@ -790,18 +796,29 @@ const CROSSHAIR_THEMES = {
   manual: { ring: "#3B82F6", label: "#93C5FD", tagKey: "crosshair_picked" },
 };
 
-function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, theme, label) {
-  if (outsideAngle !== null) drawOutsideCrosshair(ctx, cx, cy, outsideAngle, theme.ring);
-  else drawUserCrosshair(ctx, cx, cy, theme.ring);
-  drawCrosshairTag(ctx, cx, cy, getText(theme.tagKey), theme.label);
+// Crosshair draws at full size once zoomed in; shrinks toward zoomThreshMid
+// (the zoomed-out / home-ish view) so it doesn't dominate the visible map.
+const CROSSHAIR_MIN_SCALE = 0.55;
+function crosshairScaleForZoom(zoom) {
+  const zLo = LP.zoomThreshMid, zHi = LP.zoomThreshAll;
+  if (zoom <= zLo) return CROSSHAIR_MIN_SCALE;
+  if (zoom >= zHi) return 1;
+  const t = (zoom - zLo) / (zHi - zLo);
+  return CROSSHAIR_MIN_SCALE + t * (1 - CROSSHAIR_MIN_SCALE);
+}
+
+function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, theme, label, scale = 1) {
+  if (outsideAngle !== null) drawOutsideCrosshair(ctx, cx, cy, outsideAngle, theme.ring, scale);
+  else drawUserCrosshair(ctx, cx, cy, theme.ring, scale);
+  drawCrosshairTag(ctx, cx, cy, getText(theme.tagKey), theme.label, scale);
   if (!label) return;
   ctx.save();
-  const labelPx = S.isMobile ? 20 : 16;
+  const labelPx = (S.isMobile ? 20 : 16) * scale;
   ctx.font = `bold ${labelPx}px 'Segoe UI', Arial, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   const tw = ctx.measureText(label).width;
-  const px = cx, py = cy + 61;
+  const px = cx, py = cy + 61 * scale;
   ctx.fillStyle = "rgba(0,0,0,0.78)";
   ctx.fillRect(px - tw / 2 - 7, py - 3, tw + 14, labelPx + 8);
   ctx.shadowColor = "rgba(0,0,0,0.0)";
@@ -812,13 +829,13 @@ function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, theme, label) {
 
 // Small "GPS" / "Picked" tag at the bottom-right of a crosshair so the two are
 // distinguishable by more than color alone.
-function drawCrosshairTag(ctx, cx, cy, text, color) {
+function drawCrosshairTag(ctx, cx, cy, text, color, scale = 1) {
   ctx.save();
-  const tagPx = S.isMobile ? 15 : 11;
+  const tagPx = (S.isMobile ? 15 : 11) * scale;
   ctx.font = `600 ${tagPx}px 'Segoe UI', Arial, sans-serif`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  const tx = cx + 18, ty = cy + 16;
+  const tx = cx + 18 * scale, ty = cy + 16 * scale;
   const tw = ctx.measureText(text).width;
   ctx.fillStyle = "rgba(0,0,0,0.72)";
   ctx.fillRect(tx - 4, ty - 2, tw + 8, tagPx + 4);
@@ -827,12 +844,13 @@ function drawCrosshairTag(ctx, cx, cy, text, color) {
   ctx.restore();
 }
 
-function drawOutsideCrosshair(ctx, cx, cy, arrowAngle, color) {
-  const R = 22, arm = 38;
+function drawOutsideCrosshair(ctx, cx, cy, arrowAngle, color, scale = 1) {
+  const R = 22 * scale, arm = 38 * scale;
+  const lwHalo = 7 * scale, lwRing = 3.5 * scale;
   ctx.save();
   ctx.globalAlpha = 0.92;
   // White halo
-  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 7;
+  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = lwHalo;
   ctx.shadowColor = "rgba(0,0,0,0.0)"; ctx.shadowBlur = 0;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath();
@@ -842,7 +860,7 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle, color) {
   ctx.moveTo(cx, cy + R + 2); ctx.lineTo(cx, cy + arm);
   ctx.stroke();
   // Colored ring + arms
-  ctx.strokeStyle = color; ctx.lineWidth = 3.5;
+  ctx.strokeStyle = color; ctx.lineWidth = lwRing;
   ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 8;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath();
@@ -853,13 +871,13 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle, color) {
   ctx.stroke();
   // Outward direction arrow
   const ax = Math.cos(arrowAngle), ay = Math.sin(arrowAngle);
-  const aLen = 56, aHead = 20, aSpread = 0.42;
+  const aLen = 56 * scale, aHead = 20 * scale, aSpread = 0.42;
   const sx = cx + ax * (R + 6), sy = cy + ay * (R + 6);
   const ex = cx + ax * (R + aLen), ey = cy + ay * (R + aLen);
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 7;
+  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = lwHalo;
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-  ctx.strokeStyle = color; ctx.lineWidth = 3.5;
+  ctx.strokeStyle = color; ctx.lineWidth = lwRing;
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
   ctx.fillStyle = color;
   ctx.beginPath();
@@ -868,19 +886,20 @@ function drawOutsideCrosshair(ctx, cx, cy, arrowAngle, color) {
   ctx.lineTo(ex - aHead * Math.cos(arrowAngle + aSpread), ey - aHead * Math.sin(arrowAngle + aSpread));
   ctx.closePath(); ctx.fill();
   // Center dot
-  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(cx, cy, 7 * scale, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy, 5 * scale, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
-function drawUserCrosshair(ctx, cx, cy, color) {
-  const R = 22, arm = 38;
+function drawUserCrosshair(ctx, cx, cy, color, scale = 1) {
+  const R = 22 * scale, arm = 38 * scale;
+  const lwHalo = 7 * scale, lwRing = 3.5 * scale;
   ctx.save();
   ctx.globalAlpha = 0.92;
 
   // White halo for contrast against any background
   ctx.strokeStyle = "rgba(255,255,255,0.75)";
-  ctx.lineWidth = 7;
+  ctx.lineWidth = lwHalo;
   ctx.shadowColor = "rgba(0,0,0,0.0)";
   ctx.shadowBlur = 0;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
@@ -893,7 +912,7 @@ function drawUserCrosshair(ctx, cx, cy, color) {
 
   // Colored crosshair on top
   ctx.strokeStyle = color;
-  ctx.lineWidth = 3.5;
+  ctx.lineWidth = lwRing;
   ctx.shadowColor = "rgba(0,0,0,0.8)";
   ctx.shadowBlur = 8;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
@@ -1398,6 +1417,8 @@ function renderMarkers() {
 }
 
 function _drawUserCrosshair(ctx) {
+  const zoom = S.viewer ? S.viewer.viewport.getZoom(true) : LP.zoomThreshAll;
+  const scale = crosshairScaleForZoom(zoom);
   // Red: the GPS fix. Always drawn once acquired — independent of any later manual pick
   // (and independent of country-filter mode, which used to hide both crosshairs entirely).
   if (S.gpsVp) {
@@ -1407,7 +1428,7 @@ function _drawUserCrosshair(ctx) {
       const { cx: ccx, cy: ccy } = viewportToCanvas(S.gpsCentVp.vx, S.gpsCentVp.vy);
       outsideAngle = Math.atan2(cy - ccy, cx - ccx);
     }
-    drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, CROSSHAIR_THEMES.gps, S.gpsLabel);
+    drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, CROSSHAIR_THEMES.gps, S.gpsLabel, scale);
   }
   // Blue: wherever the user manually picked (map click / marker drag) — a second,
   // independent crosshair alongside the red GPS one.
@@ -1418,7 +1439,7 @@ function _drawUserCrosshair(ctx) {
       const { cx: ccx, cy: ccy } = viewportToCanvas(S.userLocCentVp.vx, S.userLocCentVp.vy);
       outsideAngle = Math.atan2(cy - ccy, cx - ccx);
     }
-    drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, CROSSHAIR_THEMES.manual, S.userLocLabel);
+    drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, CROSSHAIR_THEMES.manual, S.userLocLabel, scale);
   }
 }
 
@@ -1618,6 +1639,7 @@ function showInfoPanel(place) {
       if (S.selectedDataId === thisId && infoPanelOpenedAt === openedAt) {
         S.selectedDataId = null;
         hideInfoPanel();
+        syncLeafletSelectedMarker(null);
         renderMarkers();
       }
     }, 20000);
@@ -1815,6 +1837,10 @@ function showInfoPanel(place) {
   }
 
   panel.classList.remove("hidden");
+  // Always open freshly scrolled to the top, even if a previous place's panel
+  // had been scrolled down (e.g. to reach the wiki summary or ULM link).
+  const scrollBody = document.getElementById("panel-scroll-body");
+  if (scrollBody) scrollBody.scrollTop = 0;
 }
 
 function hideInfoPanel() {
@@ -2538,6 +2564,11 @@ function zoomToCountryPlaces(iso2) {
   );
 }
 
+// After framing the selected country tightly, back off this many zoom levels so a
+// handful of neighboring countries stay in view instead of just its own borders
+// (each level roughly doubles the visible linear extent).
+const COUNTRY_CONTEXT_ZOOM_OUT = 1.3;
+
 function zoomLeafletToCountry(iso2) {
   if (!_leafletCountriesLayer || !_leafletMap || !_leafletL) return;
   _leafletCountriesLayer.eachLayer(layer => {
@@ -2551,7 +2582,9 @@ function zoomLeafletToCountry(iso2) {
             [Math.min(cb.getNorth(), 58), Math.min(cb.getEast(), 105)]
           )
         : tabulaBounds;
-      _leafletMap.fitBounds(bounded.pad(0.08), { maxZoom: 8 });
+      _leafletMap.fitBounds(bounded.pad(0.08), { maxZoom: 8, animate: false });
+      const tightZoom = _leafletMap.getZoom();
+      _leafletMap.setZoom(Math.max(_leafletMap.getMinZoom(), tightZoom - COUNTRY_CONTEXT_ZOOM_OUT), { animate: false });
     } catch {}
   });
 }
@@ -2565,7 +2598,9 @@ function setCountryFilter(iso2) {
   S.highlightDataId = null;
   S.highlightLocate = false;
   renderCountryLayer();
-  zoomLeafletToCountry(iso2);
+  // Only the Tabula view pans/zooms to the selected country — the locate (Leaflet) map
+  // itself stays put, since its own view was already framed on entering country mode
+  // (see toggleCountryMode) and jumping it again on every country pick is disorienting.
   renderMarkers();
   zoomToCountryPlaces(iso2);
   const name = _countryNameMap[iso2] || iso2;
@@ -2709,7 +2744,14 @@ async function toggleCountryMode() {
     if (_countriesGeoJSON) {
       renderCountryLayer();
       populateCountryDropdown();
-      fitLeafletToCountries();
+      // Center on the user's own country (GPS/manual pick, falling back to the app
+      // default) with a few neighbors in view, rather than zooming out to the full
+      // Portugal-to-India extent — that full view also shrinks the selected-place
+      // marker to near-invisibility.
+      const lat = S.userLocLat ?? S.defaultLat, lng = S.userLocLng ?? S.defaultLng;
+      const homeIso2 = nearestCountryIso2(lat, lng);
+      if (homeIso2 && _countryColorMap[homeIso2]) zoomLeafletToCountry(homeIso2);
+      else fitLeafletToCountries();
     }
     // Dim, disable interaction, and hide tooltips on roads/places panes
     const mapEl = document.getElementById("locate-leaflet-map");
@@ -2725,6 +2767,12 @@ async function toggleCountryMode() {
         mPane.style.opacity = String(LP.countryModeOpacity); mPane.style.pointerEvents = "none";
         mPane.querySelectorAll("svg, canvas, img").forEach(el => el.style.pointerEvents = "none");
       }
+      // Place dots live in their own pane (see toggleLeafletPlaces) so they stay dimmed
+      // like everything else but — unlike roads/overlay — remain clickable: at low zoom
+      // a click selects that place's country, at high zoom it selects the place itself
+      // (see the dot's click handler).
+      const pPane = _leafletMap.getPane("placesPane");
+      if (pPane) pPane.style.opacity = String(LP.countryModeOpacity);
     }
     document.getElementById("country-select-bar")?.classList.remove("hidden");
     document.getElementById("country-isolate-btn")?.classList.remove("hidden");
@@ -2754,6 +2802,8 @@ async function toggleCountryMode() {
         mPane.style.opacity = ""; mPane.style.pointerEvents = "";
         mPane.querySelectorAll("svg, canvas, img").forEach(el => el.style.pointerEvents = "");
       }
+      const pPane = _leafletMap.getPane("placesPane");
+      if (pPane) pPane.style.opacity = "";
     }
     document.getElementById("country-select-bar")?.classList.add("hidden");
     document.getElementById("country-isolate-btn")?.classList.add("hidden");
@@ -2771,18 +2821,132 @@ async function toggleCountryMode() {
   }
 }
 
+// Broad-area records — a single lat/lng "representing" an entire people's territory, a
+// province, or a sea — aren't points and would distort the interpolation below.
+const FOLLOW_AREA_TYPES = new Set(["region", "roman_province", "modern_state", "people", "water"]);
+
+// Floor on how far Follow will zoom the Leaflet map out. Below this, honoring the full
+// interpolated extent would zoom out further than a "Follow" view should — the real
+// spread is genuinely huge (a compressed part of the Tabula scroll) or calibration is
+// too sparse nearby for a tight estimate.
+const FOLLOW_MIN_ZOOM = 5;
+
+// Neighbors averaged per interpolated point — matches LOCATE_IDW_K's convention.
+const FOLLOW_IDW_K = 8;
+
+// Estimates the real-world lat/lng that a Tabula-pixel position (vx,vy) corresponds to,
+// by inverse-distance-weighting the K nearest calibrated places. The Miller ("old") view
+// and stitched ("new") view use two different coordinate systems for the same physical
+// places — Miller items are pixel rects normalized by MILLER_W (see renderMillerOverlay),
+// stitched-mode S.places carry OSD-viewport-normalized vx/vy (see the S.places loader) —
+// so vx/vy is only ever compared within the currently active mode. Same interpolation
+// technique "Locate Me" already uses in the opposite direction (real lat/lng → Tabula
+// position) — see interpolateTabulaVp.
+function idwLatLngAt(vx, vy) {
+  const cands = [];
+  if (S.mapMode === "old") {
+    for (const item of S.millerCalib) {
+      if (item.lat == null || item.lng == null) continue;
+      if (FOLLOW_AREA_TYPES.has(item.type)) continue;
+      const ivx = (item.rect_x1 + item.rect_x2) / 2 / MILLER_W;
+      const ivy = (item.rect_y1 + item.rect_y2) / 2 / MILLER_W;
+      cands.push({ d2: (ivx - vx) ** 2 + (ivy - vy) ** 2, lat: Number(item.lat), lng: Number(item.lng) });
+    }
+  } else {
+    for (const p of S.places) {
+      if (p.vx == null || p.vy == null || p.lat == null || p.lng == null) continue;
+      if (FOLLOW_AREA_TYPES.has(p.type)) continue;
+      cands.push({ d2: (p.vx - vx) ** 2 + (p.vy - vy) ** 2, lat: Number(p.lat), lng: Number(p.lng) });
+    }
+  }
+  if (!cands.length) return null;
+  cands.sort((a, b) => a.d2 - b.d2);
+  const top = cands.slice(0, FOLLOW_IDW_K);
+  let sumW = 0, sumLat = 0, sumLng = 0;
+  for (const c of top) {
+    const w = 1 / Math.max(c.d2, 1e-8);
+    sumW += w; sumLat += w * c.lat; sumLng += w * c.lng;
+  }
+  return { lat: sumLat / sumW, lng: sumLng / sumW };
+}
+
+// Pans/zooms the user-location (Leaflet) map to track the Tabula view — called whenever
+// the Tabula view settles while Follow is on. Interpolates the real-world coordinate at
+// the viewport's left edge, center, and right edge — all at the vertical mid-line (see
+// idwLatLngAt) — and fits to those, rather than aggregating whichever calibrated places
+// happen to fall inside the viewport rectangle: "inside the box" is a discrete yes/no
+// test that flips abruptly as you pan, which made the previous bounding-box version
+// teleport between distant clusters and get stuck at the zoom floor almost everywhere —
+// see the Follow-mode algorithm v2 analysis.
+//
+// Left/right-at-center-height only, not full corner sampling: each Tabula segment
+// stacks multiple real, unrelated geographic bands within one narrow vertical strip
+// (e.g. one column can hold Germania above Italy above Africa), so top/bottom corners
+// can land in a totally different region than the center for a perfectly ordinary
+// viewport — confirmed live near Greece, where the bottom two corners of a modest
+// window interpolated to Libya, ~800km away. Real-world distance varies smoothly along
+// the horizontal (vx) axis within a band; it doesn't along the vertical (vy) axis, so
+// only vx is sampled at multiple points.
+function followTabulaView() {
+  if (!S.followTabula || !_leafletMap || !S.viewer || !S.viewer.viewport) return;
+  const bounds = S.viewer.viewport.getBounds(true);
+  const bx0 = bounds.x, bx1 = bounds.x + bounds.width;
+  const by0 = bounds.y, by1 = bounds.y + bounds.height;
+  const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
+
+  const center = idwLatLngAt(cx, cy);
+  if (!center) return; // no calibrated data anywhere in this map mode
+  const samples = [center, idwLatLngAt(bx0, cy), idwLatLngAt(bx1, cy)].filter(Boolean);
+
+  const lats = samples.map(s => s.lat), lngs = samples.map(s => s.lng);
+  const s = Math.min(...lats), n = Math.max(...lats);
+  const w = Math.min(...lngs), e = Math.max(...lngs);
+  const box = [[s, w], [n, e]];
+
+  // getBoundsZoom previews the zoom fitBounds would pick for this box in the *current*
+  // container size/aspect, without moving the map — the only reliable way to know
+  // whether honoring the box would zoom out too far (real-world size or aspect ratio
+  // mismatch both show up here as "the zoom this needs is very low").
+  const previewZoom = _leafletMap.getBoundsZoom(box, false, [24, 24]);
+  if (previewZoom < FOLLOW_MIN_ZOOM) {
+    _leafletMap.setView([center.lat, center.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
+    return;
+  }
+
+  _leafletMap.fitBounds(box, { animate: true, duration: 0.4, padding: [24, 24], maxZoom: 13 });
+}
+
 async function openLocatePopup() {
   const popup = document.getElementById("locate-map-popup");
   popup.classList.remove("hidden");
 
-  const L = await loadLeaflet();
+  // The tile-layer "loading" event (below) only exists once Leaflet itself and the map
+  // are created — on the very first open, fetching the Leaflet library from the CDN can
+  // itself take a few seconds with nothing shown for it. Cover that gap too.
+  const loadingEl = document.getElementById("locate-map-loading");
+  const isFirstOpen = !_leafletMap;
+  if (isFirstOpen) loadingEl?.classList.remove("hidden");
+
+  let L;
+  try {
+    L = await loadLeaflet();
+  } catch (err) {
+    loadingEl?.classList.add("hidden");
+    throw err;
+  }
   _leafletL = L;
   const lat = S.userLocLat ?? S.defaultLat;
   const lng = S.userLocLng ?? S.defaultLng;
 
   const locateZoom = window.innerWidth >= 1000 ? 10 : 9;
   if (!_leafletMap) {
-    _leafletMap = L.map("locate-leaflet-map").setView([40, 35], 3);
+    // Desktop's first-ever open shows the whole Tabula coverage area by default; mobile's
+    // cramped, narrow popup instead centers directly on the user so the marker doesn't
+    // land off to one side of a view sized for a much wider aspect ratio.
+    _leafletMap = L.map("locate-leaflet-map").setView(
+      S.isMobile ? [lat, lng] : [40, 35],
+      S.isMobile ? locateZoom : 3
+    );
     const _tileLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
       maxZoom: 19,
@@ -2805,6 +2969,21 @@ async function openLocatePopup() {
       const pos = _leafletMarker.getLatLng();
       setUserLocation(pos.lat, pos.lng);
     });
+
+    // Panning/zooming sweeps the cursor across many dense place/road markers, opening a
+    // burst of hover tooltips — some left stranded since the marker moves out from under
+    // a stationary cursor rather than firing a normal mouseout. Hide tooltips for the
+    // duration of the move plus a short settle debounce so they don't flicker or stick.
+    let _leafletPanDebounce = null;
+    const mapEl = document.getElementById("locate-leaflet-map");
+    _leafletMap.on("movestart zoomstart", () => {
+      clearTimeout(_leafletPanDebounce);
+      mapEl?.classList.add("tp-panning");
+    });
+    _leafletMap.on("moveend zoomend", () => {
+      clearTimeout(_leafletPanDebounce);
+      _leafletPanDebounce = setTimeout(() => mapEl?.classList.remove("tp-panning"), 180);
+    });
     _leafletMap.on("click", (e) => {
       if (S.countrySelectMode) return;
       _leafletMarker.setLatLng(e.latlng);
@@ -2812,6 +2991,22 @@ async function openLocatePopup() {
     });
     document.getElementById("locate-places-btn").addEventListener("click", toggleLeafletPlaces);
     document.getElementById("locate-roads-btn").addEventListener("click", toggleLeafletRoads);
+    const followBtnEl = document.getElementById("locate-follow-btn");
+    // This button sits inside #locate-leaflet-map so it can overlay the map itself —
+    // Leaflet's own click/touch/dblclick/contextmenu handling on the map container would
+    // otherwise still fire underneath it (map-click-to-set-location), silently panning
+    // the Tabula view to whatever coordinate the button's pixel position translates to.
+    // This is Leaflet's own utility for exactly this "control floating on the map" case.
+    if (followBtnEl) _leafletL.DomEvent.disableClickPropagation(followBtnEl);
+    let _followBtnDebounce = false;
+    followBtnEl?.addEventListener("click", (e) => {
+      if (_followBtnDebounce) return;
+      _followBtnDebounce = true;
+      setTimeout(() => { _followBtnDebounce = false; }, 400);
+      S.followTabula = !S.followTabula;
+      e.currentTarget.classList.toggle("active", S.followTabula);
+      if (S.followTabula) followTabulaView();
+    });
     document.getElementById("locate-legend-btn")?.addEventListener("click", () => {
       document.getElementById("locate-legend")?.classList.toggle("legend-open");
     });
@@ -2822,7 +3017,11 @@ async function openLocatePopup() {
     toggleLeafletRoads().then(() => toggleLeafletPlaces());
   } else {
     _leafletMarker.setLatLng([lat, lng]);
-    if (S.userLocLat != null) _leafletMap.panTo([lat, lng]);
+    // The popup may have just been unhidden (container was 0×0) — refresh Leaflet's
+    // cached size *before* panning, otherwise the centering math uses the stale size
+    // and the marker lands off-center (e.g. pinned toward one edge).
+    _leafletMap.invalidateSize();
+    if (S.userLocLat != null) _leafletMap.panTo([lat, lng], { animate: false });
   }
   setTimeout(() => _leafletMap.invalidateSize(), 60);
 }
@@ -2836,7 +3035,10 @@ function updateLeafletZoomStyles() {
   const z = _leafletMap.getZoom();
   // Touch input is much less precise than a mouse pointer, so shrink country-mode dots
   // less aggressively on touch devices -- otherwise they're too small to reliably tap.
-  const cFactor = S.countrySelectMode ? (S.isMobile ? 0.8 : 0.55) : 1.0;
+  // countryDotSizeFactor is a user-adjustable multiplier on top (developer settings).
+  const cFactor = S.countrySelectMode
+    ? (S.isMobile ? 0.8 : 0.55) * (LP.countryDotSizeFactor ?? 1.0)
+    : 1.0;
   const dotR  = (z <= 3 ? 2.0 : z <= 5 ? 3.2 : z <= 7 ? 4.8 : 6.0) * cFactor;
   const roadW = (z <= 3 ? 0.7 : z <= 5 ? 1.2 : z <= 7 ? 1.8 : 2.5) * 1.2; // 20% thicker
   if (_leafletPlacesLayer) {
@@ -2928,6 +3130,13 @@ function toggleLeafletPlaces() {
   if (!_leafletMap || !_leafletL) return;
   if (_leafletPlacesOn) {
     if (!_leafletPlacesLayer) {
+      // Dedicated pane so place dots can stay clickable (once zoomed in) independently
+      // of the roads/overlay pane, which stays fully non-interactive throughout country
+      // mode — see updateLeafletZoomStyles for the zoom-based pointer-events toggle.
+      if (!_leafletMap.getPane("placesPane")) {
+        _leafletMap.createPane("placesPane");
+        _leafletMap.getPane("placesPane").style.zIndex = "405";
+      }
       const markers = [];
       for (const r of S.allRecords) {
         if (r.lat == null || r.lng == null) continue;
@@ -2944,6 +3153,7 @@ function toggleLeafletPlaces() {
         const m = _leafletL.circleMarker([rlat, rlng], {
           radius: dotR, color: strokeColor, weight: isSeg1 ? 1.5 : (S.isMobile ? 0.8 : 1.5),
           fillColor: typeColor, fillOpacity: isSeg1 ? 0.5 : 0.75,
+          pane: "placesPane",
         });
         // a: rich tooltip — latin name, modern, type+color dot, country flag
         const modern = r.modern || "";
@@ -4127,6 +4337,9 @@ const SP_DEFS = [
   { section: "Country Mode",  label: "Tabula marker colour intensity", key: "countryMarkerAlpha",
     min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + "%",
     desc: "Intensity of country-colour fills drawn on the Tabula map. 0% = invisible, 100% = maximum. Default: 50%." },
+  { section: "Country Mode",  label: "Locate map dot size",      key: "countryDotSizeFactor",
+    min: 0.3, max: 2.5, step: 0.05, fmt: v => Math.round(v * 100) + "%",
+    desc: "Scales the size of place dots on the locate map while country mode is active. Default: 100%." },
   { section: "Markers",       label: "Marker opacity",           key: "markerAlpha",
     min: 0,   max: 1,    step: 0.05, fmt: v => Math.round(v * 100) + "%",
     desc: "Transparency of marker rectangles. 100% = fully opaque, 0% = invisible." },
@@ -4315,6 +4528,7 @@ function buildSettingsPanelBody() {
             if (pane) pane.style.opacity = String(LP.countryModeOpacity);
           });
         }
+        if (def.key === "countryDotSizeFactor" && _leafletMap) updateLeafletZoomStyles();
         renderMarkers();
       };
       const inp = makeSlider(`sp-${def.key}`, def.min, def.max, def.step, LP[def.key], onChange);
@@ -4479,19 +4693,25 @@ function initResizablePanels() {
     }, { passive: false });
   }
 
-  function makeDraggable(panel, handle, lockHeight = true) {
+  function makeDraggable(panel, handle, lockHeight = true, minTopFn = null) {
     function startDrag(clientX, clientY) {
       const s = detach(panel, lockHeight);
       return { initLeft: s.left, initTop: s.top, sx: clientX, sy: clientY, width: s.width, height: s.height };
     }
     const setPos = (left, top, width, height) => {
       left = Math.max(0, Math.min(left, window.innerWidth  - width  - VP_MARGIN));
+      // Keep dragged panels from being pulled up over the fixed Tabula zoom/fullscreen
+      // controls (top-left) — otherwise the panel's higher z-index covers them and their
+      // clicks stop reaching the buttons underneath.
+      const minTop = minTopFn ? minTopFn() : 0;
       // When height tracks content (lockHeight=false) the true rendered height isn't
-      // known up front, so just keep the top on-screen — max-height (recomputed below)
-      // is what actually guarantees the bottom edge stays within the viewport.
+      // known up front, but dragging top too close to the bottom of the viewport still
+      // needs a floor: otherwise the panel's drag bar and resize handle both end up
+      // pushed off-screen with nothing left to grab to bring the panel back.
+      const MIN_VISIBLE_WHEN_AUTO_HEIGHT = 80;
       top  = lockHeight
-        ? Math.max(0, Math.min(top, window.innerHeight - height - VP_MARGIN))
-        : Math.max(0, top);
+        ? Math.max(minTop, Math.min(top, window.innerHeight - height - VP_MARGIN))
+        : Math.max(minTop, Math.min(top, window.innerHeight - MIN_VISIBLE_WHEN_AUTO_HEIGHT - VP_MARGIN));
       panel.style.setProperty("left", left + "px", "important");
       panel.style.setProperty("top",  top  + "px", "important");
       if (!lockHeight) {
@@ -4537,7 +4757,9 @@ function initResizablePanels() {
   if (locPopup) {
     makeHandle(locPopup, "resize-br", 220, 200, () => { if (_leafletMap) _leafletMap.invalidateSize(); });
     const locHeader = document.getElementById("locate-map-header");
-    if (locHeader) makeDraggable(locPopup, locHeader);
+    const navSquare = document.getElementById("nav-square");
+    const navSquareMinTop = () => navSquare ? navSquare.getBoundingClientRect().bottom + 8 : 0;
+    if (locHeader) makeDraggable(locPopup, locHeader, true, navSquareMinTop);
   }
   const infoPanel = document.getElementById("info-panel");
   if (infoPanel) {
@@ -4728,6 +4950,7 @@ async function init() {
 
   S.viewer.addHandler("animation", renderMarkers);
   S.viewer.addHandler("animation-finish", renderMarkers);
+  S.viewer.addHandler("animation-finish", followTabulaView);
   S.viewer.addHandler("resize", () => { sizeCanvas(); renderMarkers(); });
 
   // Every visit: briefly pulse the About/Locate/Category buttons to hint they're
@@ -5022,7 +5245,7 @@ function flashOnboardingHints() {
   pulse(document.getElementById("cat-popup-btn"), 1000);
 }
 
-// The actual guided tour (triggered by the "Tour" button): About panel, then the
+// The actual guided tour (triggered by the "Demo" button): About panel, then the
 // user-location map demonstrating country mode + isolate, then category filters +
 // place names -- the full original walkthrough. Any interaction cancels it in place.
 function runFullTour() {

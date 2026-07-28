@@ -1,6 +1,7 @@
 {
-  "countryModeOpacity": 0.55,
-  "countryMarkerAlpha": 0.35,
+  "countryModeOpacity": 0.45,
+  "countryMarkerAlpha": 0.4,
+  "countryDotSizeFactor": 0.3,
   "markerAlpha": 0.85,
   "fontScale": 1,
   "maxFontDesktop": 14,
