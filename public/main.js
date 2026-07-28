@@ -2831,9 +2831,13 @@ async function toggleCountryMode() {
   }
 }
 
-// Broad-area records — a single lat/lng "representing" an entire people's territory, a
-// province, or a sea — aren't points and would distort either estimate below.
-const FOLLOW_AREA_TYPES = new Set(["region", "roman_province", "modern_state", "people", "water"]);
+// Broad-area/linear-feature records — a single lat/lng "representing" an entire people's
+// territory, a province, a sea, a mountain range, or a river — aren't points and would
+// distort either estimate below. Same set locate-me's own IDW_EXCLUDE_TYPES already
+// excludes for the identical reason; confirmed live for Follow too: two "Mons Taurus"
+// (Taurus Mountains) entries at a rough lat=37/lng=33 centroid were dragging Segment
+// XII's box ~2500km west of its real India-centric content before this exclusion.
+const FOLLOW_AREA_TYPES = new Set(["region", "roman_province", "modern_state", "people", "water", "mountain", "river", "lake"]);
 
 // Floor on how far Follow will zoom the Leaflet map out. Below this, honoring the full
 // box would zoom out further than a "Follow" view should — the real spread is genuinely
@@ -2852,7 +2856,9 @@ const FOLLOW_ROW_FRACTIONS = [0, 0.25, 0.5, 0.75, 1];
 // A visible-points box is only trusted once at least this many real anchors are on
 // screen — below that, a couple of stray points can't outweigh a bad calibration outlier.
 const FOLLOW_MIN_VISIBLE_POINTS = 6;
-const FOLLOW_TRIM_PCT = 0.05; // percentile trim applied to the visible-points box
+// How many median-absolute-deviations from the median an anchor may sit before the
+// visible-points box treats it as an outlier and excludes it — see madFilterOutliers.
+const FOLLOW_MAD_MULTIPLIER = 6;
 
 // Returns every calibrated, non-area-type place as a flat {vx, vy, lat, lng} anchor for
 // the active map mode. Miller ("old") items are pixel rects normalized by MILLER_W (see
@@ -2897,8 +2903,26 @@ function idwLatLngAt(vx, vy, pool) {
   return { lat: sumLat / sumW, lng: sumLng / sumW };
 }
 
-function percentile(sortedArr, p) {
-  return sortedArr[Math.floor(p * (sortedArr.length - 1))];
+// Rejects statistical outliers using median + median-absolute-deviation rather than a
+// fixed percentile: a fixed percentage clips a fixed *count* regardless of how the data
+// is actually distributed, which — once anchor counts are only in the tens, typical for
+// a single-segment Follow view — ends up discarding genuinely far but real content, not
+// just anomalies. Confirmed live on Segment XII: with a 5th-95th percentile trim,
+// "Sera Maior" (the historical edge of the known world, lng 94) and "Thimara" (Ganges
+// delta, lng 88) were both being trimmed away purely for ranking 1st/2nd-most-extreme of
+// ~80 points, despite neither being a calibration error. MAD-based rejection instead only
+// excludes anchors that are far from the *bulk* of the others, independent of rank, so a
+// single genuine outlier (e.g. two duplicate "Mons Taurus" entries at a rough centroid —
+// the actual Segment XII bug, now also excluded at the source by FOLLOW_AREA_TYPES) is
+// still caught without punishing legitimate extremes.
+function madFilterOutliers(values, multiplier = FOLLOW_MAD_MULTIPLIER) {
+  const sorted = values.slice().sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const devs = sorted.map(v => Math.abs(v - median)).sort((a, b) => a - b);
+  const mad = devs[Math.floor(devs.length / 2)];
+  if (!mad) return values; // no spread to measure against (e.g. near-identical anchors) — keep all
+  const threshold = mad * multiplier;
+  return values.filter(v => Math.abs(v - median) <= threshold);
 }
 
 // Pans/zooms the user-location (Leaflet) map to track the Tabula view — called whenever
@@ -2917,16 +2941,16 @@ function percentile(sortedArr, p) {
 //    horizontal position with an extreme vertical one (i.e. an actual viewport corner) —
 //    that combination once interpolated ~800km from the true area (confirmed live near
 //    Greece, landing in Libya), so corners are avoided entirely, not just de-prioritized.
-// 2. Visible-points box: the real lat/lng bounding box (5th-95th percentile trimmed, to
-//    shrug off one stray mis-calibrated point) of every calibrated anchor whose own
-//    vx/vy actually falls inside the current viewport. This is the most literal reading
-//    of "what's on screen" and is what actually fixes the reported bug (there are usually
-//    plenty of real anchors visible in a zoomed-out, band-heavy view) — but on its own,
-//    with few anchors visible, it's unstable: an earlier version relying only on this
-//    made Follow teleport between distant clusters and get stuck at the zoom floor almost
-//    everywhere. So it's only trusted (and unioned into the final box) once at least
-//    FOLLOW_MIN_VISIBLE_POINTS anchors are actually in view; otherwise the multi-row
-//    estimate alone stands.
+// 2. Visible-points box: the real lat/lng bounding box (MAD-outlier-filtered, to shrug
+//    off a genuine calibration error without discarding legitimate extremes — see
+//    madFilterOutliers) of every calibrated anchor whose own vx/vy actually falls inside
+//    the current viewport. This is the most literal reading of "what's on screen" and is
+//    what actually fixes the reported bug (there are usually plenty of real anchors
+//    visible in a zoomed-out, band-heavy view) — but on its own, with few anchors
+//    visible, it's unstable: an earlier version relying only on this made Follow teleport
+//    between distant clusters and get stuck at the zoom floor almost everywhere. So it's
+//    only trusted (and unioned into the final box) once at least FOLLOW_MIN_VISIBLE_POINTS
+//    anchors are actually in view; otherwise the multi-row estimate alone stands.
 function followTabulaView() {
   if (!S.followTabula || !_leafletMap || !S.viewer || !S.viewer.viewport) return;
   const bounds = S.viewer.viewport.getBounds(true);
@@ -2947,12 +2971,12 @@ function followTabulaView() {
   const visible = pool.filter(p => p.vx >= bx0 && p.vx <= bx1 && p.vy >= by0 && p.vy <= by1);
   const groundedByVisiblePoints = visible.length >= FOLLOW_MIN_VISIBLE_POINTS;
   if (groundedByVisiblePoints) {
-    const vLats = visible.map(p => p.lat).sort((a, b) => a - b);
-    const vLngs = visible.map(p => p.lng).sort((a, b) => a - b);
-    s = Math.min(s, percentile(vLats, FOLLOW_TRIM_PCT));
-    n = Math.max(n, percentile(vLats, 1 - FOLLOW_TRIM_PCT));
-    w = Math.min(w, percentile(vLngs, FOLLOW_TRIM_PCT));
-    e = Math.max(e, percentile(vLngs, 1 - FOLLOW_TRIM_PCT));
+    const vLats = madFilterOutliers(visible.map(p => p.lat));
+    const vLngs = madFilterOutliers(visible.map(p => p.lng));
+    s = Math.min(s, ...vLats);
+    n = Math.max(n, ...vLats);
+    w = Math.min(w, ...vLngs);
+    e = Math.max(e, ...vLngs);
   }
   const box = [[s, w], [n, e]];
 
