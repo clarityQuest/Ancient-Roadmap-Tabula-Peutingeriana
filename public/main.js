@@ -1617,7 +1617,14 @@ function syncLeafletSelectedMarker(place) {
     _leafletSelectedMarker.setRadius(z >= 6 ? 15 : 9);
   };
   _leafletMap.on("zoomend", _leafletSelectedMarker._onZoomEnd);
-  withFollowSyncGuard(80, () => _leafletMap.panTo([lat, lng]));
+  // animate:false is required, not cosmetic: withFollowSyncGuard's 80ms window is sized
+  // for an instant pan. Leaflet's panTo animates over ~0.25s by default when no options
+  // are passed, so the guard was clearing while the pan was still running — long enough
+  // for followLeafletView to see it as a genuine user move (mid-animation) and fire back
+  // at the Tabula view, which is what made selecting *any* place zoom the Tabula view
+  // wildly whenever Follow was on (confirmed live: a single selection ~4x'd the Tabula
+  // viewport width).
+  withFollowSyncGuard(80, () => _leafletMap.panTo([lat, lng], { animate: false }));
 }
 
 function showInfoPanel(place) {
@@ -2952,26 +2959,36 @@ function madFilterOutliers(values, multiplier = FOLLOW_MAD_MULTIPLIER) {
 // Germania above Italy above Africa); a first version of Follow only sampled the
 // viewport's vertical center, which silently dropped every band except whichever one the
 // center happened to land in — that's why Follow used to end up too zoomed in on tall,
-// band-heavy views (confirmed on Segment II and segments X+). This version combines two
-// independent estimates of the real-world area behind the visible viewport, then fits to
-// the union of both:
+// band-heavy views (confirmed on Segment II and segments X+). This version picks between
+// two independent estimates of the real-world area behind the visible viewport, rather
+// than blending them:
 //
-// 1. Multi-row IDW: interpolates the real-world coordinate along a "plus" shape — several
-//    rows swept at the horizontal center (FOLLOW_ROW_FRACTIONS), plus the original
-//    left/center/right sweep at the vertical center. No sample ever pairs an extreme
-//    horizontal position with an extreme vertical one (i.e. an actual viewport corner) —
-//    that combination once interpolated ~800km from the true area (confirmed live near
-//    Greece, landing in Libya), so corners are avoided entirely, not just de-prioritized.
-// 2. Visible-points box: the real lat/lng bounding box (MAD-outlier-filtered, to shrug
-//    off a genuine calibration error without discarding legitimate extremes — see
-//    madFilterOutliers) of every calibrated anchor whose own vx/vy actually falls inside
-//    the current viewport. This is the most literal reading of "what's on screen" and is
-//    what actually fixes the reported bug (there are usually plenty of real anchors
-//    visible in a zoomed-out, band-heavy view) — but on its own, with few anchors
-//    visible, it's unstable: an earlier version relying only on this made Follow teleport
-//    between distant clusters and get stuck at the zoom floor almost everywhere. So it's
-//    only trusted (and unioned into the final box) once at least FOLLOW_MIN_VISIBLE_POINTS
-//    anchors are actually in view; otherwise the multi-row estimate alone stands.
+// 1. Visible-points box (preferred whenever there's enough data): the real lat/lng
+//    bounding box (MAD-outlier-filtered, to shrug off a genuine calibration error without
+//    discarding legitimate extremes — see madFilterOutliers) of every calibrated anchor
+//    whose own vx/vy actually falls inside the current viewport. This is the most literal
+//    reading of "what's on screen," and is trusted outright once at least
+//    FOLLOW_MIN_VISIBLE_POINTS anchors are actually in view.
+// 2. Multi-row IDW (fallback only, for a sparse/tight view too zoomed-in for #1 to have
+//    enough real anchors to trust): interpolates the real-world coordinate along a "plus"
+//    shape — several rows swept at the horizontal center (FOLLOW_ROW_FRACTIONS), plus the
+//    original left/center/right sweep at the vertical center. No sample ever pairs an
+//    extreme horizontal position with an extreme vertical one (i.e. an actual viewport
+//    corner) — that combination once interpolated ~800km from the true area (confirmed
+//    live near Greece, landing in Libya), so corners are avoided entirely.
+//
+// An earlier version *unioned* both estimates whenever grounded, on the theory that more
+// evidence is always better — but a plain union always keeps whichever side is *wider*,
+// and IDW's nearest-K search reaches further out wherever local calibration thins even
+// slightly (no corner needed — a single non-corner row sample near a sparse patch is
+// enough). So once real data grounds the box, unioning in the interpolated estimate can
+// only ever widen it, never correct it. Confirmed live zooming into Cyprus: 6 real anchors
+// gave an accurate, tight box on their own, but one row sample pulled toward a more
+// distant cluster and the union inflated the final view well past the actual zoom level.
+// An even earlier version relied on the visible-points box *alone* in all cases, with no
+// fallback — that made Follow teleport between distant clusters and get stuck at the zoom
+// floor almost everywhere once too few anchors were visible to ground it, which is why
+// the multi-row fallback exists for that case specifically.
 function followTabulaView() {
   if (!S.followTabula || _followSyncing || !_leafletMap || !S.viewer || !S.viewer.viewport) return;
   const bounds = S.viewer.viewport.getBounds(true);
@@ -2982,22 +2999,33 @@ function followTabulaView() {
   if (!pool.length) return; // no calibrated data anywhere in this map mode
 
   const centerEst = idwLatLngAt(cx, cy, pool);
-  const rowSamples = [];
-  for (const f of FOLLOW_ROW_FRACTIONS) rowSamples.push(idwLatLngAt(cx, by0 + f * (by1 - by0), pool));
-  for (const rx of [bx0, bx1]) rowSamples.push(idwLatLngAt(rx, cy, pool));
 
-  let s = Math.min(...rowSamples.map(p => p.lat)), n = Math.max(...rowSamples.map(p => p.lat));
-  let w = Math.min(...rowSamples.map(p => p.lng)), e = Math.max(...rowSamples.map(p => p.lng));
-
+  // Once enough real anchors are actually visible, trust *only* that box — don't also
+  // union in the row-based IDW estimate. IDW's nearest-K search reaches further out
+  // wherever local calibration happens to thin out even a little (no viewport corner
+  // needed to trigger it — a single row sample near a sparse patch is enough), and a
+  // plain union always keeps whichever side is *wider* — so unioning a solid, tight,
+  // real-data box with an occasionally-too-wide interpolated one only ever widens the
+  // result, never corrects it. Confirmed live zooming into Cyprus: 6 real anchors gave an
+  // accurate, tight box, but one multi-row sample pulled toward a more distant cluster and
+  // the union inflated the final view well past what was actually zoomed in on. The row
+  // estimate is only needed — and only used — as a fallback when too few real anchors are
+  // on screen to trust the visible-points box at all (e.g. a tight zoom on a single,
+  // sparsely-calibrated place).
   const visible = pool.filter(p => p.vx >= bx0 && p.vx <= bx1 && p.vy >= by0 && p.vy <= by1);
   const groundedByVisiblePoints = visible.length >= FOLLOW_MIN_VISIBLE_POINTS;
+  let s, n, w, e;
   if (groundedByVisiblePoints) {
     const vLats = madFilterOutliers(visible.map(p => p.lat));
     const vLngs = madFilterOutliers(visible.map(p => p.lng));
-    s = Math.min(s, ...vLats);
-    n = Math.max(n, ...vLats);
-    w = Math.min(w, ...vLngs);
-    e = Math.max(e, ...vLngs);
+    s = Math.min(...vLats); n = Math.max(...vLats);
+    w = Math.min(...vLngs); e = Math.max(...vLngs);
+  } else {
+    const rowSamples = [];
+    for (const f of FOLLOW_ROW_FRACTIONS) rowSamples.push(idwLatLngAt(cx, by0 + f * (by1 - by0), pool));
+    for (const rx of [bx0, bx1]) rowSamples.push(idwLatLngAt(rx, cy, pool));
+    s = Math.min(...rowSamples.map(p => p.lat)); n = Math.max(...rowSamples.map(p => p.lat));
+    w = Math.min(...rowSamples.map(p => p.lng)); e = Math.max(...rowSamples.map(p => p.lng));
   }
   const box = [[s, w], [n, e]];
 
