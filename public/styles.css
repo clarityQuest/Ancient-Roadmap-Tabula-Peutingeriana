@@ -1055,12 +1055,13 @@ body, html {
   #category-popup .type-filter-btn { font-size: 11px !important; padding: 4px 7px !important; gap: 5px !important; }
   #category-popup .tf-dot { width: 13px !important; height: 13px !important; border-radius: 3px !important; }
 }
-/* Mobile portrait: locate map full width, 40vh height at top — 6px inset on all edges for visible rounding */
+/* Mobile portrait: locate map full width, 34vh height at top (15% shorter than the
+   original 40vh) — 6px inset on all edges for visible rounding */
 @media (pointer: coarse) and (orientation: portrait) {
   #locate-map-popup {
     position: fixed !important;
     top: 6px !important; left: 6px !important; right: 6px !important; bottom: auto !important;
-    width: calc(100vw - 12px) !important; height: 40vh !important;
+    width: calc(100vw - 12px) !important; height: 34vh !important;
     border-radius: 10px !important;
     z-index: 200;
   }
@@ -1183,11 +1184,11 @@ body, html {
   align-items: center; justify-content: center;
   pointer-events: auto;
 }
-/* Mobile country label — bottom-centre of Leaflet map, stacked above #locate-result-bar
-   (same horizontal spot) so the two don't render on top of each other. */
+/* Mobile country label — bottom-left of the Leaflet map (was bottom-centre, which read as
+   floating in the middle of the map rather than anchored to an edge). */
 #locate-country-bar {
   display: none;
-  position: absolute; bottom: 66px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 66px; left: 8px;
   z-index: 501;
   background: rgba(18,14,8,0.88);
   border: 1px solid rgba(200,160,80,0.45);

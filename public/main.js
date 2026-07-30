@@ -1855,6 +1855,38 @@ function hideInfoPanel() {
   // Intentionally keep S.selectedPlace / S.selectedDataId so the Tabula highlight ring persists.
 }
 
+// Identity key for "is this the same place as the current selection" checks (re-clicking
+// a marker to deselect it, right-click-to-deselect). Segment I places null out
+// S.selectedDataId (see showInfoPanel) to dodge an OVPlace/TPPlace ID collision, so
+// comparing selectedDataId alone isn't reliable — record_id is present on both S.places
+// items and the plain object canvas-click constructs for Miller-overlay hits, and unique
+// across sources, so it works for both.
+function placeIdentityKey(place) {
+  if (!place) return null;
+  if (place.record_id != null) return `rec:${place.record_id}`;
+  if (place.data_id != null) return `data:${place.data_id}`;
+  return null;
+}
+
+function isCurrentlySelected(place) {
+  const key = placeIdentityKey(place);
+  return key != null && key === placeIdentityKey(S.selectedPlace);
+}
+
+// Fully clears the current place selection — info panel, Tabula highlight ring, and the
+// gold marker on the locate map — as opposed to hideInfoPanel() alone, which several
+// other call sites use deliberately to close *just* the panel while leaving the
+// selection (and its map highlight) in place. Shared by re-clicking the already-selected
+// place, right-clicking (a fast "clear selection" gesture from anywhere), and clicking
+// empty space.
+function deselectCurrentPlace() {
+  S.selectedDataId = null;
+  S.selectedPlace = null;
+  hideInfoPanel();
+  syncLeafletSelectedMarker(null);
+  renderMarkers();
+}
+
 /* ============================================================
    Search
    ============================================================ */
@@ -4064,6 +4096,7 @@ function setupInteraction() {
     // SegIV marker click
     const place = hitTest(clientX, clientY);
     if (place) {
+      if (isCurrentlySelected(place)) { deselectCurrentPlace(); return; }
       showInfoPanel(place);
       return;
     }
@@ -4071,6 +4104,7 @@ function setupInteraction() {
     // Miller overlay click — open info panel with available data
     const millerItem = hitTestMillerOverlay(clientX, clientY);
     if (millerItem) {
+      if (isCurrentlySelected(millerItem)) { deselectCurrentPlace(); return; }
       showInfoPanel({
         latin_std:      millerItem.latin_std,
         latin:          millerItem.latin || millerItem.latin_std,
@@ -4095,14 +4129,17 @@ function setupInteraction() {
     }
 
     // Nothing hit — clear the current place selection (short grace period only to
-    // outlast the very click that opened it, not a deliberate follow-up click). Unlike
-    // hideInfoPanel() alone, this also drops the selection frame on the Tabula map,
-    // not just the info panel.
-    if (S.selectedDataId !== null && Date.now() - infoPanelOpenedAt >= 300) {
-      S.selectedDataId = null;
-      hideInfoPanel();
-      renderMarkers();
+    // outlast the very click that opened it, not a deliberate follow-up click).
+    if (S.selectedPlace && Date.now() - infoPanelOpenedAt >= 300) {
+      deselectCurrentPlace();
     }
+  });
+
+  // Right-click anywhere on the map is a fast, always-available way to clear the current
+  // selection — no need to re-find the exact same marker or an empty spot to click.
+  S.viewer.element.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    if (S.selectedPlace) deselectCurrentPlace();
   });
 }
 
@@ -5476,6 +5513,8 @@ function runFullTour() {
     S.countryIsolate = false;
     document.getElementById("country-isolate-btn")?.classList.remove("active");
     try { localStorage.setItem("tp_country_isolate", "0"); } catch {}
+    S.followTabula = false;
+    document.getElementById("locate-follow-btn")?.classList.remove("active");
     locPopup.classList.add("hidden");
     catPopup?.classList.add("hidden");
     S.activeTypes = new Set(); S.latinLabelsOn = false; S.modernLabelsOn = false;
@@ -5503,6 +5542,32 @@ function runFullTour() {
     setTimeout(() => btn.classList.remove("demo-btn-pulse"), 600);
   };
 
+  // Final segment: reopen the locate map and demonstrate Follow -- turn it on, make an
+  // obvious Tabula zoom change, and let the viewer watch the locate map reframe to match
+  // before everything closes. Runs last so it's the parting impression of the tour.
+  const showFollowFinale = () => {
+    T(() => {
+      openLocatePopup().catch(() => {});
+      T(() => {
+        const followBtn = document.getElementById("locate-follow-btn");
+        pulse(followBtn);
+        T(() => {
+          S.followTabula = true;
+          followBtn?.classList.add("active");
+          // A clear, sizeable zoom so the locate map's Follow-driven reframe is obvious.
+          S.viewer.viewport.zoomBy(2.4);
+          S.viewer.viewport.applyConstraints();
+          T(() => {
+            S.followTabula = false;
+            followBtn?.classList.remove("active");
+            if (demoInitialBounds) S.viewer?.viewport?.fitBounds(demoInitialBounds);
+            T(() => { stop(); resetTourState(); }, 500);
+          }, 1800);
+        }, 700);
+      }, 1500); // let the map/tiles finish loading before reacting
+    }, 50);
+  };
+
   const finishTour = () => {
     T(() => {
       const catBtn = document.getElementById("cat-popup-btn");
@@ -5526,7 +5591,8 @@ function runFullTour() {
             namesBtn?.classList.add("active");
             document.getElementById("locate-toggle-all-labels")?.classList.add("active");
             renderMarkers();
-            T(() => { stop(); resetTourState(); }, 1500);
+            catPopup?.classList.add("hidden");
+            T(() => showFollowFinale(), 1500);
           }, 700);
         }, 700);
       }, 700);
