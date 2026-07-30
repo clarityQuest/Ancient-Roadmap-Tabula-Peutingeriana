@@ -5554,15 +5554,20 @@ function runFullTour() {
         T(() => {
           S.followTabula = true;
           followBtn?.classList.add("active");
-          // A clear, sizeable zoom so the locate map's Follow-driven reframe is obvious.
-          S.viewer.viewport.zoomBy(2.4);
-          S.viewer.viewport.applyConstraints();
+          // Pan first, then zoom -- as two distinct, obvious moves rather than one zoom --
+          // so the demo actually shows both halves of what Follow keeps in sync. A
+          // zoom-only nudge never demonstrated the locate map *panning* to follow at all.
+          S.viewer.viewport.panBy(new OpenSeadragon.Point(0.045, 0.01));
           T(() => {
-            S.followTabula = false;
-            followBtn?.classList.remove("active");
-            if (demoInitialBounds) S.viewer?.viewport?.fitBounds(demoInitialBounds);
-            T(() => { stop(); resetTourState(); }, 500);
-          }, 1800);
+            S.viewer.viewport.zoomBy(2.2);
+            S.viewer.viewport.applyConstraints();
+            T(() => {
+              S.followTabula = false;
+              followBtn?.classList.remove("active");
+              if (demoInitialBounds) S.viewer?.viewport?.fitBounds(demoInitialBounds);
+              T(() => { stop(); resetTourState(); }, 500);
+            }, 1800);
+          }, 1500);
         }, 700);
       }, 1500); // let the map/tiles finish loading before reacting
     }, 50);

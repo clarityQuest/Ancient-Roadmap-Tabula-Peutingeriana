@@ -28,7 +28,7 @@ Over 1,100 multi-word Latin inscriptions have been translated into English and G
 - *"Hic Alexander responsum accepit: usque quo Alexander?"* — Here Alexander received the answer: how far, Alexander?
 - *"In his locis scorpiones nascuntur"* — In these places scorpions are born.
 
-### Explore 3,900+ Annotated Places
+### Explore 4,300+ Annotated Places
 Every annotated place links to Wikipedia (inline summary + thumbnail), shows its Latin name and modern equivalent, and its position in the Tabula's grid. Filter by 14 category types: major city, city, port, road station, river, lake, island, spa/bath, mountain, people/tribes, region, Roman province, and more. Search by Latin name (*Londinium*) or modern name (*London*).
 
 ---
@@ -51,7 +51,7 @@ No prior knowledge needed. The built-in demo gives you a guided tour on first vi
 | Feature | Detail |
 |---|---|
 | Deep-zoom map viewer | K. Miller 1887 facsimile via OpenSeadragon; 11 segments |
-| Place database | 4,344 records; 86% georeferenced with lat/lng |
+| Place database | 4,393 records; 86% georeferenced with lat/lng |
 | GPS location | Find nearest ancient place from your real-world position |
 | Follow mode | Two-way live sync between the ancient Tabula view and the real-world location map |
 | Country mode | 64 countries, coloured polygon overlay, GPS auto-select |
@@ -76,7 +76,7 @@ public/
   main.js                             Viewer logic (single file, ~5200 lines)
   styles.css                          Styles
   data/
-    review_places_db.json             Primary place database (~4,344 records)
+    review_places_db.json             Primary place database (~4,393 records)
     countries.geojson                 Country polygons for country mode (64 countries)
     map_segment_bounds.json           Segment viewport bounds
     label_params.json                 Persisted label / opacity settings

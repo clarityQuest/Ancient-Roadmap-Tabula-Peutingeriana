@@ -1,6 +1,6 @@
 # Tabula Peutingeriana — Interactive Ancient Roman Road Map
 
-> Interactive zoomable viewer of the Tabula Peutingeriana — the world's most complete surviving Roman road map (c. 4th–5th century AD, medieval copy c. 1200 AD). Covers the Roman Empire and beyond, from Britain to India, with 4,344 annotated places and GPS-locate functionality. Free, no login required.
+> Interactive zoomable viewer of the Tabula Peutingeriana — the world's most complete surviving Roman road map (c. 4th–5th century AD, medieval copy c. 1200 AD). Covers the Roman Empire and beyond, from Britain to India, with 4,393 annotated places and GPS-locate functionality. Free, no login required.
 
 URL: https://tabula-peutingeriana.com/
 
@@ -17,8 +17,8 @@ Named after Konrad Peutinger (1465–1547), the Augsburg humanist who owned the 
 ## Viewer Features
 
 - **High-resolution zoomable map** — stitched 12-segment image, panned/zoomed with OpenSeadragon
-- **4,344 annotated places** with Latin names and modern equivalents: road stations, cities, rivers, mountains, islands, regions, Roman provinces, modern states, spas/thermal baths, temples, ports, lakes
-- **86% located** — 3,736 of 4,344 places have georeferenced modern coordinates
+- **4,393 annotated places** with Latin names and modern equivalents: road stations, cities, rivers, mountains, islands, regions, Roman provinces, modern states, spas/thermal baths, temples, ports, lakes
+- **86% located** — 3,784 of 4,393 places have georeferenced modern coordinates
 - **Search** by Latin name or modern equivalent
 - **Wikipedia integration** — summaries and thumbnail images for located places
 - **Persistent GPS location marker** — the viewer locates you automatically on load and drops a permanent red "You are here" marker on the ancient map at your real position; works worldwide, shows edge direction for locations outside the map's coverage
@@ -34,8 +34,8 @@ Named after Konrad Peutinger (1465–1547), the Augsburg humanist who owned the 
 
 | Type | Total | Located |
 |---|---|---|
-| Road stations | 2,854 | 2,521 (88.3%) |
-| Cities | 491 | 489 (99.6%) |
+| Road stations | 2,854 | 2,520 (88.3%) |
+| Cities | 493 | 491 (99.6%) |
 | Rivers | 252 | 187 (74.2%) |
 | Mountains | 162 | 44 (27.2%) |
 | Peoples / tribes | 148 | 135 (91.2%) |
@@ -80,7 +80,7 @@ A medieval parchment copy (c. 1200 AD) of a late-antique Roman road map original
 At the Österreichische Nationalbibliothek (Austrian National Library) in Vienna, Austria. It has been there since 1738.
 
 **How many places are on the Tabula Peutingeriana?**
-Approximately 3,500–4,344 named places depending on counting method. This viewer annotates 4,344 records (2,854 road stations plus cities, rivers, mountains, islands, provinces, peoples, etc.), of which 3,736 (86%) are geographically located.
+Approximately 3,500–4,400 named places depending on counting method. This viewer annotates 4,393 records (2,854 road stations plus cities, rivers, mountains, islands, provinces, peoples, etc.), of which 3,784 (86%) are geographically located.
 
 **Can I find my own location on the ancient Roman map?**
 Yes — this is the viewer's signature feature. It locates you automatically on load and drops a persistent red "You are here" marker on the Tabula Peutingeriana at your real GPS position, navigating straight to the nearest ancient Roman road station, city or province. You can also tap anywhere on the interactive modern map to drop a second, independent blue "Picked Location" marker, letting you compare your home to any other point on Earth on the same ancient map. Works for any location on Earth; locations outside the map's coverage get an edge direction marker.
