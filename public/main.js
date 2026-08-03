@@ -2057,6 +2057,12 @@ let _leafletHoveredTooltipLayer = null;
 // the two views against each other forever.
 let _followSyncing = false;
 let _followSyncClearTimer = null;
+// "Match" toggle: independent of Follow itself — highlights, on the locate map, exactly
+// which calibrated places followAnchorPool() (and therefore Follow's own zoom decision)
+// currently considers visible on the Tabula, so a mismatch between the two views'
+// apparent zoom can be visually cross-checked against real data instead of guessed at.
+let _matchTabula = false;
+let _matchHighlightLayer = null;
 // Wraps a programmatic Leaflet view change that Follow must not react to (country-mode
 // zoom, marker-click pan, popup-reopen pan, ...) — these are always instant
 // (animate:false), so their moveend/zoomend fires synchronously inside fn(); the short
@@ -3128,6 +3134,27 @@ function followTabulaView() {
   });
 }
 
+// "Match" — a visual debugging aid, independent of Follow itself: draws a bright ring
+// around every calibrated place (from the same pool and same viewport-bounds test
+// followTabulaView uses) that's currently within the Tabula's visible area, directly on
+// the locate map. Lets a mismatch between the two maps' apparent zoom be checked against
+// what Follow's algorithm actually considers "on screen" right now, rather than guessed
+// at from how the two zoom scales *look* like they should compare (they aren't the same
+// scale at all — Tabula zoom and Leaflet zoom have no fixed relationship to each other).
+function renderMatchHighlights() {
+  if (_matchHighlightLayer) { _leafletMap?.removeLayer(_matchHighlightLayer); _matchHighlightLayer = null; }
+  if (!_matchTabula || !_leafletMap || !_leafletL || !S.viewer?.viewport) return;
+  const bounds = S.viewer.viewport.getBounds(true);
+  const bx0 = bounds.x, bx1 = bounds.x + bounds.width;
+  const by0 = bounds.y, by1 = bounds.y + bounds.height;
+  const pool = followAnchorPool();
+  const visible = pool.filter(p => p.vx >= bx0 && p.vx <= bx1 && p.vy >= by0 && p.vy <= by1);
+  const markers = visible.map(p => _leafletL.circleMarker([p.lat, p.lng], {
+    radius: 9, color: "#39FF14", weight: 2, fill: false, opacity: 0.9, interactive: false,
+  }));
+  _matchHighlightLayer = _leafletL.layerGroup(markers).addTo(_leafletMap);
+}
+
 // Reverse direction of followTabulaView: when Follow is on and the user pans/zooms the
 // Leaflet (locate) map directly — drag, scroll-wheel, +/- buttons, pinch — moves the
 // Tabula view to match. Guarded by _followSyncing so Follow's own Tabula-driven Leaflet
@@ -3276,6 +3303,13 @@ async function openLocatePopup() {
       S.followTabula = !S.followTabula;
       e.currentTarget.classList.toggle("active", S.followTabula);
       if (S.followTabula) followTabulaView();
+    });
+    const matchBtnEl = document.getElementById("locate-match-btn");
+    if (matchBtnEl) _leafletL.DomEvent.disableClickPropagation(matchBtnEl);
+    matchBtnEl?.addEventListener("click", (e) => {
+      _matchTabula = !_matchTabula;
+      e.currentTarget.classList.toggle("active", _matchTabula);
+      renderMatchHighlights();
     });
     document.getElementById("locate-legend-btn")?.addEventListener("click", () => {
       document.getElementById("locate-legend")?.classList.toggle("legend-open");
@@ -5228,6 +5262,7 @@ async function init() {
   S.viewer.addHandler("animation", renderMarkers);
   S.viewer.addHandler("animation-finish", renderMarkers);
   S.viewer.addHandler("animation-finish", followTabulaView);
+  S.viewer.addHandler("animation-finish", renderMatchHighlights);
   S.viewer.addHandler("resize", () => { sizeCanvas(); renderMarkers(); });
 
   // Every visit: briefly pulse the About/Locate/Category buttons to hint they're

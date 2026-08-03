@@ -1156,6 +1156,21 @@ body, html {
   color: #14120e;
 }
 
+/* Match toggle — same style as Follow, stacked directly below it. */
+#locate-match-btn {
+  position: absolute; top: 32px; right: 8px; z-index: 1000;
+  display: flex; align-items: center; gap: 3px;
+  padding: 2px 5px; font-size: 10px; font-weight: 600;
+  background: rgba(255,255,255,0.55); border: 1px solid rgba(0,0,0,0.25);
+  border-radius: 5px; color: #14120e;
+  cursor: pointer;
+}
+#locate-match-btn:hover { background: rgba(255,255,255,0.75); }
+#locate-match-btn.active {
+  background: rgba(57,255,20,0.85); border-color: #22c55e;
+  color: #0a1f0a;
+}
+
 /* Dot-color legend — bottom-right of popup; z-index 2000 so it sits above resize handle (1500) */
 #locate-legend {
   position: absolute; bottom: 26px; right: 8px; left: auto; top: auto; z-index: 2000;

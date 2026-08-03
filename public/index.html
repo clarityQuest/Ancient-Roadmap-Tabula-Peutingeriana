@@ -306,7 +306,7 @@
 
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260730a" />
+  <link rel="stylesheet" href="styles.css?v=20260730b" />
 </head>
 <body>
   <div id="app">
@@ -659,6 +659,10 @@
           <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v3M9 13v3M2 9h3M13 9h3"/><circle cx="9" cy="9" r="2.5"/></svg>
           Follow
         </button>
+        <button id="locate-match-btn" class="toggle-btn" title="Match: highlight every place currently visible on the Tabula view, here on the location map">
+          <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="13" height="13" rx="2"/><circle cx="9" cy="9" r="2.5"/></svg>
+          Match
+        </button>
         <div id="locate-map-loading" class="hidden"></div>
         <div id="locate-country-bar" class="hidden"></div>
         <div id="locate-result-bar"></div>
@@ -743,6 +747,6 @@
 
   <div id="latin-tip" style="display:none"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260730d"></script>
+  <script src="main.js?v=20260730e"></script>
 </body>
 </html>
