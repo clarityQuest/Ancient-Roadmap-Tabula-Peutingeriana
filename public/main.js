@@ -2898,12 +2898,22 @@ async function toggleCountryMode() {
 }
 
 // Broad-area/linear-feature records — a single lat/lng "representing" an entire people's
-// territory, a province, a sea, a mountain range, or a river — aren't points and would
-// distort either estimate below. Same set locate-me's own IDW_EXCLUDE_TYPES already
-// excludes for the identical reason; confirmed live for Follow too: two "Mons Taurus"
-// (Taurus Mountains) entries at a rough lat=37/lng=33 centroid were dragging Segment
-// XII's box ~2500km west of its real India-centric content before this exclusion.
-const FOLLOW_AREA_TYPES = new Set(["region", "roman_province", "modern_state", "people", "water", "mountain", "river", "lake"]);
+// territory, a province, a sea, a mountain range, or a river — aren't points, and
+// distort IDW interpolation specifically: IDW blindly nearest-neighbor-weights whatever
+// anchors it finds, with no per-point outlier protection, so a single mis-positioned
+// entry has outsized, unchecked influence. Confirmed live: two duplicate "Mons Taurus"
+// (Taurus Mountains) entries at a rough lat=37/lng=33 centroid dragged Segment XII's
+// row-sample estimate ~2500km west of its real India-centric content.
+//
+// This set is used for IDW only (centerEst and the row-sample fallback below) — NOT for
+// the visible-points box, which is protected by madFilterOutliers instead (a genuine
+// per-point outlier check, robust regardless of type). Blanket-excluding these types from
+// the box too was itself a bug: a "people" or "region" label clearly visible on the
+// Tabula (e.g. "GAETVLI" in Numidia) was silently invisible to Follow's box even when
+// real, non-outlier, and squarely inside the current viewport — confirmed live comparing
+// against the Match overlay, which was highlighting a narrower set than what a viewer
+// could actually see labeled on the Tabula image itself.
+const FOLLOW_IDW_EXCLUDED_TYPES = new Set(["region", "roman_province", "modern_state", "people", "water", "mountain", "river", "lake"]);
 
 // Floor on how far Follow will zoom the Leaflet map out. Below this, honoring the full
 // box would zoom out further than a "Follow" view should — the real spread is genuinely
@@ -2927,8 +2937,9 @@ const FOLLOW_MIN_VISIBLE_POINTS = 6;
 const FOLLOW_MAD_MULTIPLIER = 6;
 
 
-// Returns every calibrated, non-area-type place as a flat {vx, vy, lat, lng} anchor for
-// the active map mode. Miller ("old") items are pixel rects normalized by MILLER_W (see
+// Returns every calibrated place (any type — callers filter as needed, see
+// FOLLOW_IDW_EXCLUDED_TYPES) as a flat {vx, vy, lat, lng, type} anchor for the active map
+// mode. Miller ("old") items are pixel rects normalized by MILLER_W (see
 // renderMillerOverlay); stitched-mode S.places carry OSD-viewport-normalized vx/vy (see
 // the S.places loader) — the two are never compared against each other.
 function followAnchorPool() {
@@ -2936,18 +2947,16 @@ function followAnchorPool() {
   if (S.mapMode === "old") {
     for (const item of S.millerCalib) {
       if (item.lat == null || item.lng == null) continue;
-      if (FOLLOW_AREA_TYPES.has(item.type)) continue;
       out.push({
         vx: (item.rect_x1 + item.rect_x2) / 2 / MILLER_W,
         vy: (item.rect_y1 + item.rect_y2) / 2 / MILLER_W,
-        lat: Number(item.lat), lng: Number(item.lng),
+        lat: Number(item.lat), lng: Number(item.lng), type: item.type,
       });
     }
   } else {
     for (const p of S.places) {
       if (p.vx == null || p.vy == null || p.lat == null || p.lng == null) continue;
-      if (FOLLOW_AREA_TYPES.has(p.type)) continue;
-      out.push({ vx: Number(p.vx), vy: Number(p.vy), lat: Number(p.lat), lng: Number(p.lng) });
+      out.push({ vx: Number(p.vx), vy: Number(p.vy), lat: Number(p.lat), lng: Number(p.lng), type: p.type });
     }
   }
   return out;
@@ -2980,16 +2989,76 @@ function idwLatLngAt(vx, vy, pool) {
 // ~80 points, despite neither being a calibration error. MAD-based rejection instead only
 // excludes anchors that are far from the *bulk* of the others, independent of rank, so a
 // single genuine outlier (e.g. two duplicate "Mons Taurus" entries at a rough centroid —
-// the actual Segment XII bug, now also excluded at the source by FOLLOW_AREA_TYPES) is
-// still caught without punishing legitimate extremes.
+// the actual Segment XII bug) is still caught without punishing legitimate extremes.
+// Important: this must only ever run on the point-type pool. Confirmed live that folding
+// area-type anchors (region/people/...) into the *same* array before filtering lets them
+// dilute the median/MAD they're being measured against — with those broader entries
+// mixed in, Mons Taurus's own duplicate no longer reads as far from the (now much wider)
+// "normal" spread, and survives the filter again. See followVisibleSet, which instead
+// establishes median/MAD from point-types only and tests area-type candidates against
+// that fixed reference.
 function madFilterOutliers(values, multiplier = FOLLOW_MAD_MULTIPLIER) {
+  const { median, mad } = medianAndMad(values);
+  if (!mad) return values; // no spread to measure against (e.g. near-identical anchors) — keep all
+  const threshold = mad * multiplier;
+  return values.filter(v => Math.abs(v - median) <= threshold);
+}
+
+function medianAndMad(values) {
   const sorted = values.slice().sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
   const devs = sorted.map(v => Math.abs(v - median)).sort((a, b) => a - b);
   const mad = devs[Math.floor(devs.length / 2)];
-  if (!mad) return values; // no spread to measure against (e.g. near-identical anchors) — keep all
-  const threshold = mad * multiplier;
-  return values.filter(v => Math.abs(v - median) <= threshold);
+  return { median, mad };
+}
+
+// How close (km) a real point-type anchor must be to an area-type label (region/people/
+// ...) for that label to be trusted and extend the box — see followVisibleSet.
+const FOLLOW_AREA_NEARBY_KM = 400;
+
+// Determines exactly which calibrated anchors, within the given Tabula-viewport bounds,
+// should count toward Follow's visible-points box (and, via renderMatchHighlights, what
+// Match highlights — the two must always agree, or Match stops being a useful debugging
+// tool for Follow's own decisions). Point-types (roads, cities, ...) are MAD-filtered
+// directly, same as always. Area-type labels (region/people/... — excluded from IDW, see
+// FOLLOW_IDW_EXCLUDED_TYPES) are folded back in here, but only when a real point-type
+// anchor is actually nearby (a local, per-candidate distance check) — NOT by testing them
+// against the segment's own point median/MAD (tried first, reverted): a segment with a
+// genuinely huge natural spread has a correspondingly huge MAD, so a fixed multiplier of
+// it stops discriminating at all — confirmed live that segment XII's own point spread is
+// so large that even the Mons Taurus duplicate, ~35 degrees off, still fell within 6 MADs
+// of the segment's median. Nearest-neighbor distance doesn't inherit that dilution: a
+// real, visible label like "GAETVLI" (Numidia) has genuine nearby road stations/cities to
+// vouch for it, while an isolated, mis-positioned entry like Mons Taurus typically
+// doesn't, regardless of how wide the segment's overall content happens to be.
+function followVisibleSet(pool, bx0, bx1, by0, by1) {
+  const visible = pool.filter(p => p.vx >= bx0 && p.vx <= bx1 && p.vy >= by0 && p.vy <= by1);
+  const pointVisible = visible.filter(p => !FOLLOW_IDW_EXCLUDED_TYPES.has(p.type));
+  const areaVisible = visible.filter(p => FOLLOW_IDW_EXCLUDED_TYPES.has(p.type));
+  const groundedByVisiblePoints = pointVisible.length >= FOLLOW_MIN_VISIBLE_POINTS;
+  if (!groundedByVisiblePoints) return { groundedByVisiblePoints, box: null, included: [] };
+
+  // Points: filter each axis independently, same as always (a point can contribute its
+  // lat to the box even if its own lng happened to be its outlier axis, or vice versa).
+  const madLats = madFilterOutliers(pointVisible.map(p => p.lat));
+  const madLngs = madFilterOutliers(pointVisible.map(p => p.lng));
+  let s = Math.min(...madLats), n = Math.max(...madLats);
+  let w = Math.min(...madLngs), e = Math.max(...madLngs);
+
+  const qualifyingArea = areaVisible.filter(p =>
+    pointVisible.some(q => locDistKm(p.lat, p.lng, q.lat, q.lng) <= FOLLOW_AREA_NEARBY_KM)
+  );
+  for (const p of qualifyingArea) {
+    s = Math.min(s, p.lat); n = Math.max(n, p.lat);
+    w = Math.min(w, p.lng); e = Math.max(e, p.lng);
+  }
+
+  // "included" is only an approximation for Match's highlight markers — a visual aid, not
+  // itself the box computation above (which is deliberately per-axis, not per-point).
+  const madLatSet = new Set(madLats), madLngSet = new Set(madLngs);
+  const included = pointVisible.filter(p => madLatSet.has(p.lat) || madLngSet.has(p.lng)).concat(qualifyingArea);
+
+  return { groundedByVisiblePoints, box: { s, n, w, e }, included };
 }
 
 // Pans/zooms the user-location (Leaflet) map to track the Tabula view — called whenever
@@ -3036,8 +3105,9 @@ function followTabulaView() {
   const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
   const pool = followAnchorPool();
   if (!pool.length) return; // no calibrated data anywhere in this map mode
+  const idwPool = pool.filter(p => !FOLLOW_IDW_EXCLUDED_TYPES.has(p.type));
 
-  const centerEst = idwLatLngAt(cx, cy, pool);
+  const centerEst = idwLatLngAt(cx, cy, idwPool);
 
   // Once enough real anchors are actually visible, trust *only* that box — don't also
   // union in the row-based IDW estimate. IDW's nearest-K search reaches further out
@@ -3051,18 +3121,14 @@ function followTabulaView() {
   // estimate is only needed — and only used — as a fallback when too few real anchors are
   // on screen to trust the visible-points box at all (e.g. a tight zoom on a single,
   // sparsely-calibrated place).
-  const visible = pool.filter(p => p.vx >= bx0 && p.vx <= bx1 && p.vy >= by0 && p.vy <= by1);
-  const groundedByVisiblePoints = visible.length >= FOLLOW_MIN_VISIBLE_POINTS;
+  const { groundedByVisiblePoints, box: visBox } = followVisibleSet(pool, bx0, bx1, by0, by1);
   let s, n, w, e;
   if (groundedByVisiblePoints) {
-    const vLats = madFilterOutliers(visible.map(p => p.lat));
-    const vLngs = madFilterOutliers(visible.map(p => p.lng));
-    s = Math.min(...vLats); n = Math.max(...vLats);
-    w = Math.min(...vLngs); e = Math.max(...vLngs);
+    ({ s, n, w, e } = visBox);
   } else {
     const rowSamples = [];
-    for (const f of FOLLOW_ROW_FRACTIONS) rowSamples.push(idwLatLngAt(cx, by0 + f * (by1 - by0), pool));
-    for (const rx of [bx0, bx1]) rowSamples.push(idwLatLngAt(rx, cy, pool));
+    for (const f of FOLLOW_ROW_FRACTIONS) rowSamples.push(idwLatLngAt(cx, by0 + f * (by1 - by0), idwPool));
+    for (const rx of [bx0, bx1]) rowSamples.push(idwLatLngAt(rx, cy, idwPool));
     s = Math.min(...rowSamples.map(p => p.lat)); n = Math.max(...rowSamples.map(p => p.lat));
     w = Math.min(...rowSamples.map(p => p.lng)); e = Math.max(...rowSamples.map(p => p.lng));
   }
@@ -3103,12 +3169,14 @@ function followTabulaView() {
 }
 
 // "Match" — a visual debugging aid, independent of Follow itself: draws a bright ring
-// around every calibrated place (from the same pool and same viewport-bounds test
-// followTabulaView uses) that's currently within the Tabula's visible area, directly on
-// the locate map. Lets a mismatch between the two maps' apparent zoom be checked against
-// what Follow's algorithm actually considers "on screen" right now, rather than guessed
-// at from how the two zoom scales *look* like they should compare (they aren't the same
+// around every calibrated place that followVisibleSet (the exact same function
+// followTabulaView uses) currently counts toward Follow's box, directly on the locate
+// map. Lets a mismatch between the two maps' apparent zoom be checked against what
+// Follow's algorithm actually considers "on screen" right now, rather than guessed at
+// from how the two zoom scales *look* like they should compare (they aren't the same
 // scale at all — Tabula zoom and Leaflet zoom have no fixed relationship to each other).
+// Shows nothing when Follow itself would be in its sparse-data (row-sample) fallback,
+// since there's no concrete point set in that case to highlight.
 function renderMatchHighlights() {
   if (_matchHighlightLayer) { _leafletMap?.removeLayer(_matchHighlightLayer); _matchHighlightLayer = null; }
   if (!_matchTabula || !_leafletMap || !_leafletL || !S.viewer?.viewport) return;
@@ -3116,8 +3184,8 @@ function renderMatchHighlights() {
   const bx0 = bounds.x, bx1 = bounds.x + bounds.width;
   const by0 = bounds.y, by1 = bounds.y + bounds.height;
   const pool = followAnchorPool();
-  const visible = pool.filter(p => p.vx >= bx0 && p.vx <= bx1 && p.vy >= by0 && p.vy <= by1);
-  const markers = visible.map(p => _leafletL.circleMarker([p.lat, p.lng], {
+  const { included } = followVisibleSet(pool, bx0, bx1, by0, by1);
+  const markers = included.map(p => _leafletL.circleMarker([p.lat, p.lng], {
     radius: 9, color: "#39FF14", weight: 2, fill: false, opacity: 0.9, interactive: false,
   }));
   _matchHighlightLayer = _leafletL.layerGroup(markers).addTo(_leafletMap);
