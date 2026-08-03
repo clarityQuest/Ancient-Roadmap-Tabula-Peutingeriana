@@ -3069,15 +3069,12 @@ function followTabulaView() {
   const box = [[s, w], [n, e]];
 
   // getBoundsZoom previews the zoom fitBounds would pick for this box in the *current*
-  // container size — deliberately container-aware, not a fixed reference size: a fixed
-  // reference was tried (see git history) to make Follow's zoom device-independent, but
-  // it cuts both ways — confirmed live it *caps* larger-than-reference desktop containers
-  // below the zoom they could actually comfortably show (reads as "too zoomed out"), while
-  // *overshooting* smaller-than-reference mobile containers past what they can fit (reads
-  // as "too zoomed in"/cropped). A bigger container legitimately affording a higher zoom
-  // for the same box — and a smaller one legitimately needing a lower one — is correct,
-  // expected behavior, not the bug; there is no single reference size that's simultaneously
-  // right for a resized desktop panel and a short mobile one.
+  // container size — deliberately container-aware, not a fixed reference size (see git
+  // history for why a fixed reference was tried and reverted), and deliberately "outside"
+  // mode (ensure the whole box fits, rather than "inside" mode which fills the container
+  // by cropping the box — also tried and reverted: confirmed live it cropped 40-70% of
+  // the actually-visible-on-Tabula places out of the shown view, far worse than the
+  // dilution problem it was meant to fix).
   const previewZoom = _leafletMap.getBoundsZoom(box, false, [24, 24]);
   // The floor only guards the *ungrounded* case (multi-row IDW extrapolating with no
   // real anchors actually on screen to check it against) — that's the only situation
