@@ -159,6 +159,8 @@ const I18N = {
     about_hist_p: "The map was copied around 1200 AD by a monk in Colmar (Alsace), likely from an earlier Carolingian copy of a late antique original. Konrad Celtes discovered it in 1494 and passed it to Konrad Peutinger of Augsburg, who gave it its modern name. After Peutinger's death it passed through various hands before entering the Imperial Library in Vienna in 1738, where it remains today.",
     about_caveat_h: "A Best Estimate, Not a Certainty",
     about_caveat_p: "Placing a 1,600-year-old road map onto modern coordinates is scholarly reconstruction, not measurement. Many identifications of ancient place names with modern towns are debated among historians, and some road stations are only approximately located — interpolated from neighbouring places and travel distances rather than pinpointed by archaeology. Treat every marker here as the current best-supported estimate, not an exact or final answer.",
+    about_follow_h: "Follow the Ancient World, Live",
+    about_follow_p: "Switch on <strong>Follow</strong> (top-right of the location map) and the two views stay in sync as you explore — pan or zoom either the Tabula or the real-world map and the other reframes to match automatically. Turn on <strong>Match</strong> alongside it to see exactly which places currently visible on the Tabula are being tracked: each one gets a bright green ring on the location map.",
     about_learn_h: "Learn More",
   },
   de: {
@@ -195,6 +197,8 @@ const I18N = {
     about_hist_p: "Die Karte wurde um 1200 n. Chr. von einem Mönch in Colmar (Elsass) kopiert, wahrscheinlich nach einer früheren karolingischen Kopie eines spätantiken Originals. Konrad Celtes entdeckte sie 1494 und übergab sie Konrad Peutinger aus Augsburg, der ihr ihren heutigen Namen gab. Nach Peutingers Tod gelangte sie über verschiedene Hände in die Kaiserliche Bibliothek in Wien (1738), wo sie bis heute aufbewahrt wird.",
     about_caveat_h: "Eine bestmögliche Schätzung, keine Gewissheit",
     about_caveat_p: "Eine 1.600 Jahre alte Straßenkarte auf moderne Koordinaten zu übertragen ist wissenschaftliche Rekonstruktion, keine Messung. Viele Identifikationen antiker Ortsnamen mit heutigen Orten sind unter Historikern umstritten, und manche Straßenstationen sind nur näherungsweise verortet — interpoliert aus benachbarten Orten und Reiseentfernungen, nicht archäologisch punktgenau bestimmt. Betrachten Sie jede Markierung hier als die derzeit am besten belegte Schätzung, nicht als exakte oder endgültige Antwort.",
+    about_follow_h: "Die antike Welt live verfolgen",
+    about_follow_p: "Aktivieren Sie <strong>Follow</strong> (oben rechts auf der Standortkarte), damit beide Ansichten synchron bleiben, während Sie erkunden — verschieben oder zoomen Sie entweder die Tabula oder die echte Karte, und die andere passt sich automatisch an. Schalten Sie zusätzlich <strong>Match</strong> ein, um genau zu sehen, welche auf der Tabula aktuell sichtbaren Orte erfasst werden: Jeder erhält einen leuchtend grünen Ring auf der Standortkarte.",
     about_learn_h: "Mehr erfahren",
   },
 };

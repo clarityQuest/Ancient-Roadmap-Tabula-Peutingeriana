@@ -70,6 +70,7 @@
     "featureList": [
       "Locate yourself automatically on load: a persistent red \"You are here\" marker shows your real GPS position on the ancient map, while a separate blue marker tracks any other location you pick — compare two places on Earth at once",
       "\"Follow\" mode: keep the real-world location map and the ancient Tabula view in sync as you explore either one — pan or zoom either map and the other automatically reframes to match",
+      "\"Match\" mode: highlights every place currently visible on the Tabula with a bright ring on the real-world location map, so you can see exactly what Follow is tracking",
       "See your country in antiquity: select from 64 modern countries to highlight its ancient places on the map",
       "Accessible to non-experts: modern place names, Wikipedia links, AI-translated Latin inscriptions",
       "4,393 annotated ancient places: cities, road stations, rivers, mountains, islands, provinces",
@@ -219,7 +220,7 @@
         "name": "Can the location map follow the ancient map as I explore it, or the other way round?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Switch on \"Follow\" (top-right button on the location map panel) and the two views stay linked in both directions: pan or zoom the Tabula Peutingeriana and the real-world OpenStreetMap location map automatically reframes to the matching modern geography, and panning or zooming the location map moves the ancient map to match in return. Explore either the ancient or the modern world and the other side stays lined up with it."
+          "text": "Yes. Switch on \"Follow\" (top-right button on the location map panel) and the two views stay linked in both directions: pan or zoom the Tabula Peutingeriana and the real-world OpenStreetMap location map automatically reframes to the matching modern geography, and panning or zooming the location map moves the ancient map to match in return. Explore either the ancient or the modern world and the other side stays lined up with it. Switch on \"Match\" (just below Follow) to see exactly which places are being tracked: every place currently visible on the Tabula gets a bright green ring on the location map."
         }
       },
       {
@@ -527,6 +528,11 @@
       </section>
 
       <section class="about-section">
+        <h3 data-i18n="about_follow_h">Follow the Ancient World, Live</h3>
+        <p data-i18n-html="about_follow_p">Switch on <strong>Follow</strong> (top-right of the location map) and the two views stay in sync as you explore — pan or zoom either the Tabula or the real-world map and the other reframes to match automatically. Turn on <strong>Match</strong> alongside it to see exactly which places currently visible on the Tabula are being tracked: each one gets a bright green ring on the location map.</p>
+      </section>
+
+      <section class="about-section">
         <h3>Latin Inscriptions — AI Translated</h3>
         <p>The Tabula is rich with Latin inscriptions: region labels, river names, curiosities like <em>"In his locis scorpiones nascuntur"</em> (In these places scorpions are born) or the famous <em>"Hic Alexander responsum accepit: usque quo Alexander?"</em> (Here Alexander received the answer: How far, Alexander?). Over 1,100 multi-word Latin place names are translated into English and German by Claude AI, visible in the place tooltip and info panel.</p>
       </section>
@@ -747,6 +753,6 @@
 
   <div id="latin-tip" style="display:none"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260730g"></script>
+  <script src="main.js?v=20260730h"></script>
 </body>
 </html>

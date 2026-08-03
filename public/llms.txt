@@ -24,6 +24,7 @@ Named after Konrad Peutinger (1465–1547), the Augsburg humanist who owned the 
 - **Persistent GPS location marker** — the viewer locates you automatically on load and drops a permanent red "You are here" marker on the ancient map at your real position; works worldwide, shows edge direction for locations outside the map's coverage
 - **Independent "picked location" marker** — tap anywhere on the interactive modern map to drop a separate blue marker and navigate to that point's nearest ancient place, without disturbing your red GPS marker — compare two locations on the same ancient map at once
 - **"Follow" mode** — keep the real-world OpenStreetMap location map and the ancient Tabula view in sync as you explore either one; panning or zooming either map reframes the other to match, in both directions
+- **"Match" mode** — highlights every place currently visible on the Tabula with a bright ring on the location map, so you can see exactly what Follow is tracking
 - **OmnesViae Roman roads layer** — overlay the ancient road network on the modern location map
 - **Category filters** — filter by place type (road stations, cities, rivers, etc.)
 - **Segment navigation** — jump to any of the 12 segments by button
@@ -86,7 +87,7 @@ Approximately 3,500–4,400 named places depending on counting method. This view
 Yes — this is the viewer's signature feature. It locates you automatically on load and drops a persistent red "You are here" marker on the Tabula Peutingeriana at your real GPS position, navigating straight to the nearest ancient Roman road station, city or province. You can also tap anywhere on the interactive modern map to drop a second, independent blue "Picked Location" marker, letting you compare your home to any other point on Earth on the same ancient map. Works for any location on Earth; locations outside the map's coverage get an edge direction marker.
 
 **Can the location map follow the ancient map as I explore it, or the other way round?**
-Yes. Switch on "Follow" (top-right button on the location map panel) and the two views stay linked in both directions: pan or zoom the Tabula Peutingeriana and the real-world location map reframes to the matching modern geography, and panning or zooming the location map moves the ancient map to match in return.
+Yes. Switch on "Follow" (top-right button on the location map panel) and the two views stay linked in both directions: pan or zoom the Tabula Peutingeriana and the real-world location map reframes to the matching modern geography, and panning or zooming the location map moves the ancient map to match in return. Switch on "Match" (just below Follow) to see exactly which places are being tracked: every place currently visible on the Tabula gets a bright green ring on the location map.
 
 **What language is the map in?**
 Latin, with some Greek place names, especially in the eastern segments.
