@@ -1,5 +1,46 @@
 
 
+
+
+30.7.26
+
+
+
+1) in the follow demo pan and zoom the map not zoom only to show the behavior
+2) DO SEO and push everything to GH
+
+
+1) country mode MOBILE: move name/label of selected country to bottom left of user loc map, seems nearly in middle in mobile case now
+2) clicking a place again unselects the place so nothing is selected. same for right click 
+3) show the follow mode in the end of the demo 
+4) user loc map mobile screens portrait mode: reduce height of user location map by 15%
+
+1) i dont like the zoom in behavior of the follow mode. if i zoom in on cyprus on tabula, the user location map is still much to zoomed out somehow
+2) follow mode: if i select a place on tabula the map zooms in and out uncontrollably shall not zoom in or out without user interaction in this respect
+
+28.07.2026
+
+the reciprocal follow does not work, the master shall be always the one where the user touches, if he touches tabula, user loc needs to follow and vice versa
+
+1) user location map hover info still often appears without any mouse pointer nearby, please 
+fix 
+2) follow mode shall be reciprocal, tabula shall move if user moves user loaction map
+3) update all SEO etc with the new feature and updates
+4) push everything to GH
+
+
+
+follow mode does not work properly in seg XII shall pan user location map more to the right!
+
+
+seems there still is a debouncing of hover required in follow mode, quite strange behavior
+
+better, on italy it is not working zoomed out enough, same as segement XI and XII
+
+
+1) follow mode is still horrible. seems like the zooming does not work properly, panning is sometimes ok but its nearly always too zoomed in to match everything visible on tabula, works even worse in seg II and >X
+
+
 27.7.26
 
 
