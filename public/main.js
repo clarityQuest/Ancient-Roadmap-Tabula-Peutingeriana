@@ -2926,34 +2926,6 @@ const FOLLOW_MIN_VISIBLE_POINTS = 6;
 // visible-points box treats it as an outlier and excludes it — see madFilterOutliers.
 const FOLLOW_MAD_MULTIPLIER = 6;
 
-// Reference container size (px) used to pick Follow's zoom level — see
-// boundsZoomForReferenceSize for why this is fixed rather than the locate map's actual
-// size. Roughly matches the default desktop locate-map panel; there's no single "the"
-// desktop size (it's a vw-based width, and the popup is resizable), so this is a
-// reasonable representative rather than a value with a precise justification.
-const FOLLOW_REF_CONTAINER_W = 340;
-const FOLLOW_REF_CONTAINER_H = 720;
-
-// Zoom that would fit `box` within a container of size refW x refH (with `padding` px
-// subtracted from each side), regardless of the map's *actual* current container size.
-// Leaflet's own getBoundsZoom always uses map.getSize() internally, so the exact same
-// real-world box resolves to a different zoom purely because of container shape —
-// confirmed live: 348x726px (desktop) -> zoom 5, 376x244px (mobile portrait, squeezed
-// short by the mobile layout) -> zoom 3, for the *identical* Tabula view. project() and
-// getScaleZoom() are pure CRS math independent of the map's DOM element size, so
-// substituting a fixed reference size here sidesteps that dependency entirely.
-function boundsZoomForReferenceSize(map, box, padding, refW, refH) {
-  const bounds = _leafletL.latLngBounds(box);
-  const p1 = map.project(bounds.getNorthWest(), 0);
-  const p2 = map.project(bounds.getSouthEast(), 0);
-  const boundsW = Math.max(Math.abs(p2.x - p1.x), 1e-9);
-  const boundsH = Math.max(Math.abs(p2.y - p1.y), 1e-9);
-  const availW = Math.max(1, refW - padding[0] * 2);
-  const availH = Math.max(1, refH - padding[1] * 2);
-  const scale = Math.min(availW / boundsW, availH / boundsH);
-  const zoom = map.getScaleZoom(scale, 0);
-  return Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), zoom));
-}
 
 // Returns every calibrated, non-area-type place as a flat {vx, vy, lat, lng} anchor for
 // the active map mode. Miller ("old") items are pixel rects normalized by MILLER_W (see
@@ -3096,18 +3068,17 @@ function followTabulaView() {
   }
   const box = [[s, w], [n, e]];
 
-  // previewZoom is computed against a *fixed reference container size*, not this map's
-  // actual pixel dimensions (see boundsZoomForReferenceSize) — confirmed live that the
-  // same Tabula view produced zoom 5 on a desktop-sized locate map (348x726px) but only
-  // zoom 3 on a mobile one (376x244px, squeezed short by the mobile-portrait layout):
-  // fitBounds/getBoundsZoom pick whichever of width/height needs the lower zoom to fit,
-  // so a container that's merely *shaped* differently — not actually showing a
-  // different Tabula view — produced a completely different, device-dependent result.
-  // Using a fixed reference size instead makes the same real-world box always resolve to
-  // the same zoom on any device; the only cost is that a very short/narrow container may
-  // not show the box's full extent (setView, below, doesn't fit-and-crop the way
-  // fitBounds would — it just centers at the chosen zoom).
-  const previewZoom = boundsZoomForReferenceSize(_leafletMap, box, [24, 24], FOLLOW_REF_CONTAINER_W, FOLLOW_REF_CONTAINER_H);
+  // getBoundsZoom previews the zoom fitBounds would pick for this box in the *current*
+  // container size — deliberately container-aware, not a fixed reference size: a fixed
+  // reference was tried (see git history) to make Follow's zoom device-independent, but
+  // it cuts both ways — confirmed live it *caps* larger-than-reference desktop containers
+  // below the zoom they could actually comfortably show (reads as "too zoomed out"), while
+  // *overshooting* smaller-than-reference mobile containers past what they can fit (reads
+  // as "too zoomed in"/cropped). A bigger container legitimately affording a higher zoom
+  // for the same box — and a smaller one legitimately needing a lower one — is correct,
+  // expected behavior, not the bug; there is no single reference size that's simultaneously
+  // right for a resized desktop panel and a short mobile one.
+  const previewZoom = _leafletMap.getBoundsZoom(box, false, [24, 24]);
   // The floor only guards the *ungrounded* case (multi-row IDW extrapolating with no
   // real anchors actually on screen to check it against) — that's the only situation
   // where a very low previewZoom is more likely a sparse-data artifact than a genuinely
@@ -3115,10 +3086,6 @@ function followTabulaView() {
   // an honestly huge visible area (e.g. Segment XI/XII's Black-Sea-to-India spread) and
   // must be honored, not overridden — clamping those regardless of groundedness was
   // itself the bug: it silently re-zoomed-in past a box the data had already earned.
-  const useFloor = !groundedByVisiblePoints && previewZoom < FOLLOW_MIN_ZOOM;
-  const targetZoom   = useFloor ? FOLLOW_MIN_ZOOM : Math.min(13, previewZoom);
-  const targetCenter = useFloor ? [centerEst.lat, centerEst.lng] : _leafletL.latLngBounds(box).getCenter();
-
   // Guards the reverse direction (followLeafletView, a *permanent* listener on this map's
   // own moveend/zoomend) from reacting to the Leaflet move this function is about to
   // trigger. This is timeout-based rather than event-based on purpose: a single
@@ -3130,7 +3097,11 @@ function followTabulaView() {
   // indefinitely (confirmed live via tracing). A timeout that safely outlasts the
   // animation (0.4s) plus that inter-event gap sidesteps the ordering question entirely.
   withFollowSyncGuard(600, () => {
-    _leafletMap.setView(targetCenter, targetZoom, { animate: true, duration: 0.4 });
+    if (!groundedByVisiblePoints && previewZoom < FOLLOW_MIN_ZOOM) {
+      _leafletMap.setView([centerEst.lat, centerEst.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
+    } else {
+      _leafletMap.fitBounds(box, { animate: true, duration: 0.4, padding: [24, 24], maxZoom: 13 });
+    }
   });
 }
 
