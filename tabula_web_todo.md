@@ -1,5 +1,66 @@
+1) now there are three icons for user selected location a blue teardrop icon and a new strange one for the user selection on the tabula or the snap to place and a purple one. i want to have ONE blue only which was there for long time. this indicates the user "selection" which has been made on tabula or on , please remove the new blue onw with the white outline. keep the teardrop design as it is for the red GPS loacction and the old blue icon. in case it 
+13.09.26
 
 
+can you schedule the following changes to the project to begin at 1:21pm today? 
+
+Optimizations for Index general: 
+	1. Remove the show location button from category menu. Make it possible to hide user location on tabula with little close button on top right of the crosshair icon. Unhide if user location if user location map is opened
+	2. The fix if user selects a place did not work as wished!
+		a. There shall be no filled blue or purple circle anythere as it hides the info behind the circle on the map
+		b. If i select a place on tabula, on user location map the blue teardrop shall move to this modern place, remove the blue circle
+		c. If user selects place, user a purple teardrop symbol butt little smaller to mark the snapped to place
+	3. Move the data table of places to end of info panel and have the table hidde, user can expand it to show.
+	4. Follow mode: 
+Panning/zooming the  user loc map does not work properly as tabula zooms out much, there is different behavior for different screen size. Please take you time for this topic: explain the alorithm, analyze why it is so confusing/not working right now and let me decide between possible solution
+
+
+Optimizations for Index general: 
+	1. Remove the show location button from category menu. Make it possible to hide user location on tabula with little close button on top right of the crosshair icon. Unhide if user location if user location map is opened
+	2. The fix if user selects a place did not work as wished!
+		a. There shall be no filled blue or purple circle anythere as it hides the info behind the circle on the map
+		b. If i select a place on tabula, on user location map the blue teardrop shall move to this modern place, remove the blue circle
+		c. If user selects place, user a purple teardrop symbol butt little smaller to mark the snapped to place
+	3. Move the data table of places to end of info panel and have the table hidde, user can expand it to show.
+	4. Follow mode: 
+Panning/zooming the  user loc map does not work properly as tabula zooms out much, there is different behavior for different screen size. Please take you time for this topic: explain the alorithm, analyze why it is so confusing/not working right now and let me decide between possible solution
+
+
+
+
+	1. If i select something on tabula, in user loc map it now inficates this via a yellow circle, it shall be the blue user selected indicator as for selecting somthing on user location map. If i seelct something in user location map and the next place is snapped, please add a purple snap-to-marking similar to the blue one but slightly smaller size to indicate snap to 
+	2. Add data table for places in info to show how many cities etc are marked in tabula!
+	3. Places wrong:
+		a. If i  select tarteno on the user lcoation map, it jumps to and marks mittenwald! Please analyze the bug and explain
+	4. Add a checkbox "show my location" to toggle user location crosshair+text on tabula as it hides a lot sometimes
+	5. User location map: 
+		a. If user selects something on user location map, the user location map shall not zoom/pan!
+		b. add lone on bottom that the modern location is not 100 sure am often dialled
+		c. If i select a place on tabula, the user loc map shall pan slowly to this place, now ist immediate so user cannot follow
+		d. Snap to point on user LOC map on touch, now hard to hit sometines
+	6. German translation for categories: shall be plural, not SEE but Seen etc
+	7. Hide category window after 3s of not selecting anything
+
+
+
+3.8.26
+
+push this change to GH, add match feature to optimize for SEO and update info text
+
+follow mode: interestingly, now large screen user loc map zoom is too zooomed out, mobile screen too zoomed in
+
+
+
+1) plese do not push anything to GH until finished and end of day 
+2) follow mode: the places visible do not match at all. you can test yourself, please do that to optimize 
+
+
+zoom level is not matching tabula and user loc map in follow mode. can you  add a button "match" below "follow" button to highlight all places visible on screen on tabula on the user loc map in if follow mode is active so i can see by myself what matches?
+
+
+
+1) start live server
+2) follow zoom level in mobile screens is too zoomed out, match the screen height and width with the algorithm to work on small and large screens alike!
 
 
 30.7.26

@@ -170,6 +170,16 @@ body, html {
   min-width: 220px;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Auto-hide fade: this is the only panel in the app that closes by itself (idle timeout,
+     CAT_POPUP_IDLE_MS in main.js). .hidden is a global `display:none !important`, which
+     cannot be transitioned, so the auto-hide fades on .cat-fading first and adds .hidden
+     only after CAT_POPUP_FADE_MS. Explicit closes (button toggle, hover-out, outside click)
+     stay instant on purpose — the fade is the tell that the app closed it, not the user. */
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+#category-popup.cat-fading { opacity: 0; transform: translateY(4px); }
+@media (prefers-reduced-motion: reduce) {
+  #category-popup { transition: none; }
 }
 .cat-popup-top-row {
   display: flex;
@@ -641,6 +651,42 @@ body, html {
 .about-facts div { display: contents; }
 .about-facts dt { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); padding: 3px 0; }
 .about-facts dd { font-size: 13px; color: var(--text-main); margin: 0; padding: 3px 0; }
+/* Live place census — legend and count in one table. The two numeric columns shrink to their
+   content (width:1%) and their headers are allowed to wrap, so the long category names keep the
+   flexible column even inside the ~278px-wide About panel on a phone. Nothing here sets a
+   min-width, so the panel never gains a horizontal scrollbar. */
+.about-stats table { width: 100%; border-collapse: collapse; }
+.about-stats th {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-muted); text-align: left; line-height: 1.3;
+  padding: 0 0 6px; border-bottom: 1px solid var(--border-color);
+}
+.about-stats td { font-size: 13px; color: var(--text-main); padding: 3px 0; }
+.about-stats .as-num { width: 1%; padding-left: 12px; text-align: right; }
+.about-stats th.as-num { white-space: normal; }
+.about-stats td.as-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.about-stats .as-name { display: flex; align-items: center; gap: 7px; }
+.about-stats .as-dot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+.about-stats .as-icon { font-size: 13px; line-height: 1; flex-shrink: 0; opacity: .85; }
+.about-stats .as-total td { border-top: 1px solid var(--border-color); padding-top: 6px; font-weight: 700; }
+.about-stats .as-note { margin-top: 8px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+/* Collapsible section header (places-by-category table) — same type treatment as a plain
+   .about-section h3, just promoted to a real <button> so it's clickable/keyboard-operable. */
+.about-collapsible-toggle {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; margin-bottom: 8px; padding: 0;
+  background: transparent; border: none; font: inherit; text-align: left; cursor: pointer;
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--text-muted);
+}
+.about-collapsible-toggle:hover { color: var(--text-main); }
+.about-collapsible-chevron { display: inline-block; font-size: 9px; transition: transform 0.15s; }
+.about-collapsible-toggle[aria-expanded="true"] .about-collapsible-chevron { transform: rotate(90deg); }
+@media (pointer: coarse), (max-width: 600px) {
+  .about-stats td { font-size: 12px; }
+  .about-stats .as-icon { display: none; }  /* give the width back to the category name */
+  .about-stats .as-num { padding-left: 8px; }
+}
 .about-links { display: flex; flex-direction: column; gap: 8px; }
 .about-link {
   display: flex; align-items: center; gap: 10px;
@@ -1029,6 +1075,12 @@ body, html {
   /* Hide hint + attr text on phone (takes up map space) */
   #locate-map-hint { display: none !important; }
   #locate-map-attr { display: none !important; }
+  /* The caveat is the one footer line that stays: it changes how every marker on this map
+     should be read, so hiding it is worse than the space it costs. Shrunk so that even the
+     longer German string wraps to at most two lines (~24px) in the 34vh portrait popup —
+     still well under the ~39px the hidden hint + attr used to take on desktop. It clears
+     #locate-legend-btn (bottom:38px) and the 32px touch resize handle below it. */
+  #locate-map-caveat { font-size: 8.5px; line-height: 1.25; margin: 0 8px 3px; opacity: 0.7; }
   /* Locate header: ultra-compact to maximise map area */
   #locate-map-header { padding: 1px 5px 1px 6px !important; }
   #locate-header-btns { gap: 2px !important; }
@@ -1173,7 +1225,11 @@ body, html {
 
 /* Dot-color legend — bottom-right of popup; z-index 2000 so it sits above resize handle (1500) */
 #locate-legend {
-  position: absolute; bottom: 26px; right: 8px; left: auto; top: auto; z-index: 2000;
+  /* bottom was 26px, tuned to sit just above the two-line footer (attr + hint). The caveat
+     line added below the attribution makes that footer one line taller, so without this bump
+     the opaque legend box would cover #locate-map-hint — which carries live status text such
+     as "Location unknown for this place". The mobile override further down (64px) is unchanged. */
+  position: absolute; bottom: 44px; right: 8px; left: auto; top: auto; z-index: 2000;
   background: rgba(18,16,12,0.88);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 6px;
@@ -1229,6 +1285,24 @@ body, html {
   overflow: hidden; text-overflow: ellipsis;
 }
 #locate-result-bar:empty { display: none; }
+/* Locate map: transient ring confirming that a near-miss tap was snapped to a place dot.
+   Shrinking onto the dot makes the direction of the snap legible — it reads as "your tap
+   was pulled to here" rather than as yet another marker sitting on the map. Removed from
+   the map by a timer in flashLeafletSnap, so `forwards` only has to hold the last frame
+   for the few ms before that fires. transform-box/transform-origin are required to scale
+   an SVG path about its own centre rather than about the SVG root's origin. */
+@keyframes tp-snap-pulse-anim {
+  from { transform: scale(1.9); opacity: 0.95; }
+  to   { transform: scale(0.55); opacity: 0; }
+}
+.tp-snap-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tp-snap-pulse-anim 0.45s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-snap-pulse { animation: none; opacity: 0.7; }
+}
 @media (pointer: coarse), (max-width: 600px) {
   /* Push both elements up to clear the 32px touch resize handle at bottom-right */
   #locate-legend { display: none; bottom: 64px; right: 8px; left: auto; }
@@ -1254,6 +1328,15 @@ body, html {
 }
 #locate-map-attr a { color: var(--accent); text-decoration: none; }
 #locate-map-attr a:hover { text-decoration: underline; }
+/* Scholarly-uncertainty caveat — the last in-flow line of the popup, below the attribution.
+   Deliberately the quietest text in the panel (same 9px as the attribution but dimmed): it has
+   to be permanently legible without competing with the map, the result bar or the legend. */
+#locate-map-caveat {
+  font-size: 9px; color: var(--text-muted); opacity: 0.72;
+  line-height: 1.3;
+  margin: 0 12px 5px; text-align: center;
+  flex-shrink: 0;
+}
 /* ── Developer settings panel ───────────────────────────────── */
 #settings-panel {
   position: fixed;
@@ -1397,6 +1480,15 @@ body, html {
    their position. */
 .gps-red-icon {
   filter: hue-rotate(150deg) saturate(2.6) brightness(0.95);
+}
+
+/* "Snapped to this place" pin — see placeSnapMarker. Same default marker graphic as the
+   red GPS pin and the blue draggable one (just smaller, via iconSize), recolored via
+   filter so all three read as one consistent icon family instead of three different pin
+   designs. Shown only when a click/tap didn't land exactly on a place and the app snapped
+   to the nearest one instead — the blue draggable pin stays at the raw click point. */
+.snap-purple-icon {
+  filter: hue-rotate(85deg) saturate(1.8) brightness(1.05);
 }
 
 /* ── Tile loading spinner for locate map ─────────────────── */

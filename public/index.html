@@ -580,6 +580,18 @@
           Contact / Feedback
         </a>
       </div>
+
+      <!-- Places-by-category data table — kept last and collapsed by default so the panel
+           opens on the narrative sections, not a wall of numbers. Expand via #about-stats-toggle
+           (see setupControls() in main.js). Content filled live by buildAboutStatsTable() from
+           S.millerCalib / S.allRecords, so the counts can never go stale as the DB grows. -->
+      <section class="about-section about-collapsible">
+        <button type="button" id="about-stats-toggle" class="about-collapsible-toggle" aria-expanded="false" aria-controls="about-stats">
+          <span class="about-collapsible-chevron" aria-hidden="true">&#9656;</span>
+          <span data-i18n="about_stats_h">Places by Category</span>
+        </button>
+        <div id="about-stats" class="about-stats hidden"></div>
+      </section>
     </aside>
 
 
@@ -675,6 +687,12 @@
       </div>
       <p id="locate-map-hint">Click map or drag marker to set location</p>
       <p id="locate-map-attr">Road data: <a href="https://omnesviae.org" target="_blank" rel="noopener">OmnesViae</a> · Map: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>
+      <!-- Always-visible scholarly caveat — a one-line restatement of the About panel's
+           about_caveat_h / about_caveat_p section. Deliberately NOT parked in #locate-map-hint:
+           that element's textContent is rewritten at runtime by setUserLocation() and
+           syncLeafletSelectedMarker(), so anything put there is wiped on the first click.
+           Text comes from I18N via data-i18n — keep it in sync with the About wording. -->
+      <p id="locate-map-caveat" data-i18n="locate_caveat">Modern locations are a scholarly best estimate &#8212; many identifications are debated, some road stations only interpolated.</p>
       <!-- Legend moved outside #locate-leaflet-map so z-index 2000 is in #locate-map-popup context (above resize handle 1500) -->
       <div id="locate-legend"></div>
       <button id="locate-legend-btn" title="Show legend" aria-label="Show legend">

@@ -86,6 +86,17 @@ function isTypeActive(type) {
   return S.activeTypes.has(type === "major_city" ? "city" : type);
 }
 
+// Canonical key for counting/legend purposes. Folds the major_city alias onto city (as
+// isTypeActive does) and lower-cases, which also absorbs the handful of legacy rows that
+// came out of an old import with a capitalised type ("City") -- without that they would fall
+// out of every TYPE_COLORS/TYPE_ICONS lookup and land in an "unknown" bucket.
+// Deliberately NOT used by isTypeActive: that one runs per marker per frame inside
+// renderMarkers, and paying for a toLowerCase() there would be pure waste.
+function canonicalPlaceType(type) {
+  const t = String(type || "").toLowerCase();
+  return t === "major_city" ? "city" : t;
+}
+
 const TYPE_ICONS = {
   city: "🏛", port: "⚓", road_station: "🛣",
   river: "〰", lake: "💧", island: "🏝", region: "📍",
@@ -126,16 +137,29 @@ const COUNTRY_COLORS = [
 
 const I18N = {
   en: {
+    // Singular type labels — used where exactly ONE place is described
+    // (info panel, Tabula/Miller hover tooltip, locate-map dot tooltip).
     city: "City", port: "Port", road_station: "Road Station",
     river: "River", lake: "Lake", island: "Island", region: "Region",
     roman_province: "Roman Province", modern_state: "Modern State",
     water: "Water", spa: "Spa", temple: "Temple", mountain: "Mountain",
-    people: "People",
+    people: "People", major_city: "Major City",
+    // Plural type labels ("<type>_pl") — used where a whole CATEGORY is named:
+    // the category popup, the mobile category sheet, the locate-map legend and the
+    // About-panel counts. Always read via getTypeLabel(type, { plural: true }).
+    // "People" as a singular means one ethnic group, so its plural is "Peoples".
+    city_pl: "Cities", port_pl: "Ports", road_station_pl: "Road Stations",
+    river_pl: "Rivers", lake_pl: "Lakes", island_pl: "Islands", region_pl: "Regions",
+    roman_province_pl: "Roman Provinces", modern_state_pl: "Modern States",
+    water_pl: "Waters", spa_pl: "Spas", temple_pl: "Temples", mountain_pl: "Mountains",
+    people_pl: "Peoples", major_city_pl: "Major Cities",
     province: "Province",
+    legend_seg1: "Segment I (lost)",
     wiki_link: "Wiki ↗", ulm_link: "Scientific Info ↗",
     unknown_modern: "(unknown modern name)",
     crosshair_gps: "You are here",
     crosshair_picked: "Picked Location",
+    legend_snap: "Snapped place",
     bigger_screen_tip: "This site is best explored on a larger screen — visit on a tablet or desktop for the full experience.",
     wiki_lang: "en",
     jump_to_segment: "Jump to Segment",
@@ -150,6 +174,12 @@ const I18N = {
     about_preserved: "Preserved at",  about_preserved_v: "Österreichische Nationalbibliothek, Vienna",
     about_unesco: "UNESCO status",    about_unesco_v: "Memory of the World (2007)",
     about_named: "Named after",       about_named_v: "Konrad Peutinger (1465–1547), German humanist",
+    about_stats_h: "Places by Category",
+    about_stats_type: "Category",
+    about_stats_onmap: "On the map",
+    about_stats_db: "In the database",
+    about_stats_total: "Total",
+    about_stats_note: "“On the map” counts the places actually drawn over the Tabula facsimile. The database holds {extra} further places with no position on the surviving map — {seg1} of them reconstructions of the lost Segment I, the rest not yet located.",
     about_map_h: "A Map Unlike Any Other",
     about_map_p1: "This is not a geographic map in the modern sense. The scroll format forced the cartographer to compress the north-south dimension dramatically — the Mediterranean Sea appears as a narrow strip, and Italy is rotated almost horizontally. What matters is <em>connectivity</em>: roads, distances in Roman miles (<em>milia passuum</em>), and the cities they link.",
     about_map_p2: "Three cities receive special pictorial treatment — <strong>Rome</strong>, <strong>Constantinople</strong>, and <strong>Antioch</strong> — each shown as an enthroned figure, reflecting their supreme importance in the late Roman world.",
@@ -159,21 +189,37 @@ const I18N = {
     about_hist_p: "The map was copied around 1200 AD by a monk in Colmar (Alsace), likely from an earlier Carolingian copy of a late antique original. Konrad Celtes discovered it in 1494 and passed it to Konrad Peutinger of Augsburg, who gave it its modern name. After Peutinger's death it passed through various hands before entering the Imperial Library in Vienna in 1738, where it remains today.",
     about_caveat_h: "A Best Estimate, Not a Certainty",
     about_caveat_p: "Placing a 1,600-year-old road map onto modern coordinates is scholarly reconstruction, not measurement. Many identifications of ancient place names with modern towns are debated among historians, and some road stations are only approximately located — interpolated from neighbouring places and travel distances rather than pinpointed by archaeology. Treat every marker here as the current best-supported estimate, not an exact or final answer.",
+    locate_caveat: "Modern locations are a scholarly best estimate — many identifications are debated, some road stations only interpolated.",
     about_follow_h: "Follow the Ancient World, Live",
     about_follow_p: "Switch on <strong>Follow</strong> (top-right of the location map) and the two views stay in sync as you explore — pan or zoom either the Tabula or the real-world map and the other reframes to match automatically. Turn on <strong>Match</strong> alongside it to see exactly which places currently visible on the Tabula are being tracked: each one gets a bright green ring on the location map.",
     about_learn_h: "Learn More",
   },
   de: {
+    // Singular type labels — used where exactly ONE place is described
+    // (info panel, Tabula/Miller hover tooltip, locate-map dot tooltip).
     city: "Stadt", port: "Hafen", road_station: "Straßenstation",
     river: "Fluss", lake: "See", island: "Insel", region: "Region",
     roman_province: "Römische Provinz", modern_state: "Moderner Staat",
     water: "Gewässer", spa: "Heilbad", temple: "Tempel", mountain: "Berg",
-    people: "Volk",
+    people: "Volk", major_city: "Bedeutende Stadt",
+    // Plural type labels ("<type>_pl") — used where a whole CATEGORY is named:
+    // the category popup, the mobile category sheet, the locate-map legend and the
+    // About-panel counts. Always read via getTypeLabel(type, { plural: true }).
+    // "Gewässer" and "Tempel" are identical in the plural (kept as explicit keys so
+    // no call site has to special-case them), and the adjective+noun pairs take the
+    // strong plural ending: "Römische Provinzen", "Moderne Staaten".
+    city_pl: "Städte", port_pl: "Häfen", road_station_pl: "Straßenstationen",
+    river_pl: "Flüsse", lake_pl: "Seen", island_pl: "Inseln", region_pl: "Regionen",
+    roman_province_pl: "Römische Provinzen", modern_state_pl: "Moderne Staaten",
+    water_pl: "Gewässer", spa_pl: "Heilbäder", temple_pl: "Tempel", mountain_pl: "Berge",
+    people_pl: "Völker", major_city_pl: "Bedeutende Städte",
     province: "Provinz",
+    legend_seg1: "Segment I (verloren)",
     wiki_link: "Wiki ↗", ulm_link: "Wiss. Info ↗",
     unknown_modern: "(moderner Name unbekannt)",
     crosshair_gps: "Sie befinden sich hier",
     crosshair_picked: "Gewählter Ort",
+    legend_snap: "Eingerasteter Ort",
     bigger_screen_tip: "Diese Seite eignet sich am besten für größere Bildschirme — besuchen Sie sie auf einem Tablet oder Desktop für das volle Erlebnis.",
     wiki_lang: "de",
     jump_to_segment: "Zum Segment",
@@ -188,6 +234,12 @@ const I18N = {
     about_preserved: "Aufbewahrt in",        about_preserved_v: "Österreichische Nationalbibliothek, Wien",
     about_unesco: "UNESCO-Status",           about_unesco_v: "Memory of the World (2007)",
     about_named: "Benannt nach",             about_named_v: "Konrad Peutinger (1465–1547), deutscher Humanist",
+    about_stats_h: "Orte nach Kategorie",
+    about_stats_type: "Kategorie",
+    about_stats_onmap: "Auf der Karte",
+    about_stats_db: "In der Datenbank",
+    about_stats_total: "Gesamt",
+    about_stats_note: "„Auf der Karte“ zählt die Orte, die tatsächlich über dem Tabula-Faksimile eingezeichnet sind. Die Datenbank enthält {extra} weitere Orte ohne Position auf der erhaltenen Karte — davon {seg1} Rekonstruktionen des verlorenen Segments I, die übrigen sind noch nicht verortet.",
     about_map_h: "Eine Karte wie keine andere",
     about_map_p1: "Dies ist keine geographische Karte im modernen Sinne. Das Rollenformat zwang den Kartographen, die Nord-Süd-Ausdehnung dramatisch zu komprimieren — das Mittelmeer erscheint als schmaler Streifen, und Italien ist fast horizontal gedreht. Entscheidend ist die <em>Vernetzung</em>: Straßen, Entfernungen in römischen Meilen (<em>milia passuum</em>) und die Städte, die sie verbinden.",
     about_map_p2: "Drei Städte erhalten eine besondere bildliche Darstellung — <strong>Rom</strong>, <strong>Konstantinopel</strong> und <strong>Antiochien</strong> — jeweils als thronende Figur, was ihre überragende Bedeutung in der spätrömischen Welt widerspiegelt.",
@@ -197,6 +249,7 @@ const I18N = {
     about_hist_p: "Die Karte wurde um 1200 n. Chr. von einem Mönch in Colmar (Elsass) kopiert, wahrscheinlich nach einer früheren karolingischen Kopie eines spätantiken Originals. Konrad Celtes entdeckte sie 1494 und übergab sie Konrad Peutinger aus Augsburg, der ihr ihren heutigen Namen gab. Nach Peutingers Tod gelangte sie über verschiedene Hände in die Kaiserliche Bibliothek in Wien (1738), wo sie bis heute aufbewahrt wird.",
     about_caveat_h: "Eine bestmögliche Schätzung, keine Gewissheit",
     about_caveat_p: "Eine 1.600 Jahre alte Straßenkarte auf moderne Koordinaten zu übertragen ist wissenschaftliche Rekonstruktion, keine Messung. Viele Identifikationen antiker Ortsnamen mit heutigen Orten sind unter Historikern umstritten, und manche Straßenstationen sind nur näherungsweise verortet — interpoliert aus benachbarten Orten und Reiseentfernungen, nicht archäologisch punktgenau bestimmt. Betrachten Sie jede Markierung hier als die derzeit am besten belegte Schätzung, nicht als exakte oder endgültige Antwort.",
+    locate_caveat: "Moderne Verortungen sind eine bestmögliche Schätzung — viele Identifikationen sind umstritten, manche Straßenstationen nur interpoliert.",
     about_follow_h: "Die antike Welt live verfolgen",
     about_follow_p: "Aktivieren Sie <strong>Follow</strong> (oben rechts auf der Standortkarte), damit beide Ansichten synchron bleiben, während Sie erkunden — verschieben oder zoomen Sie entweder die Tabula oder die echte Karte, und die andere passt sich automatisch an. Schalten Sie zusätzlich <strong>Match</strong> ein, um genau zu sehen, welche auf der Tabula aktuell sichtbaren Orte erfasst werden: Jeder erhält einen leuchtend grünen Ring auf der Standortkarte.",
     about_learn_h: "Mehr erfahren",
@@ -278,6 +331,10 @@ const S = {
   latinLabelsOn:   (() => { try { return localStorage.getItem("tp_latin_labels") === "1"; } catch {} return false; })(),
   modernLabelsOn:  (() => { try { return localStorage.getItem("tp_modern_labels") === "1"; } catch {} return false; })(),
   countryIsolate:  (() => { try { return localStorage.getItem("tp_country_isolate") === "1"; } catch {} return false; })(),
+  // "Show my location" — visibility of the location crosshairs drawn on the Tabula canvas
+  // only. Defaults ON so nothing changes for existing users, hence the inverted "!== '0'"
+  // test instead of the "=== '1'" opt-in test the label toggles above use.
+  userLocMarkerOn: (() => { try { return localStorage.getItem("tp_user_loc_marker") !== "0"; } catch {} return true; })(),
   activeTypes:    new Set(),
   regionSolo:     false,
   savedActiveTypes: null,
@@ -340,6 +397,27 @@ function getLang() {
 function getText(key) {
   const lang = getLang();
   return (I18N[lang] || I18N.en)[key] ?? I18N.en[key] ?? key;
+}
+
+// Place-type labels come in two grammatical numbers: the info panel and the hover
+// tooltips name exactly ONE place ("Lake" / "See"), while the category popup, the
+// mobile sheet, the locate-map legend and the About counts name a whole CATEGORY
+// ("Lakes" / "Seen"). Plurals live under a "<type>_pl" key; a type without one
+// degrades to its singular rather than to "undefined", so adding a new type to
+// TYPE_COLORS can never blank out a button.
+// This deliberately reads the I18N dictionaries directly instead of going through
+// getText(): getText() ends in "?? key", i.e. it never returns a falsy value, which
+// silently kills any "||" fallback chain behind it (that is exactly why the info
+// panel used to print the raw string "major_city" for the 24 major_city records).
+// Order: active language plural → active language singular → English plural →
+// English singular → the English-only TYPE_LABELS map → the raw type string.
+function getTypeLabel(type, { plural = false } = {}) {
+  if (!type) return "";
+  const dict = I18N[getLang()] || I18N.en;
+  const keys = plural ? [type + "_pl", type] : [type];
+  for (const k of keys) if (dict[k] != null) return dict[k];
+  for (const k of keys) if (I18N.en[k] != null) return I18N.en[k];
+  return TYPE_LABELS[type] || type;
 }
 
 // Translations for long Latin descriptive inscriptions that have no modern name
@@ -438,15 +516,32 @@ function applyI18n() {
     const v = dict[el.dataset.i18nHtml];
     if (v != null) el.innerHTML = v;
   });
+  // Tooltips: a title can't be translated via [data-i18n] — that sets textContent and
+  // would wipe an icon button's inline <svg>. Translated titles carry their key here.
+  document.querySelectorAll("[data-i18n-title]").forEach(el => {
+    const v = dict[el.dataset.i18nTitle];
+    if (v != null) el.title = v;
+  });
   document.querySelectorAll(".lang-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.lang === S.lang);
   });
+  // Category buttons stand for a SET of places, so they carry the plural label — the
+  // same form setupTypeFilters()/setupMobileMenu() render initially. One query covers
+  // both the desktop popup and the mobile sheet (both use .type-filter-btn[data-type]).
   document.querySelectorAll(".type-filter-btn[data-type]").forEach(btn => {
     const type = btn.dataset.type;
-    const label = dict[type] || TYPE_LABELS[type] || type;
+    const label = getTypeLabel(type, { plural: true });
     btn.innerHTML = `<span class="tf-dot" style="background:${TYPE_COLORS[type]}"></span>${label}`;
     btn.title = label;
   });
+  // The locate-map legend is built imperatively (no data-i18n attributes), so it has to
+  // be re-rendered here to follow a language switch; it is a cheap no-op otherwise.
+  buildLocateLegend();
+  // Same for the About-panel census: generated markup, not [data-i18n] attributes, and the
+  // language buttons sit inside that very panel. Guarded on the panel being open, because
+  // applyI18n() also runs on every place selection (showInfoPanel -> updateLangButtons) and
+  // recounting 4k records for a hidden panel on every click would be pure waste.
+  if (!document.getElementById("about-panel")?.classList.contains("hidden")) buildAboutStatsTable();
 }
 function updateLangButtons() { applyI18n(); }
 
@@ -662,20 +757,25 @@ function openSeg1Modal() {
 function buildLocateLegend() {
   const el = document.getElementById("locate-legend");
   if (!el) return;
-  const LEGEND_TYPES = [
-    { type: "city",           label: "City" },
-    { type: "road_station",   label: "Road station" },
-    { type: "port",           label: "Port" },
-    { type: "spa",            label: "Spa / Bath" },
-    { type: "roman_province", label: "Province" },
-    { type: "region",         label: "Region" },
-    { type: "river",          label: "River" },
-  ];
-  const seg1Row = `<div class="ll-row"><span class="ll-dot" style="background:rgba(217,119,6,0.45);box-shadow:0 0 0 1.5px #888899"></span><span class="ll-label">Segment I (lost)</span></div>`;
-  el.innerHTML = LEGEND_TYPES.map(({ type, label }) => {
+  // A legend row names a category, not one place → plural labels, and taken from the
+  // i18n dictionaries instead of the hardcoded English literals this list used to hold,
+  // so the legend follows the UI language. applyI18n() re-runs this on a language switch.
+  const LEGEND_TYPES = ["city", "road_station", "port", "spa", "roman_province", "region", "river"];
+  const seg1Row = `<div class="ll-row"><span class="ll-dot" style="background:rgba(217,119,6,0.45);box-shadow:0 0 0 1.5px #888899"></span><span class="ll-label">${getText("legend_seg1")}</span></div>`;
+  // Not a place type but a state marker (see syncLeafletSnapMarker): the purple dot only
+  // appears when a click/drag landed within LOCATE_SNAP_KM of a real place and the app
+  // therefore treats the user as being *at* that place rather than at the raw click point.
+  // The distance is interpolated from the constant instead of being baked into the
+  // translation so the two can't drift apart, and the label sits in its own inner span with
+  // data-i18n so a later applyI18n() (language switch) retranslates it without rebuilding
+  // the legend — and without swallowing the " (≤N km)" suffix, which textContent would.
+  const snapRow = `<div class="ll-row"><span class="ll-dot" style="background:${SNAP_MARKER_COLOR}"></span>` +
+    `<span class="ll-label"><span data-i18n="legend_snap">${getText("legend_snap")}</span> (≤${LOCATE_SNAP_KM} km)</span></div>`;
+  el.innerHTML = LEGEND_TYPES.map(type => {
     const c = TYPE_COLORS[type] || "#D97706";
+    const label = getTypeLabel(type, { plural: true });
     return `<div class="ll-row"><span class="ll-dot" style="background:${c}"></span><span class="ll-label">${label}</span></div>`;
-  }).join("") + seg1Row;
+  }).join("") + seg1Row + snapRow;
 }
 
 function placeGpsMarker(lat, lng) {
@@ -828,6 +928,38 @@ function drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, theme, label, sca
   ctx.shadowColor = "rgba(0,0,0,0.0)";
   ctx.fillStyle = theme.label;
   ctx.fillText(label, px, py);
+  ctx.restore();
+}
+
+// Small "×" dismiss control drawn at the top-right of the manually-picked (blue) crosshair
+// — replaces the old "show my location" category-menu toggle. Clicking it hides the whole
+// user-location overlay (both crosshairs; see _drawUserCrosshair / S.userLocMarkerOn).
+// The position math lives in one place (crosshairCloseCenter) so the draw call here and the
+// hit-test in hitTestUserLocCloseBtn always agree on exactly where the button is, given the
+// same (cx, cy, scale) the crosshair itself was just drawn at.
+const CROSSHAIR_CLOSE_R = 9; // px radius of the drawn glyph at scale 1
+function crosshairCloseCenter(cx, cy, scale) {
+  return { x: cx + 26 * scale, y: cy - 26 * scale };
+}
+function drawCrosshairCloseBtn(ctx, cx, cy, scale) {
+  const { x, y } = crosshairCloseCenter(cx, cy, scale);
+  const r = CROSSHAIR_CLOSE_R * scale;
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(15,15,15,0.82)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.85)";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  const d = r * 0.4;
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = Math.max(1.2, 1.6 * scale);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x - d, y - d); ctx.lineTo(x + d, y + d);
+  ctx.moveTo(x + d, y - d); ctx.lineTo(x - d, y + d);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -1421,6 +1553,15 @@ function renderMarkers() {
 }
 
 function _drawUserCrosshair(ctx) {
+  // "Show my location" off: suppress the whole Tabula-side location overlay — both the red
+  // GPS and the blue picked track, their "You are here"/"Picked Location" tags, the labels
+  // below them and the off-map direction arrow — because at low zoom they cover a large
+  // part of the scroll. This is a canvas-visibility switch and nothing else: S.gpsVp /
+  // S.userLocVp / S.userLocLat / S.userLocLng stay exactly as they were, so the locate-map
+  // pin, Follow and Match keep working and everything reappears unchanged when re-enabled.
+  // All three renderMarkers() call sites (old/Miller mode, empty-places mode, normal mode)
+  // route through here, so this one guard covers every map mode.
+  if (!S.userLocMarkerOn) return;
   const zoom = S.viewer ? S.viewer.viewport.getZoom(true) : LP.zoomThreshAll;
   const scale = crosshairScaleForZoom(zoom);
   // Red: the GPS fix. Always drawn once acquired — independent of any later manual pick
@@ -1433,6 +1574,11 @@ function _drawUserCrosshair(ctx) {
       outsideAngle = Math.atan2(cy - ccy, cx - ccx);
     }
     drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, CROSSHAIR_THEMES.gps, S.gpsLabel, scale);
+    // "×" dismiss control — userLocMarkerOn is a single shared switch for the whole overlay
+    // (see guard above), so each crosshair that's currently visible gets its own close button
+    // and either one turns everything off together. See hitTestUserLocCloseBtn for the
+    // matching click handling in the canvas-click handler.
+    drawCrosshairCloseBtn(ctx, cx, cy, scale);
   }
   // Blue: wherever the user manually picked (map click / marker drag) — a second,
   // independent crosshair alongside the red GPS one.
@@ -1444,7 +1590,33 @@ function _drawUserCrosshair(ctx) {
       outsideAngle = Math.atan2(cy - ccy, cx - ccx);
     }
     drawUserCrosshairWithLabel(ctx, cx, cy, outsideAngle, CROSSHAIR_THEMES.manual, S.userLocLabel, scale);
+    // "×" dismiss control — top-right of this (blue, manually-picked) crosshair too.
+    drawCrosshairCloseBtn(ctx, cx, cy, scale);
   }
+}
+
+/* ============================================================
+   Hit-test: user-location crosshair close ("×") button
+   ============================================================ */
+function hitTestUserLocCloseBtn(clientX, clientY) {
+  if (!S.viewer || !S.userLocMarkerOn || (!S.gpsVp && !S.userLocVp)) return false;
+  const elRect = S.viewer.element.getBoundingClientRect();
+  const ex = clientX - elRect.left;
+  const ey = clientY - elRect.top;
+  const scale = crosshairScaleForZoom(S.viewer.viewport.getZoom(true));
+  // Tap target is kept generous and independent of the (small, and zoom-shrunk) drawn glyph
+  // so it stays easy to hit even at low zoom, where `scale` approaches CROSSHAIR_MIN_SCALE.
+  const hitR = Math.max(CROSSHAIR_CLOSE_R * scale, S.isMobile ? 16 : 12);
+  // Both crosshairs (gps/red, manual/blue) draw their own close button when visible — hit
+  // either one, since userLocMarkerOn is the single shared switch both buttons turn off.
+  const spots = [];
+  if (S.gpsVp) spots.push(viewportToCanvas(S.gpsVp.vx, S.gpsVp.vy));
+  if (S.userLocVp) spots.push(viewportToCanvas(S.userLocVp.vx, S.userLocVp.vy));
+  return spots.some(({ cx, cy }) => {
+    const { x, y } = crosshairCloseCenter(cx, cy, scale);
+    const dx = ex - x, dy = ey - y;
+    return (dx * dx + dy * dy) <= hitR * hitR;
+  });
 }
 
 /* ============================================================
@@ -1477,7 +1649,9 @@ function hitTest(clientX, clientY) {
 function showTooltip(place, x, y) {
   const tt = document.getElementById("tooltip");
   const color = TYPE_COLORS[place.type] || "#92400E";
-  const typeLabel = TYPE_LABELS[place.type] || place.type;
+  // Singular, and translated: the tooltip names one place, so it must match the
+  // info panel's wording rather than staying English-only.
+  const typeLabel = getTypeLabel(place.type);
   const typeIcon = TYPE_ICONS[place.type] || "📍";
   const displayLatin = cleanLatinDisplay(place.latin_std || place.latin);
   const flagHtml = countryFlagHtml(place.country);
@@ -1553,7 +1727,9 @@ function hitTestMillerOverlay(clientX, clientY) {
 function showMillerTooltip(item, x, y) {
   const tt = document.getElementById("tooltip");
   const color = TYPE_COLORS[item.type] || "#92400E";
-  const typeLabel = TYPE_LABELS[item.type] || item.type;
+  // Singular, and translated — see showTooltip(); this is the Miller ("old" map mode)
+  // variant of the same tooltip and must read identically.
+  const typeLabel = getTypeLabel(item.type);
   const typeIcon = TYPE_ICONS[item.type] || "📍";
   const flagHtml = countryFlagHtml(item.country);
   const transl = getLang() === "de" ? (item.latin_de || "") : (item.latin_en || "");
@@ -1581,14 +1757,130 @@ function showMillerTooltip(item, x, y) {
 /* ============================================================
    Info Panel
    ============================================================ */
-function syncLeafletSelectedMarker(place) {
-  if (_leafletSelectedMarker && _leafletMap) {
-    if (_leafletSelectedMarker._onZoomEnd) {
-      _leafletMap.off("zoomend", _leafletSelectedMarker._onZoomEnd);
-    }
-    _leafletMap.removeLayer(_leafletSelectedMarker);
-    _leafletSelectedMarker = null;
+// Selecting a place on the Tabula slides the locate map over to it instead of teleporting
+// there, so the eye can actually follow where the view went. Durations are in seconds —
+// Leaflet's own unit for pan/fly options.
+const LOCATE_PAN_MIN_SEC     = 0.55;  // even a short hop takes this long; below ~0.4s the eye reads it as a jump
+const LOCATE_PAN_MAX_SEC     = 1.8;   // ceiling: a Spain-to-India jump must not feel like a loading screen
+const LOCATE_PAN_SEC_PER_SCR = 0.5;   // added per screen-width of travel, between those two bounds
+const LOCATE_PAN_FLY_SCREENS = 1.2;   // farther than this: flyTo (arc out and back) instead of a flat pan
+const LOCATE_PAN_INSET       = -0.18; // LatLngBounds.pad ratio — target already this far inside the view: don't move at all
+
+// Moves the locate map onto a newly selected place — slowly, and only when it actually
+// needs moving. Three separate reasons this is not simply a panTo:
+//
+//  1. A target that is already comfortably on screen is left alone entirely. No motion is
+//     the easiest motion to follow, and it also means a place dot clicked *on the locate
+//     map* mostly doesn't yank the map out from under the cursor (item 5a still needs its
+//     own source flag for the case where that dot sits near the edge — see the call site).
+//  2. The duration scales with how far the view really travels, measured in screen-widths
+//     so it is resolution- and popup-size-independent: a small nudge stays snappy, a jump
+//     across the map gets the full LOCATE_PAN_MAX_SEC. Any single fixed duration makes one
+//     of those two cases feel wrong.
+//  3. Past ~1 screen-width it uses flyTo at the *current* zoom (so the end state's zoom is
+//     unchanged and Follow's zoom sync is untouched) rather than panTo. Leaflet's own
+//     panBy refuses to animate a multi-screen offset unless explicitly forced, because
+//     dragging the whole map pane that far blanks or mis-places tiles (Leaflet #2602);
+//     flyTo arcs out and back instead, which keeps the tile count sane and is far easier
+//     to follow visually anyway.
+//
+// The guard is event-based (withFollowSyncGuardUntilSettle) rather than a fixed timeout —
+// see that function, and the comment at the end of syncLeafletSelectedMarker, for why a
+// timeout sized against an animation is the specific trap this whole area is built around.
+function panLeafletToSelection(lat, lng) {
+  if (!_leafletMap) return;
+  // Popup closed: there is nobody watching the animation, and a display:none container has
+  // no reliable size to scale the duration against. Park the map on the selection instantly
+  // so it is already correct the next time it opens — exactly the pre-animation behaviour.
+  const popupHidden = document.getElementById("locate-map-popup")?.classList.contains("hidden");
+  // Re-read the media query on every call instead of caching it, so flipping "reduce
+  // motion" in the OS takes effect without a reload.
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (popupHidden || reduceMotion) {
+    withFollowSyncGuard(80, () => _leafletMap.panTo([lat, lng], { animate: false }));
+    return;
   }
+  // Already comfortably inside the view — bounds shrunk by LOCATE_PAN_INSET on each side,
+  // so a place sitting right on the edge still gets centred. Returning here also upholds
+  // withFollowSyncGuardUntilSettle's precondition that fn() really moves the map: anything
+  // that gets past this test is far enough off-centre that panBy can't round it to a
+  // zero-pixel (and therefore non-animating) offset.
+  if (_leafletMap.getBounds().pad(LOCATE_PAN_INSET).contains([lat, lng])) return;
+
+  const size   = _leafletMap.getSize();
+  const target = _leafletMap.latLngToContainerPoint([lat, lng]);
+  const dx = target.x - size.x / 2, dy = target.y - size.y / 2;
+  // The Math.max floor only protects the division: a popup that was just unhidden can
+  // still report a stale or zero container size here.
+  const screens  = Math.hypot(dx, dy) / Math.max(160, size.x, size.y);
+  const duration = Math.min(LOCATE_PAN_MAX_SEC, LOCATE_PAN_MIN_SEC + LOCATE_PAN_SEC_PER_SCR * screens);
+  // The timeout is a backstop only — the guard normally clears on Leaflet's own 'moveend'.
+  withFollowSyncGuardUntilSettle(Math.round(duration * 1000) + 400, () => {
+    if (screens > LOCATE_PAN_FLY_SCREENS) {
+      _leafletMap.flyTo([lat, lng], _leafletMap.getZoom(), { duration });
+    } else {
+      _leafletMap.panTo([lat, lng], { animate: true, duration });
+    }
+  });
+}
+
+// Unlike every other locate-map colour: Match rings are green (#39FF14), roads
+// orange/sky-blue, the GPS pin red, the coverage box sand.
+const SNAP_MARKER_COLOR = "#D946EF";
+
+// The locate map has exactly two persistent pins, both the same default-Leaflet-marker
+// graphic (see placeGpsMarker for why the GPS one shares it too): the draggable blue one
+// (_leafletMarker, created in openLocatePopup) IS the user's selection, wherever it came
+// from — a map click/drag, a place clicked on the Tabula, a search result, a GPS fix. It
+// used to be shadowed by a second, separately-drawn blue "selected place" pin (a hand-drawn
+// SVG teardrop, different enough in shape to read as a third, unexplained marker sitting
+// almost on top of it) — removed in favour of just moving the one pin everyone already
+// recognises; syncLeafletSelectedMarker below does exactly that instead of creating
+// anything new.
+//
+// The one thing that still needs its own indicator is placeSnapMarker's purple pin: when a
+// click/tap doesn't land exactly on a place, the app snaps to the nearest one within
+// LOCATE_SNAP_KM, and that snapped place can genuinely differ from the raw click point (by
+// up to that many km) — the blue pin stays at the raw point (see setUserLocation's trailing
+// _leafletMarker.setLatLng, which runs after this and wins), and this smaller purple one
+// marks the place the app actually treated as "here".
+function placeSnapMarker(lat, lng) {
+  if (!_leafletMap || !_leafletL) return null;
+  // Own pane, above overlayPane (400) so country-mode opacity=0.35 never dims it, and
+  // pointerEvents none so it never blocks clicking a place dot underneath.
+  if (!_leafletMap.getPane("snapPane")) {
+    _leafletMap.createPane("snapPane");
+    _leafletMap.getPane("snapPane").style.zIndex = "455";
+    _leafletMap.getPane("snapPane").style.pointerEvents = "none";
+  }
+  // Same icon image as the default (blue) draggable marker and the red GPS pin — see
+  // placeGpsMarker — just recoloured via filter (.snap-purple-icon) and sized down, so all
+  // three read as one consistent pin design instead of three different shapes.
+  const LEAFLET_IMG = "https://unpkg.com/leaflet@1.9.4/dist/images/";
+  const icon = _leafletL.icon({
+    iconUrl:       LEAFLET_IMG + "marker-icon.png",
+    iconRetinaUrl: LEAFLET_IMG + "marker-icon-2x.png",
+    shadowUrl:     LEAFLET_IMG + "marker-shadow.png",
+    iconSize: [18, 30], iconAnchor: [9, 30],
+    popupAnchor: [1, -25], tooltipAnchor: [11, -20], shadowSize: [30, 30],
+    className: "snap-purple-icon",
+  });
+  return _leafletL.marker([lat, lng], {
+    icon, pane: "snapPane", interactive: false, keyboard: false,
+  }).addTo(_leafletMap);
+}
+
+// Moves the one persistent blue pin (_leafletMarker) to whatever place was just selected —
+// on the Tabula, on the locate map, or via search — instead of drawing a second marker (see
+// the comment above placeSnapMarker for why that second marker was removed). When this runs
+// as part of setUserLocation (a locate-map click/drag/GPS fix), that function's own trailing
+// _leafletMarker.setLatLng runs afterward and wins, so the pin ends up at the raw point
+// clicked/dragged/fixed rather than snapped to a nearby place — correct, since the pin
+// represents where the user actually pointed. This function only has the final say when a
+// place is selected some other way (a Tabula click), where there is no "raw point" and the
+// place's own coordinates are the location. Deliberately does not hide/move the pin when
+// place is null (deselection) — it was never designed to disappear, only to be repositioned.
+function syncLeafletSelectedMarker(place) {
   if (!place || !_leafletMap || !_leafletL) return;
   // Use coordinates directly from the place object. The previous allRecords.find(data_id) lookup
   // caused the wrong record to be used for Seg I places due to OVPlace/TPPlace ID collisions.
@@ -1601,34 +1893,24 @@ function syncLeafletSelectedMarker(place) {
   }
   const hint = document.getElementById("locate-map-hint");
   if (hint) { hint.textContent = "Click map or drag marker to set location"; hint.style.color = ""; }
-  // Use a dedicated pane above overlayPane (400) so country-mode opacity=0.35 never dims this marker
-  if (!_leafletMap.getPane("selectedPane")) {
-    _leafletMap.createPane("selectedPane");
-    _leafletMap.getPane("selectedPane").style.zIndex = "450";
-    _leafletMap.getPane("selectedPane").style.pointerEvents = "none";
-  }
-  const zoom = _leafletMap.getZoom();
-  const markerRadius = zoom >= 6 ? 15 : 9;
-  _leafletSelectedMarker = _leafletL.circleMarker([lat, lng], {
-    radius: markerRadius, color: "#FFD700", weight: 5,
-    fillColor: "#FFD700", fillOpacity: 1, interactive: false,
-    pane: "selectedPane",
-  }).addTo(_leafletMap);
-  // Update radius on Leaflet zoom change
-  _leafletSelectedMarker._onZoomEnd = () => {
-    if (!_leafletSelectedMarker) return;
-    const z = _leafletMap.getZoom();
-    _leafletSelectedMarker.setRadius(z >= 6 ? 15 : 9);
-  };
-  _leafletMap.on("zoomend", _leafletSelectedMarker._onZoomEnd);
-  // animate:false is required, not cosmetic: withFollowSyncGuard's 80ms window is sized
-  // for an instant pan. Leaflet's panTo animates over ~0.25s by default when no options
-  // are passed, so the guard was clearing while the pan was still running — long enough
-  // for followLeafletView to see it as a genuine user move (mid-animation) and fire back
-  // at the Tabula view, which is what made selecting *any* place zoom the Tabula view
-  // wildly whenever Follow was on (confirmed live: a single selection ~4x'd the Tabula
-  // viewport width).
-  withFollowSyncGuard(80, () => _leafletMap.panTo([lat, lng], { animate: false }));
+  if (_leafletMarker) _leafletMarker.setLatLng([lat, lng]);
+  // The pan animates now (see panLeafletToSelection), which is only safe because the guard
+  // wrapped around it clears on Leaflet's own 'moveend' rather than on a fixed timeout. The
+  // original warning here is kept, because it is the reason that rule exists: with
+  // withFollowSyncGuard's 80ms window — sized for an instant pan — Leaflet's default ~0.25s
+  // panTo animation outlived the guard, followLeafletView saw the still-moving map as a
+  // genuine user move and fired back at the Tabula view, which is what made selecting *any*
+  // place zoom the Tabula view wildly whenever Follow was on (confirmed live: a single
+  // selection ~4x'd the Tabula viewport width). Anything changed here must keep the guard's
+  // release tied to the end of the animation, never to a guess at its duration.
+  //
+  // Item 5a (a selection that originated on the locate map must not move the locate map) is
+  // handled inside panLeafletToSelection, geometrically rather than by threading a source
+  // through every caller: a dot clicked on the locate map is on screen by definition, and a
+  // target already on screen is left alone. The Follow half of 5a — the Tabula pan that same
+  // click triggers, reframing this map when it settles — is withLocateOriginFollowGuard at
+  // the locate-map input handlers.
+  panLeafletToSelection(lat, lng);
 }
 
 function showInfoPanel(place) {
@@ -1706,7 +1988,11 @@ function showInfoPanel(place) {
   }
 
   const color = TYPE_COLORS[place.type] || "#92400E";
-  const typeLabel = getText(place.type) || TYPE_LABELS[place.type] || place.type;
+  // Singular — the panel describes exactly one place. getTypeLabel also repairs the
+  // major_city case: getText() falls back to the key itself, so the old
+  // "getText(...) || TYPE_LABELS[...]" chain could never reach TYPE_LABELS and printed
+  // the raw string "major_city" for the 24 major_city records.
+  const typeLabel = getTypeLabel(place.type);
   panel.querySelector(".type-dot").style.background = color;
   panel.querySelector(".type-label").textContent = typeLabel;
   const typeIconEl = panel.querySelector(".type-icon");
@@ -1878,7 +2164,7 @@ function isCurrentlySelected(place) {
 }
 
 // Fully clears the current place selection — info panel, Tabula highlight ring, and the
-// gold marker on the locate map — as opposed to hideInfoPanel() alone, which several
+// blue selection marker on the locate map — as opposed to hideInfoPanel() alone, which several
 // other call sites use deliberately to close *just* the panel while leaving the
 // selection (and its map highlight) in place. Shared by re-clicking the already-selected
 // place, right-clicking (a fast "clear selection" gesture from anywhere), and clicking
@@ -2045,9 +2331,26 @@ let _leafletMarker = null;
 let _leafletL = null;
 let _leafletPlacesLayer = null;
 let _leafletPlacesOn = false;
+// Flat {lat, lng, rec} mirror of every dot in _leafletPlacesLayer, filled alongside the
+// markers themselves in toggleLeafletPlaces. Tap-to-snap (nearestLeafletPlaceDot) has to
+// scan all ~3,700 dots on every tap, and going through the LayerGroup instead would
+// allocate a fresh 3,700-entry array (getLayers()) plus a getLatLng() call per candidate
+// on each one. rec is a reference to the record that already exists in S.allRecords, not
+// a copy, so this costs ~0.2 MB rather than duplicating the DB.
+let _leafletPlaceDots = [];
 let _leafletRoadsLayer = null;
 let _leafletRoadsOn = false;
-let _leafletSelectedMarker = null;
+// Short-lived ring drawn where a near-miss tap was snapped onto a place dot — see
+// flashLeafletSnap for why this is deliberately transient rather than a marker.
+let _leafletSnapPulse = null;
+let _leafletSnapPulseTimer = null;
+// Purple "your click was snapped to this place" pin on the locate map — see
+// syncLeafletSnapMarker / placeSnapMarker. Deliberately independent of _leafletMarker (the
+// persistent blue pin, which setUserLocation always parks at the raw click point): on mobile
+// (and whenever showPanel=false) setUserLocation never calls showInfoPanel, so nothing ever
+// repositions a marker at the snapped place specifically — this purple pin is the only
+// locate-map evidence a snap happened at all in that case.
+let _leafletSnapMarker = null;
 // Tracks whichever hover-bound layer (place dot, country polygon, ...) currently has an
 // open tooltip. A layer whose position moves out from under a stationary real cursor
 // never gets a native mouseout — see the movestart/zoomstart handler in openLocatePopup,
@@ -2067,17 +2370,104 @@ let _followSyncClearTimer = null;
 // apparent zoom can be visually cross-checked against real data instead of guessed at.
 let _matchTabula = false;
 let _matchHighlightLayer = null;
+// Generation counter shared by every guard below. Opening a guard takes the next token;
+// a guard's release path (its timeout, Leaflet's moveend, OSD's animation-finish) only
+// actually lowers _followSyncing while its own token is still the current one. Without
+// this, a *stale* release could lower the flag in the middle of a newer, still-running
+// view change — and a lowered flag during a programmatic move is precisely the state
+// followLeafletView reads as "the user moved this map by hand" and answers by re-fitting
+// the Tabula view, i.e. the ping-pong all of this exists to prevent. It never mattered
+// while every guard here was 80ms long; it does now that a selection pan holds one for
+// well over a second.
+let _followSyncToken = 0;
 // Wraps a programmatic Leaflet view change that Follow must not react to (country-mode
-// zoom, marker-click pan, popup-reopen pan, ...) — these are always instant
+// zoom, coverage-area fit, popup-reopen pan, ...) — these are always instant
 // (animate:false), so their moveend/zoomend fires synchronously inside fn(); the short
 // timeout just outlives that synchronous dispatch before Follow's Leaflet listener is
-// re-armed. Follow's own two directions use a longer, event-precise guard instead (see
-// followTabulaView / followLeafletView), since those animate and settle asynchronously.
+// re-armed. For an *animated* Leaflet move use withFollowSyncGuardUntilSettle instead —
+// a fixed timeout that has to outlast an animation is the exact trap documented at the
+// bottom of syncLeafletSelectedMarker.
 function withFollowSyncGuard(durationMs, fn) {
   _followSyncing = true;
+  const token = ++_followSyncToken;
   fn();
   clearTimeout(_followSyncClearTimer);
-  _followSyncClearTimer = setTimeout(() => { _followSyncing = false; }, durationMs);
+  _followSyncClearTimer = setTimeout(() => {
+    if (_followSyncToken === token) _followSyncing = false;
+  }, durationMs);
+}
+
+// How long Follow must ignore the Tabula after a locate-map-originated view change.
+// Sized off OSD's configured animationTime (0.5s) with room for two settles, because
+// constrainDuringPan:false lets OSD run a second, constraining animation after the first
+// one lands and fire a second "animation-finish" behind it.
+const LOCATE_ORIGIN_GUARD_MS = 1200;
+
+// Wraps a *Tabula* view change that the user started ON the locate map — a place-dot click,
+// a country-polygon click, a map click, a marker drag. The rule (setCountryFilter already
+// says as much for its own case) is that the locate map must never move as a side-effect of
+// something the user did inside it: the next dot they are reaching for has to still be under
+// the cursor where they saw it. Without this the Tabula move settles ~0.5s later, fires
+// "animation-finish", and — with Follow on — followTabulaView reframes the locate map onto
+// whatever sliver of the Tabula was just zoomed to, i.e. one dot click flings the locate map
+// across Europe. The selection's *own* recentring is handled separately and geometrically,
+// by panLeafletToSelection's already-in-view test.
+// Deliberately time-based rather than cleared on the real "animation-finish": OSD fires no
+// animation-start/finish at all when fitBounds lands on the viewport it is already showing
+// (re-clicking the dot that is already framed), so an event-cleared guard would stay armed
+// forever and silently kill Follow for the rest of the session. The only cost of the fixed
+// window is that a genuine Tabula pan begun within ~1.2s of touching the locate map isn't
+// followed — not reachable at human speed.
+function withLocateOriginFollowGuard(fn) {
+  withFollowSyncGuard(LOCATE_ORIGIN_GUARD_MS, fn);
+}
+
+// Same contract as withFollowSyncGuard, but for a Leaflet view change that *animates*:
+// the guard is held until Leaflet itself reports the move finished ('moveend') instead of
+// until a timeout guessed from the animation's nominal duration.
+//
+// Why event-based here and timeout-based there: a fixed window sized against an animation
+// is wrong in both directions. Too short and followLeafletView sees the still-moving map
+// as a genuine user gesture and fires back at the Tabula view (see syncLeafletSelectedMarker
+// for what that looked like live). Too long and the user's *own* next drag lands inside the
+// leftover window and Follow ignores it. 'moveend' is the animation's real end, including
+// the two cases no timeout can predict: the user grabs the map mid-flight — Leaflet's drag
+// handler calls map._stop(), which ends the animation early and fires 'moveend' right
+// there, so the gesture is honored immediately — and a backgrounded tab, where
+// requestAnimationFrame is throttled and the pan finishes seconds after its nominal
+// duration.
+//
+// Three things this relies on:
+//  - The listener is attached *after* fn(). Starting a new Leaflet view change calls
+//    map._stop(), which aborts any running pan and fires its 'moveend' synchronously
+//    inside fn(); attaching first would hand that abort event to this brand-new guard and
+//    release it before its own animation had even begun.
+//  - fn() must actually move the map. Leaflet's panBy short-circuits a zero-pixel offset
+//    with a synchronous 'moveend' and no animation, which would leave this listener
+//    waiting forever — callers must skip the call outright when there is nothing to move
+//    (panLeafletToSelection's "already in view" test guarantees this).
+//  - Leaflet always fires 'zoomend' before 'moveend' (Map._moveEnd), so releasing on
+//    'moveend' alone can never leave a trailing 'zoomend' unguarded — the event-ordering
+//    hazard documented in followTabulaView resolves in our favour here.
+// maxMs is a backstop only, for the case where 'moveend' never arrives at all: Leaflet
+// falls back to a plain, non-animated setView when the browser has no 3D transforms, and
+// then the event already fired synchronously inside fn().
+let _followSettleTimer = null;
+function withFollowSyncGuardUntilSettle(maxMs, fn) {
+  _followSyncing = true;
+  const token = ++_followSyncToken;
+  fn();
+  const onSettle = () => {
+    if (_followSyncToken !== token) return; // superseded — the newer guard owns the flag and the timer
+    clearTimeout(_followSettleTimer);
+    _followSyncing = false;
+  };
+  clearTimeout(_followSettleTimer);
+  _leafletMap.once("moveend", onSettle);
+  _followSettleTimer = setTimeout(() => {
+    _leafletMap.off("moveend", onSettle);
+    if (_followSyncToken === token) _followSyncing = false;
+  }, maxMs);
 }
 let _gpsMarker = null, _gpsLat = null, _gpsLng = null;
 let _locateResultBarTimer = null;
@@ -2092,6 +2482,24 @@ const LOCATE_SNAP_KM     = 10;   // crosshair snaps exactly to nearest place wit
 const LOCATE_IDW_KM      = 150;  // use IDW interpolation for inside-zone up to this distance
 const LOCATE_MAX_DIST_KM = 500;  // ring + info panel shown up to this distance from the map
 const LOCATE_IDW_K       = 8;    // number of nearest anchor places used for IDW interpolation
+
+// Tap-to-snap tolerance on the locate map, in CSS pixels of the map container — the unit
+// latLngToContainerPoint works in, so it is directly comparable to touch-target guidance.
+// A place dot is drawn at radius 4.4 with a 0.8 stroke on touch (see toggleLeafletPlaces),
+// i.e. a ~10 px target, against an adult fingertip's ~9 mm contact patch (~34 CSS px) and
+// the 44 px minimum of the Apple HIG / WCAG 2.5.5 — which is precisely why tapping a dot
+// so often misses. 22 px of tolerance restores a 44 px-diameter effective target.
+// The tolerance is deliberately NOT constant across zoom: at country scale the dots are a
+// dense field, and a full finger-sized grab radius there would make it impossible to drop
+// the user pin anywhere in Italy or the Levant, so it is reduced; below continental zoom
+// it is dropped entirely, since no individual place is distinguishable at that scale
+// anyway (country mode's own low-zoom branch in leafletPlaceTapAction agrees). Mouse
+// input is pixel-accurate and a direct hit on a dot never reaches the map click handler
+// at all, so desktop keeps a tolerance of 0 and behaves exactly as it did before.
+const LOCATE_TAP_SNAP_PX        = 22;  // touch tolerance at/above LOCATE_TAP_SNAP_ZOOM_FULL
+const LOCATE_TAP_SNAP_PX_MID    = 14;  // touch tolerance between the two zoom thresholds
+const LOCATE_TAP_SNAP_ZOOM_FULL = 7;   // at/above this Leaflet zoom: full finger tolerance
+const LOCATE_TAP_SNAP_ZOOM_MIN  = 5;   // below this Leaflet zoom: no snapping at all
 
 function locDistKm(lat1, lng1, lat2, lng2) {
   const dlat = lat1 - lat2;
@@ -2293,20 +2701,54 @@ function findNearestPlaces(lat, lng, restrictIso2) {
   return { bestArea, bestNonArea };
 }
 
+// Purple counterpart of syncLeafletSelectedMarker, drawn at the SNAPPED PLACE — never at the
+// raw click point, which keeps the draggable pin. setUserLocation treats a click within
+// LOCATE_SNAP_KM of a place as "you are at that place", a jump of up to 10 km that was until
+// now only visible on the Tabula side (startHighlight) and in the result-bar text; this makes
+// it explicit on the locate map itself. Unlike syncLeafletSelectedMarker this deliberately
+// does NOT pan: the snap branch already moves both views (panToLocVp, plus showInfoPanel's
+// follow-guarded panTo), and a second, unguarded Leaflet view change is exactly the pattern
+// that made Follow ping-pong before (see the comment at the end of syncLeafletSelectedMarker).
+// Adding/removing a layer fires no move/zoom event, so Follow never sees this at all.
+function syncLeafletSnapMarker(place) {
+  if (_leafletSnapMarker) { _leafletMap?.removeLayer(_leafletSnapMarker); _leafletSnapMarker = null; }
+  if (!place || !_leafletMap || !_leafletL) return;
+  // Coordinates straight off the place object for the same reason as syncLeafletSelectedMarker:
+  // an allRecords.find(data_id) lookup picks the wrong record for Seg I (OVPlace/TPPlace ID
+  // collisions). Bad/zero coordinates just mean no marker — the hint text is owned by
+  // setUserLocation, which writes a branch-specific message in every path, so touching it here
+  // would only clobber it.
+  const lat = Number(place.lat ?? place.geocoding_lat);
+  const lng = Number(place.lng ?? place.geocoding_lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 || lng === 0) return;
+  // Still below markerPane (600, Leaflet's default — where the draggable blue pin lives), so
+  // that pin stays on top of this one when a snap happens to land on the same coordinate.
+  _leafletSnapMarker = placeSnapMarker(lat, lng);
+}
+
 function setUserLocation(lat, lng, isDefault = false, isGps = false, showPanel = true) {
   // Crosshair state goes to the "gps" (red) track when this update came from an actual
   // GPS fix, or the "userLoc" (blue) track for a manual pick (map click / marker drag) —
   // the two are independent so a manual pick never erases the persistent GPS crosshair.
   const P = isGps ? "gps" : "userLoc";
-  const biasIso2 = nearestCountryIso2(lat, lng);
+  // The unrestricted search is the fallback below anyway, so run it first and let it also
+  // decide whether the country bias is worth applying at all. That bias exists purely for
+  // clicks in open water, where the nearest place by raw distance is often on the wrong
+  // coast hundreds of km away; once the click is essentially *on* a place it can only do
+  // harm, because the DB's own country codes and the low-resolution countries.geojson
+  // disagree along borders. Real case: a click at Tarteno (Partenkirchen, DB country "D")
+  // falls inside the geojson's Austria polygon, so the AT-restricted search skipped
+  // Tarteno itself and returned Scarbia/Mittenwald, 14 km away, as "nearest".
+  const unbiased = findNearestPlaces(lat, lng, null);
+  const unbiasedDistKm = unbiased.bestNonArea
+    ? locDistKm(lat, lng, Number(unbiased.bestNonArea.lat), Number(unbiased.bestNonArea.lng))
+    : Infinity;
+  const biasIso2 = unbiasedDistKm <= LOCATE_SNAP_KM ? null : nearestCountryIso2(lat, lng);
   let { bestArea, bestNonArea } = biasIso2 ? findNearestPlaces(lat, lng, biasIso2) : { bestArea: null, bestNonArea: null };
-  if (!bestArea || !bestNonArea) {
-    // Nothing nearby on the biased landmass for one or both categories (e.g. a country
-    // with no Tabula places) — fill in from the unrestricted global search.
-    const fallback = findNearestPlaces(lat, lng, null);
-    if (!bestArea) bestArea = fallback.bestArea;
-    if (!bestNonArea) bestNonArea = fallback.bestNonArea;
-  }
+  // Nothing nearby on the biased landmass for one or both categories (e.g. a country
+  // with no Tabula places) — fill in from the unrestricted global search.
+  if (!bestArea) bestArea = unbiased.bestArea;
+  if (!bestNonArea) bestNonArea = unbiased.bestNonArea;
   const nonAreaDistKm = bestNonArea
     ? locDistKm(lat, lng, Number(bestNonArea.lat), Number(bestNonArea.lng))
     : Infinity;
@@ -2331,6 +2773,13 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false, showPanel =
   // flashed a more specific "GPS unavailable" message that this would otherwise clobber.
   const statusEl = document.getElementById("status");
   const hint = document.getElementById("locate-map-hint");
+
+  // Clear any previous snap marker up-front rather than in each non-snap branch: of the five
+  // ways out of the cascade below — no place found at all, the Segment I early return, snap,
+  // inside-IDW, outside/far — only the snap branch wants one, and it re-adds it a few lines
+  // down. Clearing here is what guarantees no stale purple dot can survive a branch, including
+  // the Segment I path (which returns before the end of this function) and any branch added later.
+  syncLeafletSnapMarker(null);
 
   if (best) {
     S.userLocPlace = best;
@@ -2367,6 +2816,10 @@ function setUserLocation(lat, lng, isDefault = false, isGps = false, showPanel =
       S[P + "Label"] = "";
       S[P + "Outside"] = false; S[P + "CentVp"] = null;
       startHighlight(best, true);
+      // Locate-map counterpart of startHighlight: mark the place the click snapped to, so the
+      // up-to-LOCATE_SNAP_KM jump from the raw click point (where the draggable pin stays) to
+      // the place the app now treats as "here" is visible on this map too, not only on the Tabula.
+      syncLeafletSnapMarker(best);
       if (snapVp) panToLocVp(snapVp.vx, snapVp.vy, false, best);
       if (!S.isMobile && showPanel) showInfoPanel(best);
       if (statusEl && !isDefault) { statusEl.textContent = `At ${name} (~${distRound} km)`; setTimeout(() => { statusEl.textContent = ""; }, 6000); }
@@ -2538,7 +2991,9 @@ function renderCountryLayer() {
       layer.bindTooltip(name, { sticky: true, className: "country-tooltip" });
       layer.on("click", e => {
         _leafletL.DomEvent.stopPropagation(e);  // prevent map click from firing
-        setCountryFilter(iso2);  // zoomLeafletToCountry is called inside setCountryFilter
+        // setCountryFilter deliberately moves only the Tabula, never this map (see its own
+        // comment); the guard extends that intent to Follow.
+        withLocateOriginFollowGuard(() => setCountryFilter(iso2));  // zoomLeafletToCountry is called inside setCountryFilter
       });
       layer.on("mouseover", e => {
         _leafletHoveredTooltipLayer = layer;
@@ -2859,7 +3314,7 @@ async function toggleCountryMode() {
     // Disable category popup button, show deactivate button
     const cpBtn = document.getElementById("cat-popup-btn");
     if (cpBtn) { cpBtn.setAttribute("disabled", "true"); cpBtn.classList.add("disabled"); }
-    document.getElementById("category-popup")?.classList.add("hidden");
+    hideCategoryPopup();
     document.getElementById("country-deactivate-btn")?.classList.remove("hidden");
     updateLeafletZoomStyles();
     renderMarkers();
@@ -3101,6 +3556,33 @@ function followVisibleSet(pool, bx0, bx1, by0, by1) {
 // fallback — that made Follow teleport between distant clusters and get stuck at the zoom
 // floor almost everywhere once too few anchors were visible to ground it, which is why
 // the multi-row fallback exists for that case specifically.
+// Padding as a share of the locate map's own container instead of a fixed pixel count — see
+// the comment inside followTabulaView for the specific skew this corrects.
+//
+// This is deliberately the *only* device-dependent knob touched here. It's tempting to also
+// "fix" min(scaleX, scaleY) itself — the box's aspect ratio vs. the container's decides which
+// axis binds, and which axis that is flips between devices whose popup shapes differ this
+// much (desktop tall-narrow, mobile-portrait wide-short, mobile-landscape narrow-tall again),
+// which reads as an inconsistent, seemingly arbitrary zoom. But that formula is exactly what
+// two earlier, empirically-verified attempts in this file's history already converged back
+// to on purpose: a fixed reference size was tried instead (git log 33edd82) and reverted
+// because a bigger container legitimately earning a higher zoom for the same box is correct
+// map-fitting behavior, not a bug — the revert measured it explicitly (a 1920x1080 desktop
+// naturally earning zoom 5 gets artificially capped by a smaller fixed reference, while
+// mobile's real ~244px-tall container gets forced past what it can actually show). A
+// different axis-selection rule was also tried via getBoundsZoom's "inside" mode (git log
+// 683fbbe) and reverted because it cropped 40-70% of the actually-visible-on-Tabula places
+// out of the shown view. Both failure modes were caught only by measuring live across real
+// container sizes, not by reasoning about the formula in the abstract — so a third
+// hand-rolled alternative isn't attempted here without the same kind of verification. The
+// asymmetric mobile/desktop zoom-tightness constants feeding this box in the first place
+// (panToPlace's usedHw, panToLocVp's hw table) are a more promising, not-yet-tried lever if
+// the axis-flip still feels wrong after this padding fix — see tabula_web_todo.md.
+function followZoomPadding() {
+  const size = _leafletMap.getSize();
+  const p = Math.round(Math.min(size.x, size.y) * 0.06);
+  return [Math.max(p, 8), Math.max(p, 8)];
+}
 function followTabulaView() {
   if (!S.followTabula || _followSyncing || !_leafletMap || !S.viewer || !S.viewer.viewport) return;
   const bounds = S.viewer.viewport.getBounds(true);
@@ -3145,7 +3627,15 @@ function followTabulaView() {
   // by cropping the box — also tried and reverted: confirmed live it cropped 40-70% of
   // the actually-visible-on-Tabula places out of the shown view, far worse than the
   // dilution problem it was meant to fix).
-  const previewZoom = _leafletMap.getBoundsZoom(box, false, [24, 24]);
+  //
+  // The one part of this that *is* still device-skewed: a fixed 24px padding is a barely
+  // visible margin on an ~800px desktop container but a much bigger bite out of an
+  // ~280-380px mobile one, tightening the effective fit on small screens for a reason
+  // that has nothing to do with the geography being shown. followZoomPadding() below
+  // keeps that skew from compounding by sizing padding as a share of the container
+  // instead of a fixed pixel count — see its own comment for why the min(scaleX, scaleY)
+  // container-aware fit itself is deliberately left alone.
+  const previewZoom = _leafletMap.getBoundsZoom(box, false, followZoomPadding());
   // The floor only guards the *ungrounded* case (multi-row IDW extrapolating with no
   // real anchors actually on screen to check it against) — that's the only situation
   // where a very low previewZoom is more likely a sparse-data artifact than a genuinely
@@ -3167,7 +3657,7 @@ function followTabulaView() {
     if (!groundedByVisiblePoints && previewZoom < FOLLOW_MIN_ZOOM) {
       _leafletMap.setView([centerEst.lat, centerEst.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
     } else {
-      _leafletMap.fitBounds(box, { animate: true, duration: 0.4, padding: [24, 24], maxZoom: 13 });
+      _leafletMap.fitBounds(box, { animate: true, duration: 0.4, padding: followZoomPadding(), maxZoom: 13 });
     }
   });
 }
@@ -3207,6 +3697,17 @@ function renderMatchHighlights() {
 // followTabulaView's own corner avoidance — because interpolateTabulaVp picks neighbors
 // by real-world distance, an unambiguous metric, rather than by Tabula-pixel distance
 // (where two genuinely nearby pixels can belong to unrelated compressed geographic bands).
+// Backstop only, mirroring withFollowSyncGuardUntilSettle's maxMs: OSD's own animationTime
+// is 0.5s (see the viewer config), so 0.5s + the same 400ms buffer used everywhere else a
+// backstop is sized off a known animation duration. Needed because OSD fires no
+// "animation-finish" at all when fitBounds lands on a viewport it is already showing (see
+// withLocateOriginFollowGuard's comment for where this is first documented) — without a
+// backstop, that case leaves _followSyncing stuck true forever and Follow goes silently
+// unresponsive in *both* directions until some unrelated guarded action happens to reset it.
+// Confirmed live: dragging the Leaflet map by a small enough amount that the resulting Tabula
+// fitBounds lands on an already-shown viewport wedges Follow exactly this way.
+const FOLLOW_LEAFLET_GUARD_MAX_MS = 900;
+let _followLeafletGuardTimer = null;
 function followLeafletView() {
   if (!S.followTabula || _followSyncing || !_leafletMap || !S.viewer?.viewport) return;
   const b = _leafletMap.getBounds();
@@ -3226,7 +3727,18 @@ function followLeafletView() {
   // the real "animation-finish" (OSD's own settle event), which is also what would have
   // invoked followTabulaView in the first place.
   _followSyncing = true;
-  S.viewer.addOnceHandler("animation-finish", () => { _followSyncing = false; });
+  // Token-checked like the other two guards: this one is released by an OpenSeadragon
+  // event, so if a Leaflet-side guard opens in the meantime (an animated selection pan now
+  // holds one for well over a second), this handler must not lower the flag out from under
+  // it — and that guard's own timer must not lower it out from under this one either.
+  const token = ++_followSyncToken;
+  S.viewer.addOnceHandler("animation-finish", () => {
+    if (_followSyncToken === token) _followSyncing = false;
+  });
+  clearTimeout(_followLeafletGuardTimer);
+  _followLeafletGuardTimer = setTimeout(() => {
+    if (_followSyncToken === token) _followSyncing = false;
+  }, FOLLOW_LEAFLET_GUARD_MAX_MS);
 
   S.viewer.viewport.fitBounds(
     new OpenSeadragon.Rect(vx0 - pad, vy0 - pad, (vx1 - vx0) + pad * 2, (vy1 - vy0) + pad * 2),
@@ -3237,6 +3749,16 @@ function followLeafletView() {
 async function openLocatePopup() {
   const popup = document.getElementById("locate-map-popup");
   popup.classList.remove("hidden");
+
+  // Opening/expanding this panel is now the only way to bring the Tabula-side crosshair
+  // back once the user has dismissed it via the crosshair's own "×" (see
+  // hitTestUserLocCloseBtn) — there's no standalone toggle button any more — so re-show it
+  // here every time, covering every call site (locate button, country mode, guided tour).
+  if (!S.userLocMarkerOn) {
+    S.userLocMarkerOn = true;
+    try { localStorage.setItem("tp_user_loc_marker", "1"); } catch {}
+    renderMarkers();
+  }
 
   // The tile-layer "loading" event (below) only exists once Leaflet itself and the map
   // are created — on the very first open, fetching the Leaflet library from the CDN can
@@ -3285,7 +3807,9 @@ async function openLocatePopup() {
     _leafletMarker = L.marker([lat, lng], { draggable: true }).addTo(_leafletMap);
     _leafletMarker.on("dragend", () => {
       const pos = _leafletMarker.getLatLng();
-      setUserLocation(pos.lat, pos.lng);
+      // Dropping the pin must not then slide the map — and the pin with it — away from
+      // where the user just aimed.
+      withLocateOriginFollowGuard(() => setUserLocation(pos.lat, pos.lng));
     });
 
     // Panning/zooming sweeps the cursor across many dense place/road markers, opening a
@@ -3322,9 +3846,29 @@ async function openLocatePopup() {
     // match, symmetric with followTabulaView doing the reverse — see followLeafletView.
     _leafletMap.on("moveend zoomend", followLeafletView);
     _leafletMap.on("click", (e) => {
+      // Tap-to-snap. A finger covers ~34 CSS px but a place dot is only ~10 px across, so a
+      // tap "on" a dot very often lands on bare tile a few pixels off. Leaflet routes that
+      // miss here: Map._findEventTargets only falls back to the map itself when the tap hit
+      // no interactive layer at all, which means a dot that was hit directly runs its own
+      // handler and this one never fires — so reaching this line already proves the tap
+      // missed every dot. Recover it by snapping to the nearest dot within a finger-sized
+      // radius; only a tap with no dot in reach falls through to "set my location here",
+      // which keeps the pin placeable everywhere the dots are sparse. Same reason no drag
+      // guard is needed: Leaflet suppresses the click after a pan/drag (_draggableMoved), so
+      // a drag can never arrive here as a tap. Runs before the country-mode return so a
+      // near-miss tap in country mode behaves like a direct dot tap there too
+      // (leafletPlaceTapAction owns that branch).
+      const snapped = nearestLeafletPlaceDot(e.containerPoint, leafletTapTolerancePx());
+      if (snapped) {
+        leafletPlaceTapAction(snapped);
+        flashLeafletSnap(Number(snapped.lat), Number(snapped.lng));
+        return;
+      }
       if (S.countrySelectMode) return;
       _leafletMarker.setLatLng(e.latlng);
-      setUserLocation(e.latlng.lat, e.latlng.lng);
+      // Same rule as the marker dragend above: picking a spot in this map leaves the map
+      // itself alone.
+      withLocateOriginFollowGuard(() => setUserLocation(e.latlng.lat, e.latlng.lng));
     });
     document.getElementById("locate-places-btn").addEventListener("click", toggleLeafletPlaces);
     document.getElementById("locate-roads-btn").addEventListener("click", toggleLeafletRoads);
@@ -3363,15 +3907,27 @@ async function openLocatePopup() {
     _leafletMarker.setLatLng([lat, lng]);
     // The popup may have just been unhidden (container was 0×0) — refresh Leaflet's
     // cached size *before* panning, otherwise the centering math uses the stale size
-    // and the marker lands off-center (e.g. pinned toward one edge).
-    _leafletMap.invalidateSize();
+    // and the marker lands off-center (e.g. pinned toward one edge). Guarded: when the
+    // cached size actually differs, invalidateSize() re-centers the view itself and fires a
+    // synchronous moveend — unguarded, that reaches followLeafletView and looks exactly like
+    // the user dragged the map, silently re-panning/zooming the Tabula with no interaction.
+    withFollowSyncGuard(80, () => _leafletMap.invalidateSize());
     if (S.userLocLat != null) withFollowSyncGuard(80, () => _leafletMap.panTo([lat, lng], { animate: false }));
   }
-  setTimeout(() => _leafletMap.invalidateSize(), 60);
+  // Same reasoning as above: this later re-check (layout can still settle after the two
+  // synchronous calls above, e.g. web fonts / images loading) must not leak a moveend either.
+  setTimeout(() => withFollowSyncGuard(80, () => _leafletMap.invalidateSize()), 60);
 }
 
 function closeLocatePopup() {
   document.getElementById("locate-map-popup").classList.add("hidden");
+  // The snap dot is feedback about the pick the user just made on this map, not persistent
+  // state: reopening the popup does not re-run setUserLocation (openLocatePopup's else branch
+  // only re-pins and pans), so a marker left behind here would resurface later as a purple dot
+  // with no explanation next to it. The Tabula crosshair/highlight still carries the state.
+  // Safe before the map exists — this runs from openAboutPanel and the tour too, and the
+  // helper no-ops without _leafletMap.
+  syncLeafletSnapMarker(null);
 }
 
 function updateLeafletZoomStyles() {
@@ -3467,6 +4023,132 @@ async function toggleLeafletRoads() {
   }
 }
 
+// Finger-sized on touch, zero with a mouse. See the LOCATE_TAP_SNAP_* constants for why
+// this is zoom-dependent rather than a single number. Keyed off S.isMobile because every
+// other touch accommodation on this map already is (dot radius, stroke weight, tooltip
+// suppression, the country-mode zoom threshold) — one notion of "touch" for the whole map.
+function leafletTapTolerancePx() {
+  if (!S.isMobile || !_leafletMap) return 0;
+  const z = _leafletMap.getZoom();
+  if (z >= LOCATE_TAP_SNAP_ZOOM_FULL) return LOCATE_TAP_SNAP_PX;
+  if (z >= LOCATE_TAP_SNAP_ZOOM_MIN)  return LOCATE_TAP_SNAP_PX_MID;
+  return 0;
+}
+
+// Nearest visible place dot to a container point, or null if none is within tolPx.
+// Measured in SCREEN pixels, not in lat/lng: a degree of longitude is a degree of latitude
+// at the equator but barely half of one at 55°N, and Mercator stretches the two apart
+// again on the way to the screen — only pixel distance matches what the finger covered.
+// The lat/lng box is derived from the tolerance box's own corners so it is exact at any
+// zoom or latitude, and it keeps this to a handful of projections instead of projecting
+// all ~3,700 dots on every tap. On a wrapped world copy the box lands outside the data's
+// longitude range and nothing matches — correct, since Leaflet doesn't draw the dots on
+// wrapped copies either, so there is visibly nothing there to snap to.
+function nearestLeafletPlaceDot(cp, tolPx) {
+  if (!(tolPx > 0) || !cp || !_leafletMap || !_leafletPlacesOn || !_leafletPlaceDots.length) return null;
+  const nw = _leafletMap.containerPointToLatLng([cp.x - tolPx, cp.y - tolPx]);
+  const se = _leafletMap.containerPointToLatLng([cp.x + tolPx, cp.y + tolPx]);
+  const latMin = Math.min(nw.lat, se.lat), latMax = Math.max(nw.lat, se.lat);
+  const lngMin = Math.min(nw.lng, se.lng), lngMax = Math.max(nw.lng, se.lng);
+  let best = null, bestD2 = tolPx * tolPx;
+  for (const d of _leafletPlaceDots) {
+    if (d.lat < latMin || d.lat > latMax || d.lng < lngMin || d.lng > lngMax) continue;
+    const p = _leafletMap.latLngToContainerPoint([d.lat, d.lng]);
+    const dx = p.x - cp.x, dy = p.y - cp.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 <= bestD2) { bestD2 = d2; best = d.rec; }
+  }
+  return best;
+}
+
+// Brief confirmation that a tap which landed *next to* a dot was pulled onto it — without
+// it the map just silently does something a few pixels from where the finger went. Shown
+// only for snapped taps: a direct hit needs no explanation, so desktop never sees this.
+// Deliberately transient (self-removing) and deliberately the same blue as the persistent
+// pin (CROSSHAIR_THEMES.manual.ring), because the lasting "this one is selected" indicator
+// is _leafletMarker, which leafletPlaceTapAction has just moved here — the pulse only has to
+// say where the tap landed, not introduce another competing symbol on this map.
+function flashLeafletSnap(lat, lng) {
+  if (!_leafletMap || !_leafletL) return;
+  // Own pane, created defensively here since nothing else on the locate map uses it any
+  // more — create it so the pulse can never be the thing that throws on a record with no
+  // usable lat/lng.
+  if (!_leafletMap.getPane("selectedPane")) {
+    _leafletMap.createPane("selectedPane");
+    _leafletMap.getPane("selectedPane").style.zIndex = "450";
+    _leafletMap.getPane("selectedPane").style.pointerEvents = "none";
+  }
+  clearTimeout(_leafletSnapPulseTimer);
+  if (_leafletSnapPulse) { _leafletMap.removeLayer(_leafletSnapPulse); _leafletSnapPulse = null; }
+  _leafletSnapPulse = _leafletL.circleMarker([lat, lng], {
+    // Selection blue, not the snap marker's fuchsia: this ring confirms "your tap landed on
+    // this dot", a transient echo of the selection about to appear. Fuchsia means something
+    // else and persists — that your *location* was snapped to a place (syncLeafletSnapMarker).
+    radius: LOCATE_TAP_SNAP_PX, color: CROSSHAIR_THEMES.manual.ring, weight: 2, fill: false, opacity: 0.9,
+    interactive: false, pane: "selectedPane", className: "tp-snap-pulse",
+  }).addTo(_leafletMap);
+  _leafletSnapPulseTimer = setTimeout(() => {
+    if (_leafletSnapPulse) { _leafletMap.removeLayer(_leafletSnapPulse); _leafletSnapPulse = null; }
+    _leafletSnapPulse = null;
+  }, 450);
+}
+
+// The complete "a place dot on the locate map was tapped" action. Extracted from the dot's
+// own click handler so the map-level tap-snap (see the click handler in openLocatePopup)
+// can run the identical decision for a tap that landed a few pixels off the dot. Two
+// copies would drift, and the Seg I and country-mode branches below are exactly the parts
+// that must not: a near-miss tap on a Seg I place has to open the Seg I modal and project
+// to the Tabula edge just like a direct hit does.
+function leafletPlaceTapAction(r) {
+  const rlat = Number(r.lat), rlng = Number(r.lng);
+  const isSeg1 = Number(r.tabula_segment ?? r.grid_segment) === 1;
+  if (isSeg1) {
+    // e: use r directly — avoids data_id collision with non-Seg1 records
+    showInfoPanel(r);
+    const edgeResult = projectToTabulaEdge(rlat, rlng);
+    S.userLocVp = edgeResult.vp;
+    S.userLocCentVp = edgeResult.centVp;
+    S.userLocOutside = true;
+    S.userLocLabel = edgeResult.cLat && edgeResult.cLng
+      ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, rlat, rlng)} of map` : "W of map";
+    if (S.userLocVp) withLocateOriginFollowGuard(() => panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true, r));
+    showSeg1Modal();
+    renderMarkers();
+    return;
+  }
+  if (S.countrySelectMode && r.type !== "roman_province") {
+    const zoom = _leafletMap ? _leafletMap.getZoom() : 0;
+    // Touch devices start zoomed further out and zooming in is more effort than
+    // a mouse scroll, so let a direct tap on a dot select the place much sooner.
+    if (zoom < (S.isMobile ? 3 : 5)) {
+      const iso2 = guessCountryFromLatLng(r.lat, r.lng);
+      // setCountryFilter pans only the Tabula on purpose (see its own comment) — the guard
+      // extends that intent to Follow, which would otherwise reframe this map the moment
+      // that Tabula pan settles.
+      if (iso2) withLocateOriginFollowGuard(() => setCountryFilter(iso2));
+      return;
+    }
+  }
+  // e: look up S.places for vx/vy (needed for stitched-mode navigation)
+  const navRec = S.places.find(p => p.data_id === r.data_id) || r;
+  // A dot tap doubles as "I am here": move the user pin/crosshair to the dot's own
+  // coordinates. Explicit, rather than relying on the map click this dot's handler stops —
+  // that leak passed through setUserLocation's nearest-place search, which could (and did)
+  // answer with a neighbouring record instead of the dot itself. showPanel=false: the panel
+  // is opened below from r, the record actually tapped, so it can never disagree with what
+  // the user pointed at.
+  // Both Tabula movers share one guard: setUserLocation pans via panToLocVp and panToPlace
+  // frames the place. Either would otherwise settle ~0.5s later and let Follow zoom this
+  // map down onto the single dot just tapped.
+  withLocateOriginFollowGuard(() => {
+    setUserLocation(rlat, rlng, false, false, false);
+    panToPlace(navRec);
+  });
+  startHighlight(navRec);
+  showInfoPanel(r);
+  renderMarkers();
+}
+
 function toggleLeafletPlaces() {
   _leafletPlacesOn = !_leafletPlacesOn;
   const btn = document.getElementById("locate-places-btn");
@@ -3482,6 +4164,9 @@ function toggleLeafletPlaces() {
         _leafletMap.getPane("placesPane").style.zIndex = "405";
       }
       const markers = [];
+      // Rebuilt from scratch every time the layer is, so the snap index can never outlive
+      // the markers it describes (the DB hot-reload path drops and rebuilds both).
+      _leafletPlaceDots = [];
       for (const r of S.allRecords) {
         if (r.lat == null || r.lng == null) continue;
         if (r.type === "modern_state") continue;
@@ -3501,7 +4186,11 @@ function toggleLeafletPlaces() {
         });
         // a: rich tooltip — latin name, modern, type+color dot, country flag
         const modern = r.modern || "";
-        const typeLabel = TYPE_LABELS[r.type] || r.type || "";
+        // Singular, and translated. Caveat: these tooltips are bound once, when
+        // _leafletPlacesLayer is first built, and the layer is never rebuilt — so a
+        // language switch during the session leaves already-bound dot tooltips in the
+        // language that was active at build time until the page is reloaded.
+        const typeLabel = getTypeLabel(r.type) || "";
         const flag = r.country ? countryFlagHtml(r.country.split("|")[0]) : "";
         const tipLines = [`<b>${escHtml(name)}</b>`];
         if (modern) tipLines.push(`<span style="font-size:11px;color:rgba(200,195,180,0.9)">${escHtml(modern)}</span>`);
@@ -3519,41 +4208,30 @@ function toggleLeafletPlaces() {
           m.on("mouseover", () => { _leafletHoveredTooltipLayer = m; });
           m.on("mouseout", () => { if (_leafletHoveredTooltipLayer === m) _leafletHoveredTooltipLayer = null; });
         }
-        // Click: navigate Tabula; in country mode also allows country selection
+        // Click: navigate Tabula; in country mode also allows country selection.
+        // The body lives in leafletPlaceTapAction because the map-level tap-snap runs the
+        // very same action for taps that miss this dot by a few pixels.
         m.on("click", (e) => {
+          // Two different stops, both needed. The native one only keeps the click away from
+          // document-level listeners; it does nothing to Leaflet, because by the time a layer
+          // handler runs Leaflet has already taken the DOM event on the map container and is
+          // fanning it out itself to [this dot, the map] (Path defaults to
+          // bubblingMouseEvents:true). That loop aborts only on Leaflet's own
+          // originalEvent._stopped flag, which L.DomEvent.stopPropagation sets when handed the
+          // *Leaflet* event — the same idiom the country-polygon handler already uses. Without
+          // it the map's click handler fired right after this one and called setUserLocation()
+          // with the dot's own latlng (Leaflet substitutes a small circleMarker's centre for
+          // the cursor position), which re-resolved "nearest place" from scratch and could
+          // answer with a *different* record than the one just clicked: clicking
+          // Tarteno/Partenkirchen selected and panned to Scarbia/Mittenwald, 14 km away.
+          // Setting the location from a dot click is still wanted — leafletPlaceTapAction
+          // does it deliberately, from the dot's own record.
+          _leafletL.DomEvent.stopPropagation(e);
           e.originalEvent?.stopPropagation();
-          if (isSeg1) {
-            // e: use r directly — avoids data_id collision with non-Seg1 records
-            showInfoPanel(r);
-            const edgeResult = projectToTabulaEdge(rlat, rlng);
-            S.userLocVp = edgeResult.vp;
-            S.userLocCentVp = edgeResult.centVp;
-            S.userLocOutside = true;
-            S.userLocLabel = edgeResult.cLat && edgeResult.cLng
-              ? `${compassBearing(edgeResult.cLat, edgeResult.cLng, rlat, rlng)} of map` : "W of map";
-            if (S.userLocVp) panToLocVp(S.userLocVp.vx, S.userLocVp.vy, true, r);
-            showSeg1Modal();
-            renderMarkers();
-            return;
-          }
-          if (S.countrySelectMode && r.type !== "roman_province") {
-            const zoom = _leafletMap ? _leafletMap.getZoom() : 0;
-            // Touch devices start zoomed further out and zooming in is more effort than
-            // a mouse scroll, so let a direct tap on a dot select the place much sooner.
-            if (zoom < (S.isMobile ? 3 : 5)) {
-              const iso2 = guessCountryFromLatLng(r.lat, r.lng);
-              if (iso2) setCountryFilter(iso2);
-              return;
-            }
-          }
-          // e: look up S.places for vx/vy (needed for stitched-mode navigation)
-          const navRec = S.places.find(p => p.data_id === r.data_id) || r;
-          panToPlace(navRec);
-          startHighlight(navRec);
-          showInfoPanel(r);
-          renderMarkers();
+          leafletPlaceTapAction(r);
         });
         markers.push(m);
+        _leafletPlaceDots.push({ lat: rlat, lng: rlng, rec: r });
       }
       _leafletPlacesLayer = _leafletL.layerGroup(markers);
       buildLocateLegend();
@@ -3763,6 +4441,150 @@ function exitRegionSolo() {
   });
 }
 
+/* Live census of the place database, drawn into the About panel.
+   Two sets are counted on purpose, because they answer two different questions:
+     * "on the map"  -- S.millerCalib: the records carrying miller_rect_* coordinates, i.e. the
+                        ones actually drawn as boxes over the Tabula facsimile. That IS "marked
+                        in the Tabula", and the facsimile is the default view (S.mapMode "old").
+     * "in database" -- S.allRecords: everything we hold, including the Segment I places
+                        reconstructed from the Antonine Itinerary, which can never be drawn
+                        because that segment is lost, plus places not yet positioned.
+   S.places is deliberately NOT used here: it only holds the stitched-mode (mapMode "new")
+   calibration subset -- a few hundred records -- and would understate the map roughly tenfold.
+   Everything is recounted from live state on each build, so the figures cannot go stale as the
+   database grows; there is no hardcoded number anywhere in this section. */
+function buildAboutStatsTable() {
+  const host = document.getElementById("about-stats");
+  if (!host) return;
+  if (!S.allRecords.length) { host.innerHTML = ""; return; }  // called before the DB finished loading
+
+  const bump = (m, t) => m.set(t, (m.get(t) || 0) + 1);
+  const inDb = new Map(), onMap = new Map();
+  let segIdb = 0, segIonMap = 0;
+  for (const r of S.allRecords) {
+    bump(inDb, canonicalPlaceType(r.type));
+    if (Number(r.tabula_segment) === 1) segIdb++;
+  }
+  for (const r of S.millerCalib) {
+    bump(onMap, canonicalPlaceType(r.type));
+    if (Number(r.tabula_segment) === 1) segIonMap++;
+  }
+
+  // Locale-aware digit grouping so German reads 2.232 like the neighbouring about_cities_v fact.
+  const nf = new Intl.NumberFormat(getLang() === "de" ? "de-DE" : "en-US");
+  // Type names come from getTypeLabel()/I18N, never TYPE_LABELS -- that map is English-only.
+  // Plural: a row here names a whole category ("Cities: 469"), exactly like a filter button
+  // or a legend row, so it must read the same as those -- not "Stadt" next to the popup's
+  // "Staedte".
+  const rows = [...inDb.keys()]
+    .filter(t => TYPE_COLORS[t])                        // skip anything the map has no colour for
+    .sort((a, b) => (onMap.get(b) || 0) - (onMap.get(a) || 0) ||
+                    (inDb.get(b)  || 0) - (inDb.get(a)  || 0))
+    .map(t => `
+        <tr>
+          <td><span class="as-name"><span class="as-dot" style="background:${TYPE_COLORS[t]}"></span><span class="as-icon">${TYPE_ICONS[t] || ""}</span>${escHtml(getTypeLabel(t, { plural: true }))}</span></td>
+          <td class="as-num">${nf.format(onMap.get(t) || 0)}</td>
+          <td class="as-num">${nf.format(inDb.get(t) || 0)}</td>
+        </tr>`)
+    .join("");
+
+  const note = getText("about_stats_note")
+    .replace("{extra}", nf.format(Math.max(0, S.allRecords.length - S.millerCalib.length)))
+    .replace("{seg1}",  nf.format(Math.max(0, segIdb - segIonMap)));
+
+  host.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>${escHtml(getText("about_stats_type"))}</th>
+            <th class="as-num">${escHtml(getText("about_stats_onmap"))}</th>
+            <th class="as-num">${escHtml(getText("about_stats_db"))}</th>
+          </tr>
+        </thead>
+        <tbody>${rows}
+          <tr class="as-total">
+            <td>${escHtml(getText("about_stats_total"))}</td>
+            <td class="as-num">${nf.format(S.millerCalib.length)}</td>
+            <td class="as-num">${nf.format(S.allRecords.length)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="as-note">${escHtml(note)}</p>`;
+}
+
+/* Category popup auto-hide ------------------------------------------------------------
+   The category popup is the only panel in the app that closes by itself: it floats over the
+   bottom-left of the map and there is no reason to keep a filter list open once the user has
+   stopped picking filters. The timer handle has to live at module scope rather than in
+   setupTypeFilters' closure, because the popup is also hidden from four places outside that
+   function — country mode (toggleCountryMode), the About panel (openAboutPanel) and three
+   times in the demo tour — and every one of them must be able to kill a pending timer.
+   Otherwise it fires later against a popup that is already closed and, worse, drops the
+   .cat-fading class onto a hidden element, leaving the *next* open invisible. */
+const CAT_POPUP_IDLE_MS       = 3000; // idle time (pointer/keyboard) before the popup hides itself
+const CAT_POPUP_IDLE_MS_TOUCH = 6000; // touch has no hover signal to separate "reading" from "idle" — wait longer
+const CAT_POPUP_FADE_MS       = 200;  // must match the #category-popup transition in styles.css
+let _catPopupIdleTimer  = null;
+let _catPopupFadeTimer  = null;
+let _catPopupActivityAt = 0;          // last timer restart — throttles the pointermove activity feed
+
+function clearCatPopupIdleTimer() {
+  clearTimeout(_catPopupIdleTimer);
+  _catPopupIdleTimer = null;
+}
+
+// Clear-then-set: the single place the idle timer is ever armed, so two hides can never be
+// pending at once. No-ops while the popup is closed, so a stray activity event — e.g. the
+// wrapper-level click that bubbles up from the button press that just closed it — can never
+// resurrect a timer against a hidden popup or a different UI state.
+function restartCatPopupIdleTimer() {
+  clearCatPopupIdleTimer();
+  const popup = document.getElementById("category-popup");
+  if (!popup || popup.classList.contains("hidden")) return;
+  _catPopupActivityAt = Date.now();
+  _catPopupIdleTimer = setTimeout(() => {
+    // Re-arm instead of hiding while the user is plainly still "in" the control:
+    //  - the pointer is resting on the button or the popup. :hover is read live rather than
+    //    tracked with pointerenter/pointerleave so a popup opened programmatically (the demo
+    //    tour) under an already-stationary cursor counts as hovered too — no enter event ever
+    //    fires in that case. Desktop only: a tap leaves :hover stuck on the tapped element in
+    //    several mobile browsers, which would pin the popup open forever.
+    //  - _panelInteracting, this file's existing "user is mid drag/resize" flag (see
+    //    initResizablePanels) — never yank a panel away in the middle of a gesture.
+    const hovered = !S.isMobile && !!document.getElementById("cat-popup-wrapper")?.matches(":hover");
+    if (hovered || _panelInteracting) { restartCatPopupIdleTimer(); return; }
+    hideCategoryPopup(true);
+  }, S.isMobile ? CAT_POPUP_IDLE_MS_TOUCH : CAT_POPUP_IDLE_MS);
+}
+
+// animate=true is used only by the idle auto-hide; every close the user actually asked for
+// stays instant, so the fade remains a reliable "the app did this" signal.
+function hideCategoryPopup(animate = false) {
+  clearCatPopupIdleTimer();
+  clearTimeout(_catPopupFadeTimer);
+  const popup = document.getElementById("category-popup");
+  if (!popup) return;
+  if (!animate || popup.classList.contains("hidden")) {
+    popup.classList.remove("cat-fading");
+    popup.classList.add("hidden");
+    return;
+  }
+  popup.classList.add("cat-fading");
+  _catPopupFadeTimer = setTimeout(() => {
+    popup.classList.add("hidden");
+    popup.classList.remove("cat-fading");
+  }, CAT_POPUP_FADE_MS);
+}
+
+function showCategoryPopup() {
+  const popup = document.getElementById("category-popup");
+  if (!popup) return;
+  clearTimeout(_catPopupFadeTimer);
+  popup.classList.remove("cat-fading");   // cancels an auto-hide fade that is still running
+  popup.classList.remove("hidden");
+  restartCatPopupIdleTimer();
+}
+
 function setupTypeFilters() {
   const container = document.getElementById("type-filter-buttons");
   if (!container) return;
@@ -3776,7 +4598,9 @@ function setupTypeFilters() {
 
   const makeBtns = (list) => list.map(t => {
     const color = TYPE_COLORS[t];
-    const label = TYPE_LABELS[t];
+    // A filter button represents every place of that type, so it reads plural
+    // ("Lakes" / "Seen") — applyI18n() re-renders it with the same helper.
+    const label = getTypeLabel(t, { plural: true });
     const active = S.activeTypes.has(t) ? " active" : "";
     return `<button class="type-filter-btn${active}" data-type="${t}" title="${label}">
       <span class="tf-dot" style="background:${color}"></span>${label}
@@ -3882,19 +4706,21 @@ function setupTypeFilters() {
     });
   }
 
+  // "Show my location" used to be a toggle button here — hiding/showing the location
+  // crosshairs drawn over the Tabula (they can cover a lot of the scroll at low zoom).
+  // It's now a small "×" drawn at the crosshair itself (see drawCrosshairCloseBtn /
+  // hitTestUserLocCloseBtn) plus an auto-reshow when the locate map is opened
+  // (openLocatePopup). Visibility only: the locate map pin, Follow, Match and
+  // S.userLocLat/Lng are all left alone either way (see _drawUserCrosshair).
+
   // Category popup open/close — wrapper is the hover zone (covers button + popup)
   const catWrapper = document.getElementById("cat-popup-wrapper");
   const catBtn     = document.getElementById("cat-popup-btn");
   const catPopup   = document.getElementById("category-popup");
   if (catWrapper && catPopup) {
     let catTimer = null;
-    let catAutoClose = null;
-    const resetCatTimer = () => {
-      clearTimeout(catAutoClose);
-      catAutoClose = setTimeout(() => catPopup.classList.add("hidden"), 2000);
-    };
-    const openCat  = () => { if (S.countrySelectMode) return; clearTimeout(catTimer); catPopup.classList.remove("hidden"); };
-    const closeCat = () => { catTimer = setTimeout(() => catPopup.classList.add("hidden"), 250); };
+    const openCat  = () => { if (S.countrySelectMode) return; clearTimeout(catTimer); showCategoryPopup(); };
+    const closeCat = () => { catTimer = setTimeout(() => hideCategoryPopup(), 250); };
     // Hover-to-open is desktop-only. On touch devices a tap synthesizes a "mouseenter"
     // immediately before "click" — that mouseenter would open the popup and then the
     // click's toggle below would instantly close it again, making the very first tap
@@ -3906,23 +4732,52 @@ function setupTypeFilters() {
     }
     catBtn?.addEventListener("click", () => {
       if (S.countrySelectMode) return;
-      catPopup.classList.toggle("hidden");
-      if (!catPopup.classList.contains("hidden") && S.isMobile) {
-        resetCatTimer();
+      if (catPopup.classList.contains("hidden")) {
+        openCat();
       } else {
-        clearTimeout(catAutoClose);
+        clearTimeout(catTimer);
+        hideCategoryPopup();
       }
     });
-    // Any interaction inside popup resets the 2s close timer
-    catPopup?.addEventListener("click", () => {
-      if (S.isMobile && !catPopup.classList.contains("hidden")) resetCatTimer();
-    });
+    // Activity feed for the idle auto-hide. The listeners sit on the *wrapper*, not the
+    // popup, so the trigger button counts as part of the control (a cursor sitting on the
+    // button is not idle). What counts as activity, and why:
+    //   click / pointerdown  — picking a filter; the obvious case.
+    //   pointermove          — a cursor travelling across the list is reading it. Throttled,
+    //                          because pointermove fires up to ~120x/s and every hit would
+    //                          otherwise churn a clearTimeout/setTimeout pair for nothing.
+    //   touchstart/touchmove — the touch equivalent, and specifically covers *scrolling* the
+    //                          list: it is overflow-y:auto capped at 70svh in portrait, so
+    //                          without this a long scroll would get the popup pulled away
+    //                          mid-gesture.
+    //   scroll               — same, for wheel/trackpad scrolling of that list.
+    //   focusin / keydown    — tabbing or arrowing through the buttons is use, not idling.
+    // Deliberately NOT used as "keep open" pins: document.activeElement inside the popup, and
+    // (on this activity side) :hover. Both stay true indefinitely after one ordinary mouse
+    // click — Chromium focuses the clicked button and the cursor does not move — so pinning
+    // on either would silently disable the auto-hide in its most common flow. The hover check
+    // lives in the timer callback instead, where it only defers the hide.
+    const onCatActivity = () => {
+      if (catPopup.classList.contains("hidden")) return;
+      // An interaction landing during the fade-out cancels it: the user is clearly still
+      // using the popup, and a panel that leaves anyway is worse than one that never left.
+      if (catPopup.classList.contains("cat-fading")) { showCategoryPopup(); return; }
+      restartCatPopupIdleTimer();
+    };
+    const onCatPointerMove = () => {
+      if (Date.now() - _catPopupActivityAt < 500) return;
+      onCatActivity();
+    };
+    ["click", "pointerdown", "touchstart", "touchmove", "focusin", "keydown"].forEach(ev =>
+      catWrapper.addEventListener(ev, onCatActivity, { passive: true })
+    );
+    catWrapper.addEventListener("pointermove", onCatPointerMove, { passive: true });
+    catPopup.addEventListener("scroll", onCatPointerMove, { passive: true });
     // Click outside to close on mobile
     document.addEventListener("click", (e) => {
       if (!S.isMobile) return;
       if (!catPopup.classList.contains("hidden") && !catWrapper.contains(e.target)) {
-        catPopup.classList.add("hidden");
-        clearTimeout(catAutoClose);
+        hideCategoryPopup();
       }
     }, { capture: true });
   }
@@ -3971,9 +4826,10 @@ function setupTypeFilters() {
     // Close all other panels first
     closeLocatePopup();
     document.getElementById("info-panel")?.classList.add("hidden");
-    document.getElementById("category-popup")?.classList.add("hidden");
+    hideCategoryPopup();
     document.getElementById("settings-panel")?.classList.add("hidden");
     document.getElementById("seg1-modal")?.classList.add("hidden");
+    buildAboutStatsTable();   // counts come from live state -- rebuild on every open
     aboutPanel.classList.remove("hidden");
     aboutBackdrop?.classList.remove("hidden");
   }
@@ -3988,6 +4844,19 @@ function setupTypeFilters() {
     });
     closeAbout?.addEventListener("click", closeAboutPanel);
     aboutBackdrop?.addEventListener("click", closeAboutPanel);
+  }
+
+  // Places-by-category table (buildAboutStatsTable) — collapsed by default; this just
+  // flips the .hidden class on #about-stats and mirrors the state into aria-expanded so
+  // it reads correctly for screen readers. The table's own content isn't touched here —
+  // it's rebuilt from live state on every About-panel open (see openAboutPanel above).
+  const statsToggle = document.getElementById("about-stats-toggle");
+  const statsBody = document.getElementById("about-stats");
+  if (statsToggle && statsBody) {
+    statsToggle.addEventListener("click", () => {
+      const nowHidden = statsBody.classList.toggle("hidden");
+      statsToggle.setAttribute("aria-expanded", String(!nowHidden));
+    });
   }
 
   document.getElementById("replay-demo-btn")?.addEventListener("click", runFullTour);
@@ -4007,7 +4876,8 @@ function setupMobileMenu() {
       `<button class="ctrl-btn toggle-btn${allOn ? " active" : ""}" id="mobile-toggle-all" style="width:100%;margin-bottom:6px">Select All</button>` +
       types.map(t => {
         const color = TYPE_COLORS[t];
-        const label = TYPE_LABELS[t];
+        // Plural: same category semantics as the desktop popup (see setupTypeFilters).
+        const label = getTypeLabel(t, { plural: true });
         const active = S.activeTypes.has(t) ? " active" : "";
         return `<button class="type-filter-btn${active}" data-type="${t}" title="${label}">
           <span class="tf-dot" style="background:${color}"></span>${label}
@@ -4202,6 +5072,17 @@ function setupInteraction() {
     const elRect = S.viewer.element.getBoundingClientRect();
     const clientX = elRect.left + pos.x;
     const clientY = elRect.top + pos.y;
+
+    // Dismiss the user-location overlay via its crosshair's own "×" — checked first since
+    // that control is drawn on top of everything else on the canvas. This replaces the old
+    // category-menu toggle button; reopening the locate map (openLocatePopup) turns the
+    // marker back on if it was hidden.
+    if (hitTestUserLocCloseBtn(clientX, clientY)) {
+      S.userLocMarkerOn = false;
+      try { localStorage.setItem("tp_user_loc_marker", "0"); } catch {}
+      renderMarkers();
+      return;
+    }
 
     // SegIV marker click
     const place = hitTest(clientX, clientY);
@@ -5106,7 +5987,10 @@ function initResizablePanels() {
 
   const locPopup = document.getElementById("locate-map-popup");
   if (locPopup) {
-    makeHandle(locPopup, "resize-br", 220, 200, () => { if (_leafletMap) _leafletMap.invalidateSize(); });
+    // Guarded like every other invalidateSize() call site — see openLocatePopup — so dragging
+    // this handle can't leak a synchronous moveend into followLeafletView and yank the Tabula
+    // view around while the user is just resizing the popup.
+    makeHandle(locPopup, "resize-br", 220, 200, () => { if (_leafletMap) withFollowSyncGuard(80, () => _leafletMap.invalidateSize()); });
     const locHeader = document.getElementById("locate-map-header");
     const navSquare = document.getElementById("nav-square");
     const navSquareMinTop = () => navSquare ? navSquare.getBoundingClientRect().bottom + 8 : 0;
@@ -5185,7 +6069,9 @@ function initOrientationHandler() {
       applyPanel(el, saved[id][newOrient]);
     });
     prevOrient = newOrient;
-    if (_leafletMap) setTimeout(() => _leafletMap.invalidateSize(), 150);
+    // Guarded — see openLocatePopup — rotating the device is exactly the kind of size change
+    // that used to silently re-pan/zoom the Tabula via a leaked moveend.
+    if (_leafletMap) setTimeout(() => withFollowSyncGuard(80, () => _leafletMap.invalidateSize()), 150);
   });
 }
 
@@ -5346,7 +6232,10 @@ async function init() {
     renderMarkers();
   }, 500);
 
-  window.addEventListener("resize", () => { sizeCanvas(); renderMarkers(); if (_leafletMap) _leafletMap.invalidateSize(); });
+  // invalidateSize() guarded — see openLocatePopup — an ordinary browser-window resize (or
+  // mobile address-bar show/hide, which fires the same event) must not leak a moveend into
+  // followLeafletView either.
+  window.addEventListener("resize", () => { sizeCanvas(); renderMarkers(); if (_leafletMap) withFollowSyncGuard(80, () => _leafletMap.invalidateSize()); });
 
   // Setup UI
   await loadLabelParams();
@@ -5376,9 +6265,16 @@ async function init() {
       if (_leafletPlacesLayer) {
         if (_leafletMap) _leafletMap.removeLayer(_leafletPlacesLayer);
         _leafletPlacesLayer = null;
+        _leafletPlaceDots = [];   // drop references to the old DB's records with the layer
         if (_leafletPlacesOn) { _leafletPlacesOn = false; toggleLeafletPlaces(); }
       }
+      // The snap marker holds a copy of the snapped place's coordinates, so a reload can't
+      // leave it holding a dangling record — but it can leave it sitting where a place used
+      // to be after that place was moved or deleted in the calibrate/DB tools, and nothing
+      // re-runs setUserLocation to correct it. Drop it and let the next pick re-create it.
+      syncLeafletSnapMarker(null);
       renderMarkers();
+      buildAboutStatsTable();   // keep the census in step if the panel is open during a DB save
       console.log("[TP] DB hot-reloaded");
     } finally {
       _dbReloadPending = false;
@@ -5627,7 +6523,7 @@ function runFullTour() {
     S.followTabula = false;
     document.getElementById("locate-follow-btn")?.classList.remove("active");
     locPopup.classList.add("hidden");
-    catPopup?.classList.add("hidden");
+    hideCategoryPopup();
     S.activeTypes = new Set(); S.latinLabelsOn = false; S.modernLabelsOn = false;
     try { localStorage.setItem("tp_latin_labels",  "0"); } catch {}
     try { localStorage.setItem("tp_modern_labels", "0"); } catch {}
@@ -5689,7 +6585,10 @@ function runFullTour() {
       const catBtn = document.getElementById("cat-popup-btn");
       pulse(catBtn);
       T(() => {
-        catPopup?.classList.remove("hidden");
+        // Route the tour's own open through the helper so a stale .cat-fading class left by an
+        // earlier auto-hide can never make the demo popup invisible, and so the idle timer is
+        // armed and cleared by exactly the same code path as a real user open.
+        showCategoryPopup();
         const demoTypes = ["city", "temple", "spa"];
         S.activeTypes = new Set(demoTypes);
         document.querySelectorAll(".type-filter-btn").forEach(b =>
@@ -5707,7 +6606,7 @@ function runFullTour() {
             namesBtn?.classList.add("active");
             document.getElementById("locate-toggle-all-labels")?.classList.add("active");
             renderMarkers();
-            catPopup?.classList.add("hidden");
+            hideCategoryPopup();
             T(() => showFollowFinale(), 1500);
           }, 700);
         }, 700);
@@ -5763,10 +6662,11 @@ function runFullTour() {
   // instead of stacking its own panels on top of them.
   hideInfoPanel();
   closeLocatePopup();
-  catPopup?.classList.add("hidden");
+  hideCategoryPopup();
   document.getElementById("settings-panel")?.classList.add("hidden");
   document.getElementById("seg1-modal")?.classList.add("hidden");
 
+  buildAboutStatsTable();   // the guided tour opens the panel directly, bypassing openAboutPanel()
   aboutBackdrop?.classList.remove("hidden");
   aboutPanel?.classList.remove("hidden");
   T(() => {
