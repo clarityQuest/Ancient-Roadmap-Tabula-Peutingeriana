@@ -1735,7 +1735,7 @@
       }
       if (k === 'wiki_confidence') {
         const cur = v == null ? '' : String(v);
-        const opts = [['','— unknown'],['1','1 — uncertain'],['2','2 — auto (cleaned)'],['3','3 — exact / verified']];
+        const opts = [['','— unknown'],['0','0 — searched, nothing found'],['1','1 — uncertain'],['2','2 — auto (cleaned)'],['3','3 — exact / verified']];
         const optHtml = opts.map(([val, lbl]) => `<option value="${val}"${cur === val ? ' selected' : ''}>${escapeHtml(lbl)}</option>`).join('');
         return `<div class="edit-field-row">
           <label class="edit-field-label" for="ef-${escapeHtml(k)}">${escapeHtml(k)}</label>
@@ -1780,68 +1780,80 @@
       updated[key] = val;
     });
 
+    const dataId = editingDataId;
     const statusEl = document.getElementById('edit-modal-status');
     statusEl.textContent = 'Saving…';
     statusEl.style.color = 'var(--muted)';
     try {
-      // Re-read fresh DB so concurrent saves from calibrate.html are not overwritten
-      const freshRes = await fetch('data/review_places_db.json?' + Date.now(), { cache: 'no-store' });
-      const freshDb = await freshRes.json();
-      const freshIdx = freshDb.records.findIndex(r => r.data_id == editingDataId);
-      if (freshIdx < 0) { statusEl.textContent = 'Record not found'; return; }
-      freshDb.records[freshIdx] = updated;
-      dbFullData = freshDb;
-      const allIdx = allRecords.findIndex(r => r.data_id == editingDataId);
-      if (allIdx >= 0) allRecords[allIdx] = { ...updated, remaining_refinement: allRecords[allIdx]?.remaining_refinement || false };
-
-      const res = await fetch('/api/save-calibration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dbFullData),
+      dbFullData = await saveDbChange(db => {
+        const idx = db.records.findIndex(r => r.data_id == dataId);
+        if (idx < 0) throw new Error('Record not found');
+        db.records[idx] = updated;
       });
-      const json = await res.json();
-      if (json.ok) {
-        statusEl.textContent = 'Saved ✓';
-        statusEl.style.color = 'var(--ok)';
-        setTimeout(closeEditModal, 700);
-        applyFilters();
-        try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
-      } else {
-        statusEl.textContent = 'Error: ' + (json.error || 'Unknown');
-        statusEl.style.color = 'var(--alert)';
-      }
+      const allIdx = allRecords.findIndex(r => r.data_id == dataId);
+      if (allIdx >= 0) allRecords[allIdx] = { ...updated, remaining_refinement: allRecords[allIdx]?.remaining_refinement || false };
+      statusEl.textContent = 'Saved ✓';
+      statusEl.style.color = 'var(--ok)';
+      setTimeout(closeEditModal, 700);
+      applyFilters();
+      try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
     } catch (e) {
-      statusEl.textContent = 'Error: ' + e.message;
+      statusEl.textContent = 'NOT SAVED – ' + e.message;
       statusEl.style.color = 'var(--alert)';
     }
   }
 
   async function deleteEditModal() {
     if (editingDataId == null) return;
-    const rPreview = dbFullData.records.find(rec => rec.data_id == editingDataId);
-    const name = rPreview ? (rPreview.latin || rPreview.modern_preferred || String(rPreview.data_id)) : String(editingDataId);
-    if (!confirm(`Delete "${name}" (data_id=${editingDataId}) from the database?\n\nThis cannot be undone.`)) return;
-    if (!confirm(`Confirm permanent deletion of data_id=${editingDataId} — "${name}"?`)) return;
+    const dataId = editingDataId;
+    const rPreview = dbFullData.records.find(rec => rec.data_id == dataId);
+    const name = rPreview ? (rPreview.latin || rPreview.modern_preferred || String(rPreview.data_id)) : String(dataId);
+    if (!confirm(`Delete "${name}" (data_id=${dataId}) from the database?\n\nThis cannot be undone.`)) return;
+    if (!confirm(`Confirm permanent deletion of data_id=${dataId} — "${name}"?`)) return;
 
+    const statusEl = document.getElementById('edit-modal-status');
+    statusEl.textContent = 'Deleting…';
+    statusEl.style.color = 'var(--muted)';
     try {
-      // Re-read fresh DB so concurrent calibrate.html saves are not overwritten
-      const freshRes = await fetch('data/review_places_db.json?' + Date.now(), { cache: 'no-store' });
-      const freshDb = await freshRes.json();
-      freshDb.records = freshDb.records.filter(rec => rec.data_id != editingDataId);
-      dbFullData = freshDb;
-      allRecords = allRecords.filter(rec => rec.data_id != editingDataId);
+      dbFullData = await saveDbChange(db => {
+        db.records = db.records.filter(rec => rec.data_id != dataId);
+      });
+      allRecords = allRecords.filter(rec => rec.data_id != dataId);
       closeEditModal();
       applyFilters();
-
-      await fetch('/api/save-calibration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dbFullData),
-      });
       try { new BroadcastChannel("tp_db_updated").postMessage("saved"); } catch {}
     } catch (e) {
-      alert('Error saving after delete: ' + e.message);
+      statusEl.textContent = '';
+      alert('NOT DELETED – ' + e.message);
     }
+  }
+
+  // Saving needs scripts/server.py. A plain static server (e.g. `python -m http.server`)
+  // serves this page but resets the connection on the save POST, which the browser
+  // only reports as "NetworkError when attempting to fetch resource" / "Failed to fetch".
+  const SAVE_SERVER_HINT = 'run "python scripts/server.py" and open http://localhost:8080/database_viewer.html';
+
+  async function fetchOrHint(url, opts) {
+    try { return await fetch(url, opts); }
+    catch (e) { throw new Error(`save server not reachable (${e.message}) – ${SAVE_SERVER_HINT}`); }
+  }
+
+  // Re-reads the DB from disk (so concurrent calibrate.html saves are not overwritten),
+  // applies mutate(db) and POSTs it. Resolves to the saved DB only once the server confirms.
+  async function saveDbChange(mutate) {
+    const freshRes = await fetchOrHint('data/review_places_db.json?' + Date.now(), { cache: 'no-store' });
+    if (!freshRes.ok) throw new Error(`reloading DB failed: HTTP ${freshRes.status}`);
+    const freshDb = await freshRes.json();
+    mutate(freshDb);
+    const res = await fetchOrHint('/api/save-calibration', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(freshDb),
+    });
+    const json = await res.json().catch(() => null);
+    if (!json) throw new Error(`HTTP ${res.status}, this server can't save – ${SAVE_SERVER_HINT}`);
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    return freshDb;
   }
 
   document.getElementById('edit-modal-close').addEventListener('click', closeEditModal);
