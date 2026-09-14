@@ -325,6 +325,31 @@ body, html {
 .ctrl-btn:hover { background: rgba(50, 50, 60, 0.95); }
 .toggle-btn { padding: 8px 12px; font-weight: 600; font-size: 13px; }
 
+/* Fullscreen control, highlighted briefly at startup on touch devices. This replaces the
+   old "rotate to landscape" banner: whether landscape actually helps depends on the phone's
+   aspect ratio and how much chrome the browser keeps on screen, which the page can't judge,
+   whereas fullscreen is a win in either orientation. Pointing at the real control also
+   teaches where it is, instead of covering the map with a bar that says it. Gold rather than
+   --accent blue: gold is this UI's attention colour (see the result pill, feedback button).
+   Self-limiting — see the fullscreen-hint block in main.js, which stops it on first use. */
+@keyframes fs-hint-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(200,160,80,0); }
+  50%      { box-shadow: 0 0 0 6px rgba(200,160,80,0.32); }
+}
+#control-fullpage.fs-hint {
+  border-color: #c8a050;
+  color: #ffd080;
+  animation: fs-hint-pulse 1.6s ease-in-out infinite;
+}
+/* Still call it out for anyone who has asked the OS to stop animating things — just hold
+   the ring steady instead of pulsing it. */
+@media (prefers-reduced-motion: reduce) {
+  #control-fullpage.fs-hint {
+    animation: none;
+    box-shadow: 0 0 0 4px rgba(200,160,80,0.32);
+  }
+}
+
 /* Feedback email button */
 #feedback-btn {
   display: flex;
@@ -591,9 +616,26 @@ body, html {
 }
 #panel-latin[data-translation] { cursor: help; }
 
-/* Rich tooltip for Leaflet place dots */
-.ltt.leaflet-tooltip { background: rgba(18,16,12,0.93); border: 1px solid rgba(255,255,255,0.12); color: rgba(220,215,200,0.95); border-radius: 5px; padding: 5px 9px; font-size: 12px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.5); max-width: 220px; }
-.ltt.leaflet-tooltip::before { border-top-color: rgba(18,16,12,0.93) !important; }
+/* Rich place-dot hover card — parked in the top-right stack directly under the Follow and
+   Match buttons (which sit at top 8px and 32px), instead of following the cursor like a
+   normal Leaflet tooltip: on this small popup a cursor-anchored tooltip routinely lands in
+   the middle of the view, over the densest part of the very dot cluster it describes.
+   Hover is a pointer concept, so this only ever appears on non-touch screens — the binding
+   that fills it is gated on !S.isMobile. */
+#locate-hover-card {
+  position: absolute; top: 56px; right: 8px;
+  z-index: 500;
+  background: rgba(18,16,12,0.93);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(220,215,200,0.95);
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: 12px; line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  max-width: 220px;
+  pointer-events: none;
+}
+#locate-hover-card:empty { display: none; }
 /* Suppress hover tooltips/popups while panning or zooming — a moving map sweeps the
    cursor across many dense markers, opening a flickery burst that can also strand a
    tooltip open with no mouseout to close it. */
@@ -1269,10 +1311,13 @@ body, html {
   white-space: nowrap;
   pointer-events: none;
 }
-/* Nearest-place result — fixed at the map's bottom edge (not anchored to the marker) so it
-   never sits on top of the place-dot cluster and blocks clicking neighboring places. */
+/* Nearest-place result — docked flush with the map's bottom edge (not centered mid-map, and
+   not anchored to the marker) so it never sits on top of the place-dot cluster, which is
+   densest toward the middle of the view. Portrait: bottom-left, hard against the edge;
+   landscape: bottom-centre, see the media query below. */
 #locate-result-bar {
-  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 3px; left: 6px;
+  max-width: calc(100% - 20px);
   z-index: 500;
   background: rgba(18,16,12,0.93);
   border: 1px solid rgba(200,160,80,0.45);
@@ -1281,10 +1326,21 @@ body, html {
   color: #e8d8a8; font-size: 11px; font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
-  max-width: calc(100% - 20px);
   overflow: hidden; text-overflow: ellipsis;
 }
 #locate-result-bar:empty { display: none; }
+/* Landscape: centred along the bottom instead of left-aligned, and flush with the edge —
+   same 3px as portrait. The bottom row is free for it because the duplicate in-map
+   attribution overlay is removed in openLocatePopup (the credit lives in #locate-map-attr
+   just below the map instead), so nothing else competes for that strip. */
+@media (orientation: landscape) {
+  #locate-result-bar {
+    left: 50%; right: auto;
+    transform: translateX(-50%);
+    bottom: 3px;
+    max-width: calc(100% - 20px);
+  }
+}
 /* Locate map: transient ring confirming that a near-miss tap was snapped to a place dot.
    Shrinking onto the dot makes the direction of the snap legible — it reads as "your tap
    was pulled to here" rather than as yet another marker sitting on the map. Removed from

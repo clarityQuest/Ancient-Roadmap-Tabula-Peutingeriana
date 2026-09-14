@@ -2351,12 +2351,44 @@ let _leafletSnapPulseTimer = null;
 // repositions a marker at the snapped place specifically — this purple pin is the only
 // locate-map evidence a snap happened at all in that case.
 let _leafletSnapMarker = null;
-// Tracks whichever hover-bound layer (place dot, country polygon, ...) currently has an
-// open tooltip. A layer whose position moves out from under a stationary real cursor
-// never gets a native mouseout — see the movestart/zoomstart handler in openLocatePopup,
-// which force-closes this the instant *any* pan/zoom begins (Follow-triggered or manual)
-// so a stale tooltip can't resurface once the pan-hiding CSS class is lifted again.
+// Tracks whichever hover-bound layer (currently just country polygons — place dots use
+// #locate-hover-card instead, see hideLocateHoverCard) currently has an open tooltip. A
+// layer whose position moves out from under a stationary real cursor never gets a native
+// mouseout — see the movestart/zoomstart handler in openLocatePopup, which force-closes
+// this the instant *any* pan/zoom begins (Follow-triggered or manual) so a stale tooltip
+// can't resurface once the pan-hiding CSS class is lifted again.
 let _leafletHoveredTooltipLayer = null;
+
+// Clears the docked place-dot hover card (see its mouseover/mouseout handlers, a few
+// hundred lines down) — called alongside _leafletHoveredTooltipLayer?.closeTooltip() at
+// every "force everything hover-related closed" site (pan/zoom start, window blur, tab
+// hidden) for the same reason: a card left open with the cursor nowhere near the map
+// would otherwise keep resurfacing on every Follow-triggered pan.
+function hideLocateHoverCard() {
+  const card = document.getElementById("locate-hover-card");
+  if (card) card.innerHTML = "";
+}
+
+// The OSM credit has to be on screen in every layout, but it doesn't have to be on screen
+// twice — and where it lives decides whether the result pill can reach the map's bottom edge.
+//
+// Landscape: #locate-map-attr (the "Road data: OmnesViae · Map: © OpenStreetMap contributors"
+// line directly below the map) is visible, so Leaflet's in-map overlay is a duplicate. It is
+// also 168px wide along the bottom of a popup that every landscape layout makes a ~250px
+// column — exactly the strip the centred pill needs — so the duplicate goes.
+//
+// Portrait: that static line is hidden to save space in the 34vh popup (see #locate-map-attr
+// in styles.css), which makes the in-map overlay the only credit on screen. It stays. Nothing
+// is lost visually there: the pill is bottom-LEFT in portrait and the overlay bottom-RIGHT,
+// so they sit side by side on the full-width map rather than fighting for the same space.
+function syncLocateAttributionControl() {
+  if (!_leafletMap || !_leafletMap.attributionControl) return;
+  if (window.matchMedia("(orientation: landscape)").matches) {
+    _leafletMap.attributionControl.remove();
+  } else {
+    _leafletMap.attributionControl.addTo(_leafletMap);
+  }
+}
 // Reentrancy guard for Follow's two-way sync (see followTabulaView / followLeafletView):
 // true for the duration of any programmatic view change — on either the Tabula or the
 // Leaflet side — that Follow itself (or any other code path) triggers, so the *other*
@@ -3791,6 +3823,11 @@ async function openLocatePopup() {
       attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
       maxZoom: 19,
     }).addTo(_leafletMap);
+    syncLocateAttributionControl();
+    // Orientation can flip mid-session (phone rotation, desktop window resize), and which
+    // credit is on screen flips with it — so re-decide rather than deciding once at init.
+    window.matchMedia("(orientation: landscape)")
+      .addEventListener("change", syncLocateAttributionControl);
     const _loadingEl = document.getElementById("locate-map-loading");
     if (_loadingEl) {
       _tileLayer.on("loading", () => _loadingEl.classList.remove("hidden"));
@@ -3827,6 +3864,7 @@ async function openLocatePopup() {
       clearTimeout(_leafletPanDebounce);
       mapEl?.classList.add("tp-panning");
       _leafletHoveredTooltipLayer?.closeTooltip();
+      hideLocateHoverCard();
     });
     _leafletMap.on("moveend zoomend", () => {
       clearTimeout(_leafletPanDebounce);
@@ -3838,9 +3876,9 @@ async function openLocatePopup() {
     // element's boundary, and jumping focus elsewhere doesn't move the pointer at all —
     // it just stops being visible. Whatever's open when the page stops being the active
     // one is no longer a real hover, so close it.
-    window.addEventListener("blur", () => _leafletHoveredTooltipLayer?.closeTooltip());
+    window.addEventListener("blur", () => { _leafletHoveredTooltipLayer?.closeTooltip(); hideLocateHoverCard(); });
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) _leafletHoveredTooltipLayer?.closeTooltip();
+      if (document.hidden) { _leafletHoveredTooltipLayer?.closeTooltip(); hideLocateHoverCard(); }
     });
     // Reciprocal half of Follow: dragging/zooming this map moves the Tabula view to
     // match, symmetric with followTabulaView doing the reverse — see followLeafletView.
@@ -4203,10 +4241,23 @@ function toggleLeafletPlaces() {
         // on touch devices, but a tap here already opens the full info panel (below) —
         // the tooltip is redundant there, and can be left stranded open if a pan/drag
         // starts on the marker without a normal mouseout to close it.
+        //
+        // Not a real Leaflet tooltip (bindTooltip/direction:"top") any more — that follows
+        // the marker, which on a small popup routinely lands the card in the middle of the
+        // view, over the densest part of the dot cluster it's meant to describe. Docked to
+        // #locate-hover-card (fixed at the map's bottom-right corner, mirroring
+        // #locate-result-bar's bottom-left) instead, so it never covers anything.
         if (!S.isMobile) {
-          m.bindTooltip(tipLines.join("<br>"), { direction: "top", offset: [0, -6], className: "ltt" });
-          m.on("mouseover", () => { _leafletHoveredTooltipLayer = m; });
-          m.on("mouseout", () => { if (_leafletHoveredTooltipLayer === m) _leafletHoveredTooltipLayer = null; });
+          const hoverHtml = tipLines.join("<br>");
+          m.on("mouseover", () => {
+            _leafletHoveredTooltipLayer = m;
+            const card = document.getElementById("locate-hover-card");
+            if (card) card.innerHTML = hoverHtml;
+          });
+          m.on("mouseout", () => {
+            if (_leafletHoveredTooltipLayer === m) _leafletHoveredTooltipLayer = null;
+            hideLocateHoverCard();
+          });
         }
         // Click: navigate Tabula; in country mode also allows country selection.
         // The body lives in leafletPlaceTapAction because the map-level tap-snap runs the
@@ -6402,14 +6453,18 @@ async function reloadDb() {
     sessionStorage.setItem("landscapeTipDismissed", "1");
   }
 
-  // Re-evaluated (not just dismissed) on rotate/resize so it can switch from the
-  // rotate suggestion to the bigger-screen one instead of just disappearing.
+  // Re-evaluated (not just dismissed) on rotate/resize so it can switch between states
+  // instead of just disappearing.
   function refresh() {
     if (sessionStorage.getItem("landscapeTipDismissed")) return;
     if (isPortraitTouch()) {
-      label.textContent = "↺ Rotate to landscape for best experience";
-      fsBtn?.classList.remove("hidden");
-      tip.classList.remove("hidden");
+      // No "rotate to landscape" nag any more. Whether landscape is actually better depends
+      // on the phone's aspect ratio and how much chrome the browser keeps on screen — the
+      // page can't judge that, and on plenty of devices portrait is fine. Fullscreen helps
+      // either way, so the fullscreen control is highlighted instead (see the fullscreen-hint
+      // block below), which also teaches where that control is rather than covering the map
+      // with a bar that describes it.
+      tip.classList.add("hidden");
     } else if (isPhoneSized()) {
       label.textContent = getText("bigger_screen_tip");
       fsBtn?.classList.add("hidden");
@@ -6434,6 +6489,36 @@ async function reloadDb() {
   window.addEventListener("resize", refresh);
 
   refresh();
+})();
+
+// ── Fullscreen hint on startup ──────────────────────────────────────────────
+// Touch screens only: this is what replaced the portrait rotate banner (see refresh()
+// above), and a control pulsing away in the corner of an already-large desktop window
+// would be noise rather than help. Stops at the first sign the user has seen it — the
+// button being used, fullscreen being entered by any route — and gives up on its own
+// after a while so it can't sit there blinking at someone who has decided to ignore it.
+// sessionStorage, not localStorage: a returning visitor in a new session gets the hint
+// again (screens and browsers change), but a rotate or reload inside one session doesn't
+// restart it.
+(function () {
+  const btn = document.getElementById("control-fullpage");
+  if (!btn) return;
+  if (!window.matchMedia("(pointer: coarse)").matches) return;
+  if (sessionStorage.getItem("fsHintDone")) return;
+
+  let stopped = false;
+  function stop() {
+    if (stopped) return;
+    stopped = true;
+    btn.classList.remove("fs-hint");
+    sessionStorage.setItem("fsHintDone", "1");
+    clearTimeout(timer);
+    document.removeEventListener("fullscreenchange", stop);
+  }
+  btn.classList.add("fs-hint");
+  btn.addEventListener("click", stop, { once: true });
+  document.addEventListener("fullscreenchange", stop);
+  const timer = setTimeout(stop, 12000);
 })();
 
 // centered=true for panels using transform:translate(-50%,-50%) for centering (e.g. about modal)
