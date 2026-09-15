@@ -855,10 +855,19 @@
   const FILTER_STORAGE_KEY = 'tp_db_filters_v1';
   const COLUMNS_PER_ROW = 4;
 
-  const DEFAULT_VISIBLE_COLUMNS = [
+  // Column order: these first, then all other record fields A–Z.
+  // Computed '__' columns only exist if listed here.
+  const LEADING_COLUMNS = [
     '__rownum', 'latin', 'modern_preferred', 'type', 'country',
     'tabula_location', '__geocoded_lat_lng', '__review', '__ov_coords',
     'source', 'match_status', 'data_id', 'ulm_id',
+  ];
+
+  // Shown when the browser has no saved column selection yet.
+  const DEFAULT_VISIBLE_COLUMNS = [
+    '__rownum', 'latin', 'modern_preferred', 'type', 'country',
+    'tabula_location', 'source', 'match_status', 'data_id', 'ulm_id',
+    'miller_rect_user_set', 'wiki_url',
   ];
 
   const SPECIAL_COLUMN_LABELS = {
@@ -1295,12 +1304,12 @@
 
   function initColumns(records) {
     const recCols = [...new Set(records.flatMap(r=>Object.keys(r)))].sort();
-    const orderedDefaults = DEFAULT_VISIBLE_COLUMNS.filter(k => k==='__rownum'||k.startsWith('__')||recCols.includes(k));
-    const remainder = recCols.filter(k => !orderedDefaults.includes(k));
-    allColumns = orderedDefaults.concat(remainder);
+    const leading = LEADING_COLUMNS.filter(k => k.startsWith('__')||recCols.includes(k));
+    const remainder = recCols.filter(k => !leading.includes(k));
+    allColumns = leading.concat(remainder);
 
     const stored = loadVisibleColumns();
-    visibleColumns = (stored&&stored.length) ? stored : orderedDefaults.slice();
+    visibleColumns = (stored&&stored.length) ? stored : allColumns.filter(k => DEFAULT_VISIBLE_COLUMNS.includes(k));
     if (!(stored&&stored.length)) saveVisibleColumns();
 
     renderHeadRow();
