@@ -70,7 +70,7 @@
     "featureList": [
       "Locate yourself automatically on load: a persistent red \"You are here\" marker shows your real GPS position on the ancient map, while a separate blue marker tracks any other location you pick — compare two places on Earth at once",
       "\"Follow\" mode: keep the real-world location map and the ancient Tabula view in sync as you explore either one — pan or zoom either map and the other automatically reframes to match",
-      "\"Match\" mode: highlights every place currently visible on the Tabula with a bright ring on the real-world location map, so you can see exactly what Follow is tracking",
+      "\"Match\" mode: the Tabula leads — the real-world location map always shows exactly what is visible on the Tabula, with a bright ring on every place; moving the location map sends the Tabula there first",
       "See your country in antiquity: select from 64 modern countries to highlight its ancient places on the map",
       "Accessible to non-experts: modern place names, Wikipedia links, AI-translated Latin inscriptions",
       "4,393 annotated ancient places: cities, road stations, rivers, mountains, islands, provinces",
@@ -220,7 +220,7 @@
         "name": "Can the location map follow the ancient map as I explore it, or the other way round?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Switch on \"Follow\" (top-right button on the location map panel) and the two views stay linked in both directions: pan or zoom the Tabula Peutingeriana and the real-world OpenStreetMap location map automatically reframes to the matching modern geography, and panning or zooming the location map moves the ancient map to match in return. Explore either the ancient or the modern world and the other side stays lined up with it. Switch on \"Match\" (just below Follow) to see exactly which places are being tracked: every place currently visible on the Tabula gets a bright green ring on the location map."
+          "text": "Yes. Switch on \"Follow\" (top-right button on the location map panel) and the two views stay linked in both directions: pan or zoom the Tabula Peutingeriana and the real-world OpenStreetMap location map automatically reframes to the matching modern geography, and panning or zooming the location map moves the ancient map to match in return. Explore either the ancient or the modern world and the other side stays lined up with it. Switch on \"Match\" (just below Follow) to let the Tabula lead instead: the location map then always shows exactly what is visible on the Tabula, with a bright green ring on every place, and moving the location map sends the Tabula there first before the location map settles on the Tabula's view."
         }
       },
       {
@@ -289,7 +289,7 @@
       "Wikipedia article URL",
       "AI-translated Latin inscription (English and German)"
     ],
-    "measurementTechnique": "Primary source: Tabula Peutingeriana parchment scroll (c. 1200 AD copy of c. 300–400 AD original, Österreichische Nationalbibliothek, Vienna). Coordinates from tabula-peutingeriana.de (M. Weber), tp-online.ku.de (Univ. Ulm), Wikipedia API, Nominatim/OpenStreetMap, and AI-assisted geocoding.",
+    "measurementTechnique": "Primary source: Tabula Peutingeriana parchment scroll (c. 1200 AD copy of c. 300–400 AD original, Österreichische Nationalbibliothek, Vienna). Coordinates from tabula-peutingeriana.de (M. Weber), tp-online.ku.de (KU Eichstätt-Ingolstadt), Wikipedia API, Nominatim/OpenStreetMap, and AI-assisted geocoding.",
     "includedInDataCatalog": {
       "@type": "DataCatalog",
       "name": "tabula-peutingeriana.de",
@@ -307,7 +307,7 @@
 
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260914b" />
+  <link rel="stylesheet" href="styles.css?v=20260915n" />
 </head>
 <body>
   <div id="app">
@@ -443,7 +443,7 @@
           <div id="panel-wiki-bottom">
             <div id="panel-links">
               <a id="panel-wiki-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Wikipedia ↗</a>
-              <a id="panel-tp-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Ulm DB ↗</a>
+              <a id="panel-tp-link" class="hidden panel-link" href="#" target="_blank" rel="noopener">Scientific Info ↗</a>
             </div>
             <img id="panel-wiki-img" class="hidden" alt="" loading="lazy" />
           </div>
@@ -451,11 +451,11 @@
         <div id="panel-map" class="hidden"></div>
         <div id="panel-ulm-label" class="hidden" data-i18n="tabula_view_label">Original Tabula Peutingeriana view</div>
         <div id="panel-ulm-section" class="hidden">
-          <a id="panel-ulm-link" href="#" target="_blank" rel="noopener" title="Open in Ulm Database">
-            <img id="panel-ulm-img" src="" alt="ULM database image" />
+          <a id="panel-ulm-link" href="#" target="_blank" rel="noopener" title="Open in the TP-Online database (KU Eichstätt-Ingolstadt)">
+            <img id="panel-ulm-img" src="" alt="TP-Online database image" />
           </a>
         </div>
-        <div id="panel-sources">Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber) · <a href="https://tp-online.ku.de/" target="_blank" rel="noopener">tp-online.ku.de</a> (Univ. Ulm) · Image: <a href="https://commons.wikimedia.org/wiki/File:Tabula_Peutingeriana.jpg" target="_blank" rel="noopener">K. Miller, 1887</a> · Map: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
+        <div id="panel-sources">Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber) · <a href="https://tp-online.ku.de/" target="_blank" rel="noopener">tp-online.ku.de</a> (KU Eichstätt-Ingolstadt) · Image: <a href="https://commons.wikimedia.org/wiki/File:Tabula_Peutingeriana.jpg" target="_blank" rel="noopener">K. Miller, 1887</a> · Map: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
       </div>
     </aside>
 
@@ -467,6 +467,14 @@
       <button id="close-about" aria-label="Close">&times;</button>
       <h2 class="about-title">Tabula Peutingeriana</h2>
       <p class="about-subtitle" data-i18n="about_subtitle">The Road Map of the Ancient World</p>
+
+      <!-- Plays the recorded story narration (see the "About narration" block in main.js).
+           Starts hidden and is revealed once that script has wired it up. -->
+      <button type="button" id="about-listen-btn" class="about-listen-btn hidden" aria-pressed="false">
+        <svg class="about-listen-icon-play" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+        <svg class="about-listen-icon-stop" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+        <span id="about-listen-label" data-i18n="about_listen">Listen to the story</span>
+      </button>
 
       <div id="about-lang-row">
         <button class="lang-btn" data-lang="de">&#127465;&#127466; Deutsch</button>
@@ -499,6 +507,41 @@
         </dl>
       </section>
 
+      <!-- Videos, straight after the facts: a short film in the UI's language, then the full
+           scholarly lecture for anyone who wants the in-depth discussion. The film is click-to-load:
+           the frame shows a local poster (Roma, cut from the Miller facsimile by
+           scripts/make_about_video_poster.py) and the YouTube player is only created when someone
+           presses play (see the "About video" block in main.js), so opening this panel requests
+           nothing from YouTube. The film's title, channel and links are filled in per language. -->
+      <section class="about-section about-videos">
+        <h3 data-i18n="about_videos_h">Videos</h3>
+        <div class="about-video">
+          <div id="about-video-frame" class="about-video-frame">
+            <button type="button" id="about-video-poster" class="about-video-poster">
+              <img src="about-video-poster.jpg" alt="" width="960" height="540" loading="lazy" />
+              <span class="about-video-play" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></svg>
+              </span>
+              <span class="about-video-caption" aria-hidden="true">
+                <span id="about-video-title" class="about-video-title"></span>
+                <span id="about-video-meta" class="about-video-meta"></span>
+              </span>
+            </button>
+          </div>
+          <p class="about-video-note">
+            <span data-i18n="about_video_privacy">The film is only loaded from YouTube when you press play; YouTube then receives data such as your IP address.</span>
+            <a id="about-video-yt-link" href="https://www.youtube.com/watch?v=PC_qEvXpCts" target="_blank" rel="noopener" data-i18n="about_video_on_youtube">Watch on YouTube ↗</a>
+          </p>
+        </div>
+        <a class="about-link about-lecture-link" href="https://www.youtube.com/watch?v=A51sCY6M-pc" target="_blank" rel="noopener">
+          <span class="about-link-icon">&#127891;</span>
+          <span class="about-lecture-text">
+            <span>Philipp Köhner &amp; Monika Schuol (KU Eichstätt), The Tabula Peutingeriana</span>
+            <span class="about-lecture-meta" data-i18n="about_lecture_meta">Scholarly lecture (in German) · 1 h 29 min · YouTube</span>
+          </span>
+        </a>
+      </section>
+
       <section class="about-section">
         <h3 data-i18n="about_map_h">A Map Unlike Any Other</h3>
         <p data-i18n-html="about_map_p1">This is not a geographic map in the modern sense. The scroll format forced the cartographer to compress the north-south dimension dramatically — the Mediterranean Sea appears as a narrow strip, and Italy is rotated almost horizontally. What matters is <em>connectivity</em>: roads, distances in Roman miles (<em>milia passuum</em>), and the cities they link.</p>
@@ -529,7 +572,7 @@
 
       <section class="about-section">
         <h3 data-i18n="about_follow_h">Follow the Ancient World, Live</h3>
-        <p data-i18n-html="about_follow_p">Switch on <strong>Follow</strong> (top-right of the location map) and the two views stay in sync as you explore — pan or zoom either the Tabula or the real-world map and the other reframes to match automatically. Turn on <strong>Match</strong> alongside it to see exactly which places currently visible on the Tabula are being tracked: each one gets a bright green ring on the location map.</p>
+        <p data-i18n-html="about_follow_p">Switch on <strong>Follow</strong> (top-right of the location map) and the two views stay in sync as you explore — pan or zoom either the Tabula or the real-world map and the other reframes to match automatically. Switch on <strong>Match</strong> to let the Tabula lead: the location map always shows what is visible on the Tabula, with a bright green ring around every place. Move the location map and the Tabula goes there first; then the location map settles on exactly what the Tabula shows.</p>
       </section>
 
       <section class="about-section">
@@ -554,7 +597,7 @@
           </a>
           <a class="about-link" href="https://tp-online.ku.de/" target="_blank" rel="noopener">
             <span class="about-link-icon">&#128300;</span>
-            <span>Universit&#228;t Ulm – tp-online.ku.de</span>
+            <span>KU Eichst&#228;tt-Ingolstadt – tp-online.ku.de</span>
           </a>
           <a class="about-link" href="https://www.youtube.com/results?search_query=Tabula+Peutingeriana" target="_blank" rel="noopener">
             <span class="about-link-icon">&#9654;</span>
@@ -572,7 +615,8 @@
       </section>
 
       <div class="about-footer">
-        Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber) · <a href="https://tp-online.ku.de/" target="_blank" rel="noopener">tp-online.ku.de</a> (Univ. Ulm) · Map image: K. Miller, 1887
+        Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber) · <a href="https://tp-online.ku.de/" target="_blank" rel="noopener">tp-online.ku.de</a> (KU Eichstätt-Ingolstadt) · Map image: K. Miller, 1887
+        <br>Narration: synthetic voices “Vindemiatrix” (English) and “Laomedeia” (German), <a href="https://cloud.google.com/text-to-speech" target="_blank" rel="noopener">Google Cloud Text-to-Speech</a>
       </div>
       <div id="about-settings-row">
         <a id="about-email-btn" class="about-settings-btn" href="mailto:info@three-mills.com?subject=Tabula%20Peutingeriana%20Feedback" aria-label="Send feedback email" title="Send feedback">
@@ -611,7 +655,7 @@
         <div id="mobile-segment-buttons" class="segment-btn-group"></div>
         <h3>Display</h3>
         <div id="mobile-display-controls"></div>
-        <div id="mobile-menu-attribution">Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber) Â· Image: <a href="https://commons.wikimedia.org/wiki/File:Tabula_Peutingeriana.jpg" target="_blank" rel="noopener">K. Miller, 1887</a> Â· Â© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>
+        <div id="mobile-menu-attribution">Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber) · Image: <a href="https://commons.wikimedia.org/wiki/File:Tabula_Peutingeriana.jpg" target="_blank" rel="noopener">K. Miller, 1887</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>
       </div>
     </div>
 
@@ -677,7 +721,7 @@
           <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v3M9 13v3M2 9h3M13 9h3"/><circle cx="9" cy="9" r="2.5"/></svg>
           Follow
         </button>
-        <button id="locate-match-btn" class="toggle-btn" title="Match: highlight every place currently visible on the Tabula view, here on the location map">
+        <button id="locate-match-btn" class="toggle-btn" title="Match: the Tabula leads. This map shows what the Tabula shows, with every visible place ringed; moving this map moves the Tabula there, then this map settles on the Tabula's view">
           <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="13" height="13" rx="2"/><circle cx="9" cy="9" r="2.5"/></svg>
           Match
         </button>
@@ -710,8 +754,8 @@
     <!-- Attribution -->
     <div id="attribution">
       Data: <a href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">tabula-peutingeriana.de</a> (M. Weber)
-      Â· <a href="https://tp-online.ku.de/" target="_blank" rel="noopener">ULM (Univ. Ulm)</a>
-      Â· Image: Wikimedia Commons (K. Miller, 1887)
+      · <a href="https://tp-online.ku.de/" target="_blank" rel="noopener">TP-Online (KU Eichstätt-Ingolstadt)</a>
+      · Image: Wikimedia Commons (K. Miller, 1887)
     </div>
   </div>
 
@@ -722,7 +766,7 @@
       <h1>Tabula Peutingeriana &mdash; Interactive Ancient Roman Road Map</h1>
       <p>The <strong>Tabula Peutingeriana</strong> (Peutinger Map / Peutingersche Tafel) is a medieval copy of a late-antique Roman road map, dating to the 4th&ndash;5th century AD. It is the most complete surviving cartographic document of the Roman world, stretching 6.75 metres in length and depicting roads, distances in Roman miles (<em>milia passuum</em>), and over 3,500 named settlements across the known world &mdash; from Britain and the Atlantic coast in the west to India and Sri Lanka in the east.</p>
       <p>Three cities receive special pictorial treatment as enthroned figures: <strong>Rome</strong>, <strong>Constantinople</strong>, and <strong>Antioch</strong> &mdash; reflecting their supreme importance in the late Roman world.</p>
-      <p>This interactive viewer lets you explore the full Tabula in high resolution, search for ancient place names (Latin and modern), access Wikipedia articles and ULM database entries for each location, and use GPS to locate yourself on the ancient Roman world.</p>
+      <p>This interactive viewer lets you explore the full Tabula in high resolution, search for ancient place names (Latin and modern), access Wikipedia articles and TP-Online database entries for each location, and use GPS to locate yourself on the ancient Roman world.</p>
       <h2>Key Facts</h2>
       <ul>
         <li>Original date: c. 4th&ndash;5th century AD</li>
@@ -737,7 +781,7 @@
       <h2>Geographic Coverage</h2>
       <p>Segments II&ndash;XII cover: Iberian Peninsula &bull; Southern Gaul &bull; Italian Alps &bull; All of Italy &bull; Dalmatian coast &bull; Balkans &bull; Greece &bull; North Africa (Morocco to Egypt) &bull; Asia Minor (Turkey) &bull; Syria &bull; Palestine &bull; Egypt &bull; Mesopotamia &bull; Caucasus &bull; Persia (Iran) &bull; Central Asia &bull; Indian subcontinent. Segment I (Britain west of the southeast, Iberia, Atlantic Morocco) is lost.</p>
       <h2>Data Sources</h2>
-      <p>Place database: <a href="https://www.tabula-peutingeriana.de/">tabula-peutingeriana.de</a> (M. Weber) &bull; <a href="https://tp-online.ku.de/">tp-online.ku.de</a> (Universit&auml;t Ulm) &bull; Map image: K. Miller, 1887 (Wikimedia Commons) &bull; Roads: OmnesViae</p>
+      <p>Place database: <a href="https://www.tabula-peutingeriana.de/">tabula-peutingeriana.de</a> (M. Weber) &bull; <a href="https://tp-online.ku.de/">tp-online.ku.de</a> (KU Eichst&auml;tt-Ingolstadt) &bull; Map image: K. Miller, 1887 (Wikimedia Commons) &bull; Roads: OmnesViae</p>
       <p>JavaScript is required to use this viewer. Please enable JavaScript in your browser.</p>
       <p>Contact: <a href="mailto:info@three-mills.com">info@three-mills.com</a></p>
     </div>
@@ -772,6 +816,6 @@
 
   <div id="latin-tip" style="display:none"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260914b"></script>
+  <script src="main.js?v=20260915n"></script>
 </body>
 </html>

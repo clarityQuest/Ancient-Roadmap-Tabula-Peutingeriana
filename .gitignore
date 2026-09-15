@@ -16,6 +16,8 @@ public/Tabula_Peutingeriana_150dpi_Stitched.jpg
 # Reference / working data not needed at runtime
 archive/
 Ulm Database/
+# Narration voice samples and experiments (the finished files live in public/audio/)
+audio-work/
 
 # Script working files
 scripts/__pycache__/

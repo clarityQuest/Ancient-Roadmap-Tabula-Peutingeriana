@@ -577,21 +577,23 @@ body, html {
 /* Tooltip */
 #tooltip {
   position: absolute; background: rgba(0, 0, 0, 0.90); color: #fff;
-  padding: 12px 18px; border-radius: 8px; pointer-events: none; z-index: 20;
-  font-size: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.14);
-  max-width: 380px;
+  padding: 10px 14px; border-radius: 6px; pointer-events: none; z-index: 20;
+  font-size: 12px; box-shadow: 0 3px 16px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.14);
+  max-width: 304px;
 }
-#tooltip.tt-rich { max-width: 380px; padding: 14px 18px; }
-.tt-latin { font-weight: 700; font-size: 20px; margin-bottom: 4px; }
-.tt-modern { color: #ddd; margin-bottom: 2px; font-size: 15px; font-weight: 500; }
-.tt-transl { color: #b0a890; font-style: italic; font-size: 13px; margin-bottom: 5px; }
-.tt-type { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #bbb; margin-bottom: 4px; margin-top: 6px; }
+#tooltip.tt-rich { max-width: 304px; padding: 11px 14px; }
+.tt-latin { font-weight: 700; font-size: 16px; margin-bottom: 3px; }
+.tt-modern { color: #ddd; margin-bottom: 2px; font-size: 12px; font-weight: 500; }
+.tt-transl { color: #b0a890; font-style: italic; font-size: 10.4px; margin-bottom: 4px; }
+.tt-type { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #bbb; margin-bottom: 3px; margin-top: 5px; }
 .tt-type-icon { font-size: 1.5em; line-height: 1; }
-.tt-country { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #fff; margin-bottom: 2px; }
+.tt-country { display: flex; align-items: center; gap: 5px; font-size: 11.2px; color: #fff; margin-bottom: 2px; }
 .tt-country img { height: 1.2em; vertical-align: middle; border-radius: 2px; }
 .tt-country-name { font-weight: 500; }
-.tt-detail { font-size: 13px; color: #aaa; margin-top: 3px; }
+.tt-detail { font-size: 10.4px; color: #aaa; margin-top: 2px; }
 .tt-detail span { color: #ddd; }
+/* .dot is shared with other UI at 10px; scaled down here only, in step with the tooltip text. */
+#tooltip .dot { width: 8px; height: 8px; }
 
 /* Region-solo button — standalone below type filters, dashed border signals "area" */
 #region-solo-btn { align-self: flex-start; margin-top: 4px; border-style: dashed !important; color: #a78bfa !important; }
@@ -616,26 +618,37 @@ body, html {
 }
 #panel-latin[data-translation] { cursor: help; }
 
-/* Rich place-dot hover card — parked in the top-right stack directly under the Follow and
-   Match buttons (which sit at top 8px and 32px), instead of following the cursor like a
-   normal Leaflet tooltip: on this small popup a cursor-anchored tooltip routinely lands in
-   the middle of the view, over the densest part of the very dot cluster it describes.
-   Hover is a pointer concept, so this only ever appears on non-touch screens — the binding
-   that fills it is gated on !S.isMobile. */
+/* Rich place-dot hover card — positioned up-and-right of the mouse pointer with a gap by
+   placeLocateHoverCard in main.js, which sets left/top on every move; see there for the
+   edge-flipping. Hover is a pointer concept, so this only ever appears on mouse screens —
+   the binding that fills it is gated on !S.isMobile.
+   pointer-events:none is load-bearing, not cosmetic: the card follows the pointer, so if
+   it could catch the mouse it would steal it from the dot underneath, fire a mouseout,
+   clear itself, and flicker on every move. */
 #locate-hover-card {
-  position: absolute; top: 56px; right: 8px;
+  position: absolute; left: 0; top: 0;
   z-index: 500;
-  background: rgba(18,16,12,0.93);
-  border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(220,215,200,0.95);
-  border-radius: 5px;
-  padding: 5px 9px;
-  font-size: 12px; line-height: 1.5;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  max-width: 220px;
+  background: rgba(18,16,12,0.94);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(220,215,200,0.96);
+  border-radius: 5.5px;
+  padding: 6.6px 8.8px;
+  font-size: 10.8px; line-height: 1.45;
+  box-shadow: 0 2px 9px rgba(0,0,0,0.55);
+  width: max-content;
+  /* Never wider than the map itself: on desktop the locate map can be only ~250px wide. */
+  max-width: min(231px, calc(100% - 8px));
   pointer-events: none;
 }
 #locate-hover-card:empty { display: none; }
+#locate-hover-card .hc-name   { font-size: 11.55px; font-weight: 700; color: #f2e8cc; }
+#locate-hover-card .hc-modern { font-size: 10.4px; color: rgba(205,200,185,0.92); }
+#locate-hover-card .hc-type   { font-size: 10.4px; }
+#locate-hover-card .hc-seg1   { font-size: 9.6px; opacity: 0.75; }
+#locate-hover-card .hc-dot {
+  display: inline-block; width: 6.2px; height: 6.2px; border-radius: 50%;
+  vertical-align: middle; margin-right: 3.85px;
+}
 /* Suppress hover tooltips/popups while panning or zooming — a moving map sweeps the
    cursor across many dense markers, opening a flickery burst that can also strand a
    tooltip open with no mouseout to close it. */
@@ -676,6 +689,29 @@ body, html {
 #close-about:hover { color: #fff; }
 .about-title { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
 .about-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; font-style: italic; }
+
+/* "Listen to the story" — gold pill: gold is this UI's attention colour, and this is the one
+   primary action in an otherwise read-only panel. Swaps its speaker icon for a stop square
+   while speaking (.speaking is toggled by the About narration block in main.js). */
+.about-listen-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin: 0 0 2px;
+  padding: 6px 14px 6px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(200,160,80,0.55);
+  background: rgba(200,160,80,0.10);
+  color: #e8d8a8;
+  font-size: 13px; font-weight: 600; line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.about-listen-btn:hover { background: rgba(200,160,80,0.20); border-color: #c8a050; color: #ffd080; }
+.about-listen-btn:focus-visible { outline: 2px solid #c8a050; outline-offset: 2px; }
+.about-listen-btn svg { flex-shrink: 0; }
+.about-listen-btn .about-listen-icon-stop { display: none; }
+.about-listen-btn.speaking { background: rgba(200,160,80,0.28); border-color: #c8a050; color: #ffd080; }
+.about-listen-btn.speaking .about-listen-icon-play { display: none; }
+.about-listen-btn.speaking .about-listen-icon-stop { display: inline; }
 .about-tabula-img-wrap {
   margin: 0 0 18px;
   border-radius: 6px;
@@ -740,6 +776,66 @@ body, html {
 }
 .about-link:hover { background: rgba(59,130,246,0.12); text-decoration: none; }
 .about-link-icon { font-size: 16px; flex-shrink: 0; }
+/* Videos. The film keeps a 16:9 frame up to 720px wide. Until play is pressed the frame holds a
+   poster button (local image, dark gradient for the caption, gold play button in this UI's
+   attention colour); the About video block in main.js swaps in the YouTube iframe. */
+.about-video { max-width: 720px; margin-bottom: 12px; }
+.about-video-frame {
+  position: relative; width: 100%; aspect-ratio: 16 / 9;
+  border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--border-color); background: #1b1810;
+}
+.about-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.about-video-poster {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  padding: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer;
+}
+.about-video-poster img {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+  filter: brightness(0.8) saturate(0.9); transition: filter 0.2s;
+}
+.about-video-poster::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(10,8,4,0.9) 0%, rgba(10,8,4,0.5) 30%, rgba(10,8,4,0) 58%);
+}
+.about-video-play {
+  position: absolute; left: 50%; top: 50%; z-index: 1;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px; border-radius: 50%;
+  border: 2px solid #c8a050; background: rgba(20,16,8,0.72); color: #ffd080;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.about-video-play svg { margin-left: 3px; }  /* a play triangle looks off-centre when centred exactly */
+.about-video-poster:hover img { filter: brightness(0.92) saturate(1); }
+.about-video-poster:hover .about-video-play,
+.about-video-poster:focus-visible .about-video-play {
+  background: #c8a050; color: #1b1408; transform: translate(-50%, -50%) scale(1.06);
+}
+.about-video-poster:focus-visible { outline: 2px solid #c8a050; outline-offset: -3px; }
+.about-video-caption {
+  position: absolute; left: 14px; right: 14px; bottom: 12px; z-index: 1;
+  display: flex; flex-direction: column; gap: 2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85);
+}
+.about-video-title { font-size: 15px; font-weight: 600; line-height: 1.3; color: #fff; }
+.about-video-meta { font-size: 12px; color: #e8d8a8; }
+.about-section .about-video-note {
+  display: flex; flex-wrap: wrap; gap: 2px 12px;
+  margin: 6px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-muted);
+}
+.about-video-note a { color: var(--accent); text-decoration: none; white-space: nowrap; }
+.about-lecture-link { max-width: 720px; }
+.about-lecture-text { display: flex; flex-direction: column; gap: 1px; }
+.about-lecture-meta { font-size: 11px; color: var(--text-muted); }
+@media (max-width: 600px) {
+  .about-video-play { width: 46px; height: 46px; }
+  .about-video-play svg { width: 22px; height: 22px; }
+  .about-video-caption { left: 10px; right: 10px; bottom: 8px; }
+  .about-video-title { font-size: 13px; }
+  .about-video-meta { font-size: 11px; }
+}
 .about-footer { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted); line-height: 1.5; }
 .about-footer a { color: var(--accent); text-decoration: none; }
 #about-settings-row { margin-top: 10px; display: flex; justify-content: flex-end; }

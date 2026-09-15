@@ -21,7 +21,7 @@ Tap **Countries** in the location panel. Coloured polygons for 64 modern countri
 > *"What was Germany in the Roman world?"  "Click Germany → see ~220 ancient places light up across Gaul, Germania, and Raetia."*
 
 ### Follow the Ancient World, Live
-Switch on **Follow** (top-right of the location map) and the two maps stay in sync as you explore — pan or zoom the Tabula Peutingeriana and the real-world OpenStreetMap location map automatically reframes to the matching modern geography, and panning or zooming the location map moves the ancient map back to match. Explore either side and the other always lines up with it. Switch on **Match** alongside it to see exactly which places are being tracked: every place currently visible on the Tabula gets a bright green ring on the location map.
+Switch on **Follow** (top-right of the location map) and the two maps stay in sync as you explore — pan or zoom the Tabula Peutingeriana and the real-world OpenStreetMap location map automatically reframes to the matching modern geography, and panning or zooming the location map moves the ancient map back to match. Explore either side and the other always lines up with it. Switch on **Match** to let the Tabula lead instead: the location map always shows exactly what is visible on the Tabula, with a bright green ring on every place — move the location map and the Tabula goes there first, then the location map settles on the Tabula's view.
 
 ### Read the Latin Without Knowing Latin
 Over 1,100 multi-word Latin inscriptions have been translated into English and German by Claude AI and stored in the database. They appear instantly on hover and in the info panel — no internet call needed at runtime. Famous examples:
@@ -54,7 +54,7 @@ No prior knowledge needed. The built-in demo gives you a guided tour on first vi
 | Place database | 4,393 records; 86% georeferenced with lat/lng |
 | GPS location | Find nearest ancient place from your real-world position |
 | Follow mode | Two-way live sync between the ancient Tabula view and the real-world location map |
-| Match mode | Highlights every place currently visible on the Tabula, on the location map |
+| Match mode | The Tabula leads: the location map always shows what is visible on the Tabula, every place ringed |
 | Country mode | 64 countries, coloured polygon overlay, GPS auto-select |
 | AI translations | 1,100+ Latin inscriptions → English + German (offline) |
 | Wikipedia integration | Inline summary + thumbnail for all linked places |
@@ -151,7 +151,7 @@ Requires `ANTHROPIC_API_KEY` (or set via Claude Code / `~/.claude/config.json`).
 
 - Map image: K. Miller, *Itineraria Romana* 1887 facsimile — public domain, via Wikimedia Commons
 - Original parchment: Österreichische Nationalbibliothek, Vienna — UNESCO Memory of the World (2007)
-- Place data: [tabula-peutingeriana.de](https://www.tabula-peutingeriana.de/) (M. Weber) · [tp-online.ku.de](https://tp-online.ku.de/) (Universität Ulm)
+- Place data: [tabula-peutingeriana.de](https://www.tabula-peutingeriana.de/) (M. Weber) · [tp-online.ku.de](https://tp-online.ku.de/) (KU Eichstätt-Ingolstadt)
 - Road network: [OmnesViae](https://omnesviae.org)
 - Viewer: [OpenSeadragon](https://openseadragon.github.io/) · [Leaflet](https://leafletjs.com/) / OpenStreetMap
 - Country polygons: Natural Earth 110m

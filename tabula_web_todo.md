@@ -1,5 +1,38 @@
-1) now there are three icons for user selected location a blue teardrop icon and a new strange one for the user selection on the tabula or the snap to place and a purple one. i want to have ONE blue only which was there for long time. this indicates the user "selection" which has been made on tabula or on , please remove the new blue onw with the white outline. keep the teardrop design as it is for the red GPS loacction and the old blue icon. in case it 
+
+15.9.26
+
+follow and match now work fine, but just check this image, there a many places visible in africa on tabula but not shown in green highlight in user loaction map. seems thats something specific for rome area, quite strange, usually it works fine
+
+1) about: have the video after the introduction at the end of "at a glance" ssection, add the link to extensive discussion to ulm talk after the short video.
+2) match mode: master shall be the tabula, if user changes something on user location map just move the tabula and user location map and tabula visible places are highlightes in user loc map.
+
+1. please implement Laomedeia for german vindemiatrix for english
+2. Add Video to about: 
+	a. Add link to Scientific one Philipp Köhner & Monika Schuol (KU Eichstätt), The Tabula Peutingeriana
+Embed German shortversion: Tabula Peutingeriana: Das Geheimnis der antiken Weltkarte or in english language the English short: Tabula Peutingeriana - An Ancient Roman Road Map
+
+1. hover info in tabula is still too large, reduce to ~80% of current size, in user location map increase size by 10% of hover info
+2. hmm i tested the page but the audio is not fluent, often there are sections where one cannot understand. if i have claude read the claude response text in claude chat window, the quality is really nice, cant you use the claude audio algorighm to create the audio for my website?
+
+1) decrease size by 30% of  hover info
+2) can you improve the speech quality for the about text, how is the implementation right now? maybe its required to create an audio file via claude? lets discuss the options
+3) database updates shall be pushed always
+
+
+
+	1. For mouse devices (large screens) Increase size of the hover info text, show the hover info not on top right but nearby the mouse pointer like on top right of it but still far enough not to cover the map near the pointer/obstruct it
+Read about button tell story of the tabula with speaker icon 
+14.09.2026
+
+	1. For non touch screens (large ones) the hover info in user location map shall be displayed on top right below the follow button
+Highlight full screen ICON on startup to make sure this is best experience, do not show the "landscape mode for best experience" on startup for mobile screens.
+
+1. in mobile screens or small screens there is weird behavior when place is selected in user loc map, please move the place name on the bottom to the bottom left so it does not obsruct the view
+
+
 13.09.26
+1) now there are three icons for user selected location a blue teardrop icon and a new strange one for the user selection on the tabula or the snap to place and a purple one. i want to have ONE blue only which was there for long time. this indicates the user "selection" which has been made on tabula or on user location map.please remove the new blue onw with the white outline. keep the teardrop design as it is for the red GPS loacction and the old blue icon. in case of user selects on user loaction map and it is not hitting any place and a place nearby is selected, there shall be the 3rd purple teardrop in (in same design as other teardrop icons but little bit smaller). thus, just to summarize: there are three teardrops: one for user gps  (red) one for user selected location (blue) and third for nearby place in case user selection does not directly hit a place.
+
 
 
 can you schedule the following changes to the project to begin at 1:21pm today? 

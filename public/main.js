@@ -191,8 +191,15 @@ const I18N = {
     about_caveat_p: "Placing a 1,600-year-old road map onto modern coordinates is scholarly reconstruction, not measurement. Many identifications of ancient place names with modern towns are debated among historians, and some road stations are only approximately located — interpolated from neighbouring places and travel distances rather than pinpointed by archaeology. Treat every marker here as the current best-supported estimate, not an exact or final answer.",
     locate_caveat: "Modern locations are a scholarly best estimate — many identifications are debated, some road stations only interpolated.",
     about_follow_h: "Follow the Ancient World, Live",
-    about_follow_p: "Switch on <strong>Follow</strong> (top-right of the location map) and the two views stay in sync as you explore — pan or zoom either the Tabula or the real-world map and the other reframes to match automatically. Turn on <strong>Match</strong> alongside it to see exactly which places currently visible on the Tabula are being tracked: each one gets a bright green ring on the location map.",
+    about_follow_p: "Switch on <strong>Follow</strong> (top-right of the location map) and the two views stay in sync as you explore — pan or zoom either the Tabula or the real-world map and the other reframes to match automatically. Switch on <strong>Match</strong> to let the Tabula lead: the location map always shows what is visible on the Tabula, with a bright green ring around every place. Move the location map and the Tabula goes there first; then the location map settles on exactly what the Tabula shows.",
     about_learn_h: "Learn More",
+    about_listen: "Listen to the story",
+    about_listen_stop: "Stop",
+    about_videos_h: "Videos",
+    about_video_play: "Play video",
+    about_video_privacy: "The film is only loaded from YouTube when you press play; YouTube then receives data such as your IP address.",
+    about_video_on_youtube: "Watch on YouTube ↗",
+    about_lecture_meta: "Scholarly lecture (in German) · 1 h 29 min · YouTube",
   },
   de: {
     // Singular type labels — used where exactly ONE place is described
@@ -251,8 +258,15 @@ const I18N = {
     about_caveat_p: "Eine 1.600 Jahre alte Straßenkarte auf moderne Koordinaten zu übertragen ist wissenschaftliche Rekonstruktion, keine Messung. Viele Identifikationen antiker Ortsnamen mit heutigen Orten sind unter Historikern umstritten, und manche Straßenstationen sind nur näherungsweise verortet — interpoliert aus benachbarten Orten und Reiseentfernungen, nicht archäologisch punktgenau bestimmt. Betrachten Sie jede Markierung hier als die derzeit am besten belegte Schätzung, nicht als exakte oder endgültige Antwort.",
     locate_caveat: "Moderne Verortungen sind eine bestmögliche Schätzung — viele Identifikationen sind umstritten, manche Straßenstationen nur interpoliert.",
     about_follow_h: "Die antike Welt live verfolgen",
-    about_follow_p: "Aktivieren Sie <strong>Follow</strong> (oben rechts auf der Standortkarte), damit beide Ansichten synchron bleiben, während Sie erkunden — verschieben oder zoomen Sie entweder die Tabula oder die echte Karte, und die andere passt sich automatisch an. Schalten Sie zusätzlich <strong>Match</strong> ein, um genau zu sehen, welche auf der Tabula aktuell sichtbaren Orte erfasst werden: Jeder erhält einen leuchtend grünen Ring auf der Standortkarte.",
+    about_follow_p: "Aktivieren Sie <strong>Follow</strong> (oben rechts auf der Standortkarte), damit beide Ansichten synchron bleiben, während Sie erkunden — verschieben oder zoomen Sie entweder die Tabula oder die echte Karte, und die andere passt sich automatisch an. Mit <strong>Match</strong> führt die Tabula: Die Standortkarte zeigt immer, was auf der Tabula sichtbar ist, und jeder Ort erhält einen leuchtend grünen Ring. Verschieben Sie die Standortkarte, geht zuerst die Tabula dorthin; danach richtet sich die Standortkarte genau auf den Ausschnitt der Tabula aus.",
     about_learn_h: "Mehr erfahren",
+    about_listen: "Geschichte anhören",
+    about_listen_stop: "Stopp",
+    about_videos_h: "Videos",
+    about_video_play: "Video abspielen",
+    about_video_privacy: "Das Video wird erst beim Abspielen von YouTube geladen; YouTube erhält dann Daten wie Ihre IP-Adresse.",
+    about_video_on_youtube: "Auf YouTube ansehen ↗",
+    about_lecture_meta: "Wissenschaftlicher Vortrag · 1 Std. 29 Min. · YouTube",
   },
 };
 
@@ -500,7 +514,15 @@ function _renderModernField(el, translation, modernName) {
 }
 
 function setLang(lang) {
+  const before = getLang();
   S.lang = lang;
+  // A story being read aloud in the old language shouldn't carry on under the new UI, and
+  // each language has its own About film. Compared on the effective language, so re-clicking
+  // the active button (or Auto while the browser is already that language) interrupts nothing.
+  if (getLang() !== before) {
+    stopAboutNarration();
+    resetAboutVideo();
+  }
   try { localStorage.setItem("tp_lang", lang); } catch {}
   updateLangButtons();
   if (S.selectedPlace) showInfoPanel(S.selectedPlace);
@@ -2369,6 +2391,39 @@ function hideLocateHoverCard() {
   if (card) card.innerHTML = "";
 }
 
+// Places the hover card up-and-right of the mouse pointer — near enough to read without
+// looking away from the dot, but with a clear gap, so the dot being hovered and its
+// immediate neighbours stay visible. (Directly above the dot, where Leaflet's own tooltip
+// used to sit, it covered exactly the cluster being explored.) pt is Leaflet's
+// e.containerPoint, i.e. pixels relative to #locate-leaflet-map — the card's containing
+// block — so it can be used as left/top as-is.
+//
+// The locate map on a desktop is a narrow column, so the preferred spot often doesn't fit:
+// flip to the left of the pointer if it would run off the right edge, below it if it would
+// run off the top, and only as a last resort clamp inside the map. The vertical gap is the
+// one that matters most — it's what keeps the card off the pointer's own row of dots, and
+// it survives even when the card has to be clamped sideways over the pointer's x.
+const HOVER_CARD_GAP = 22;   // px between the pointer and the nearest card edge
+const HOVER_CARD_INSET = 4;  // px the card keeps from the map's own edges
+function placeLocateHoverCard(card, pt) {
+  if (!pt || !_leafletMap) return;
+  const { x: mapW, y: mapH } = _leafletMap.getSize();
+  const w = card.offsetWidth, h = card.offsetHeight;
+  const minX = HOVER_CARD_INSET, maxX = mapW - HOVER_CARD_INSET - w;
+  const minY = HOVER_CARD_INSET, maxY = mapH - HOVER_CARD_INSET - h;
+
+  let left = pt.x + HOVER_CARD_GAP;
+  if (left > maxX) left = pt.x - HOVER_CARD_GAP - w;
+  left = Math.max(minX, Math.min(maxX, left));
+
+  let top = pt.y - HOVER_CARD_GAP - h;
+  if (top < minY) top = pt.y + HOVER_CARD_GAP;
+  top = Math.max(minY, Math.min(maxY, top));
+
+  card.style.left = `${Math.round(left)}px`;
+  card.style.top = `${Math.round(top)}px`;
+}
+
 // The OSM credit has to be on screen in every layout, but it doesn't have to be on screen
 // twice — and where it lives decides whether the result pill can reach the map's bottom edge.
 //
@@ -2396,10 +2451,12 @@ function syncLocateAttributionControl() {
 // the two views against each other forever.
 let _followSyncing = false;
 let _followSyncClearTimer = null;
-// "Match" toggle: independent of Follow itself — highlights, on the locate map, exactly
-// which calibrated places followAnchorPool() (and therefore Follow's own zoom decision)
-// currently considers visible on the Tabula, so a mismatch between the two views'
-// apparent zoom can be visually cross-checked against real data instead of guessed at.
+// "Match" toggle: Follow with the Tabula always in charge. Plain Follow is reciprocal —
+// whichever map the user moves leads. With Match on, a pan/zoom on the locate map only moves
+// the Tabula there; the locate map then reframes onto what the Tabula actually shows (see
+// matchAfterTabulaSettled), and every place the Tabula shows gets a ring on the locate map
+// (renderMatchHighlights). Match therefore implies Follow: setMatchMode(true) switches Follow
+// on, and setFollowMode(false) ends Match too.
 let _matchTabula = false;
 let _matchHighlightLayer = null;
 // Generation counter shared by every guard below. Opening a guard takes the next token;
@@ -3411,6 +3468,8 @@ const FOLLOW_IDW_EXCLUDED_TYPES = new Set(["region", "roman_province", "modern_s
 // huge (a compressed part of the Tabula scroll) or calibration is too sparse nearby for
 // a tight estimate.
 const FOLLOW_MIN_ZOOM = 5;
+// Ceiling on how far Follow zooms the Leaflet map in, however tight the visible box.
+const FOLLOW_MAX_ZOOM = 13;
 
 // Neighbors averaged per interpolated point — matches LOCATE_IDW_K's convention.
 const FOLLOW_IDW_K = 8;
@@ -3507,11 +3566,27 @@ function medianAndMad(values) {
 // ...) for that label to be trusted and extend the box — see followVisibleSet.
 const FOLLOW_AREA_NEARBY_KM = 400;
 
+// A place the MAD filter rejected still counts when at least FOLLOW_BAND_MIN_NEIGHBOURS other
+// visible places lie within FOLLOW_BAND_KM of it in reality — it is part of a second band of the
+// map, not a stray (see followVisibleSet). Chosen from the data: across 156 Tabula views, the 592
+// rejections split into 114 with 0-3 neighbours within 300 km (only one of them with 3) and 478
+// with 4 or more (395 with 10+).
+const FOLLOW_BAND_KM = 300;
+const FOLLOW_BAND_MIN_NEIGHBOURS = 3;
+function hasBandNeighbours(p, points) {
+  let count = 0;
+  for (const q of points) {
+    if (q !== p && locDistKm(p.lat, p.lng, q.lat, q.lng) <= FOLLOW_BAND_KM && ++count >= FOLLOW_BAND_MIN_NEIGHBOURS) return true;
+  }
+  return false;
+}
+
 // Determines exactly which calibrated anchors, within the given Tabula-viewport bounds,
 // should count toward Follow's visible-points box (and, via renderMatchHighlights, what
 // Match highlights — the two must always agree, or Match stops being a useful debugging
 // tool for Follow's own decisions). Point-types (roads, cities, ...) are MAD-filtered
-// directly, same as always. Area-type labels (region/people/... — excluded from IDW, see
+// directly, and a rejected one is let back in when it belongs to a real second band of the
+// map (see the band check below). Area-type labels (region/people/... — excluded from IDW, see
 // FOLLOW_IDW_EXCLUDED_TYPES) are folded back in here, but only when a real point-type
 // anchor is actually nearby (a local, per-candidate distance check) — NOT by testing them
 // against the segment's own point median/MAD (tried first, reverted): a segment with a
@@ -3527,7 +3602,7 @@ function followVisibleSet(pool, bx0, bx1, by0, by1) {
   const pointVisible = visible.filter(p => !FOLLOW_IDW_EXCLUDED_TYPES.has(p.type));
   const areaVisible = visible.filter(p => FOLLOW_IDW_EXCLUDED_TYPES.has(p.type));
   const groundedByVisiblePoints = pointVisible.length >= FOLLOW_MIN_VISIBLE_POINTS;
-  if (!groundedByVisiblePoints) return { groundedByVisiblePoints, box: null, included: [] };
+  if (!groundedByVisiblePoints) return { groundedByVisiblePoints, box: null, included: [], visible };
 
   // Points: filter each axis independently, same as always (a point can contribute its
   // lat to the box even if its own lng happened to be its outlier axis, or vice versa).
@@ -3535,6 +3610,21 @@ function followVisibleSet(pool, bx0, bx1, by0, by1) {
   const madLngs = madFilterOutliers(pointVisible.map(p => p.lng));
   let s = Math.min(...madLats), n = Math.max(...madLats);
   let w = Math.min(...madLngs), e = Math.max(...madLngs);
+
+  // MAD judges every place against one median, which silently assumes the view holds one
+  // geographic area. A Tabula view often stacks two (Italy above Africa), and when one of them
+  // is far denser, its spread alone sets the threshold and the other band is rejected wholesale:
+  // a Roma-centred view had 45 places in Italy and 16 around Carthage, the latitude MAD was
+  // 0.16°, the allowed range 40.9-42.9°N — and no African place was framed or ringed. So a
+  // rejected place comes back when real neighbours vouch for it (hasBandNeighbours); a lone
+  // mis-placed entry, like the one road station geocoded in Iberia in that same view, stays out.
+  const madLatSet = new Set(madLats), madLngSet = new Set(madLngs);
+  for (const p of pointVisible) {
+    if (madLatSet.has(p.lat) && madLngSet.has(p.lng)) continue;
+    if (!hasBandNeighbours(p, pointVisible)) continue;
+    s = Math.min(s, p.lat); n = Math.max(n, p.lat);
+    w = Math.min(w, p.lng); e = Math.max(e, p.lng);
+  }
 
   const qualifyingArea = areaVisible.filter(p =>
     pointVisible.some(q => locDistKm(p.lat, p.lng, q.lat, q.lng) <= FOLLOW_AREA_NEARBY_KM)
@@ -3544,12 +3634,16 @@ function followVisibleSet(pool, bx0, bx1, by0, by1) {
     w = Math.min(w, p.lng); e = Math.max(e, p.lng);
   }
 
-  // "included" is only an approximation for Match's highlight markers — a visual aid, not
-  // itself the box computation above (which is deliberately per-axis, not per-point).
-  const madLatSet = new Set(madLats), madLngSet = new Set(madLngs);
-  const included = pointVisible.filter(p => madLatSet.has(p.lat) || madLngSet.has(p.lng)).concat(qualifyingArea);
+  // "included" is for Match's rings: the visible places that lie inside the box, i.e. inside the
+  // frame Follow fits. The box itself is deliberately per-axis, not per-point (above), so a
+  // place can pass the filter on one axis and still sit outside it — confirmed live on an Italy
+  // view, where two road stations placed in Iberia kept their latitude but not their longitude,
+  // and a ring for them landed off-screen. Area labels extended the box, so they're always in.
+  const included = pointVisible
+    .filter(p => p.lat >= s && p.lat <= n && p.lng >= w && p.lng <= e)
+    .concat(qualifyingArea);
 
-  return { groundedByVisiblePoints, box: { s, n, w, e }, included };
+  return { groundedByVisiblePoints, box: { s, n, w, e }, included, visible };
 }
 
 // Pans/zooms the user-location (Leaflet) map to track the Tabula view — called whenever
@@ -3615,16 +3709,12 @@ function followZoomPadding() {
   const p = Math.round(Math.min(size.x, size.y) * 0.06);
   return [Math.max(p, 8), Math.max(p, 8)];
 }
-function followTabulaView() {
-  if (!S.followTabula || _followSyncing || !_leafletMap || !S.viewer || !S.viewer.viewport) return;
-  const bounds = S.viewer.viewport.getBounds(true);
-  const bx0 = bounds.x, bx1 = bounds.x + bounds.width;
-  const by0 = bounds.y, by1 = bounds.y + bounds.height;
+// The locate-map frame Follow derives from a Tabula viewport rectangle: the real-world box behind
+// what the rectangle shows, whether the zoom floor applies, and where fitting it puts the map
+// (`target`). Split out of followTabulaView so Match can also predict the frame of a Tabula view it
+// hasn't moved to yet (matchTabulaRect, matchFrameShows) with literally the same computation.
+function followFrameFor(bx0, bx1, by0, by1, pool, idwPool) {
   const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
-  const pool = followAnchorPool();
-  if (!pool.length) return; // no calibrated data anywhere in this map mode
-  const idwPool = pool.filter(p => !FOLLOW_IDW_EXCLUDED_TYPES.has(p.type));
-
   const centerEst = idwLatLngAt(cx, cy, idwPool);
 
   // Once enough real anchors are actually visible, trust *only* that box — don't also
@@ -3675,6 +3765,21 @@ function followTabulaView() {
   // an honestly huge visible area (e.g. Segment XI/XII's Black-Sea-to-India spread) and
   // must be honored, not overridden — clamping those regardless of groundedness was
   // itself the bug: it silently re-zoomed-in past a box the data had already earned.
+  const useFloor = !groundedByVisiblePoints && previewZoom < FOLLOW_MIN_ZOOM;
+  const target = useFloor
+    ? { center: _leafletL.latLng(centerEst.lat, centerEst.lng), zoom: FOLLOW_MIN_ZOOM }
+    : leafletFitTarget(box, followZoomPadding(), FOLLOW_MAX_ZOOM);
+  return { box, useFloor, centerEst, target };
+}
+
+function followTabulaView() {
+  if (!S.followTabula || _followSyncing || !_leafletMap || !S.viewer || !S.viewer.viewport) return;
+  const pool = followAnchorPool();
+  if (!pool.length) return; // no calibrated data anywhere in this map mode
+  const idwPool = pool.filter(p => !FOLLOW_IDW_EXCLUDED_TYPES.has(p.type));
+  const b = S.viewer.viewport.getBounds(true);
+  const { box, useFloor, centerEst, target } = followFrameFor(b.x, b.x + b.width, b.y, b.y + b.height, pool, idwPool);
+
   // Guards the reverse direction (followLeafletView, a *permanent* listener on this map's
   // own moveend/zoomend) from reacting to the Leaflet move this function is about to
   // trigger. This is timeout-based rather than event-based on purpose: a single
@@ -3685,24 +3790,61 @@ function followTabulaView() {
   // back at the Tabula view, cascading into the two sides fighting each other
   // indefinitely (confirmed live via tracing). A timeout that safely outlasts the
   // animation (0.4s) plus that inter-event gap sidesteps the ordering question entirely.
-  withFollowSyncGuard(600, () => {
-    if (!groundedByVisiblePoints && previewZoom < FOLLOW_MIN_ZOOM) {
-      _leafletMap.setView([centerEst.lat, centerEst.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 });
-    } else {
-      _leafletMap.fitBounds(box, { animate: true, duration: 0.4, padding: followZoomPadding(), maxZoom: 13 });
-    }
-  });
+  const reframe = useFloor
+    ? () => _leafletMap.setView([centerEst.lat, centerEst.lng], FOLLOW_MIN_ZOOM, { animate: true, duration: 0.4 })
+    : () => _leafletMap.fitBounds(box, { animate: true, duration: 0.4, padding: followZoomPadding(), maxZoom: FOLLOW_MAX_ZOOM });
+  if (!_matchTabula) {
+    withFollowSyncGuard(600, reframe);
+    return;
+  }
+  // Match reframes after every locate-map gesture, so a user who grabs the map again while it
+  // is still settling must be followed, not ignored for a fixed 600ms. Guarding until the real
+  // 'moveend' does that: Leaflet's drag handler calls map._stop(), whose 'moveend' releases the
+  // guard on the spot (see withFollowSyncGuardUntilSettle, which also explains why its trailing
+  // 'zoomend' can't leak). That helper needs reframe() to actually move the map, so a reframe
+  // onto the view already shown is skipped outright.
+  if (isLeafletViewAt(target)) return;
+  // It also needs the move to be animated. Leaflet jumps without animation when the zoom changes
+  // by more than zoomAnimationThreshold levels, firing 'moveend' synchronously inside reframe(),
+  // where only the short fixed guard catches it. An animated reframe gets a generous backstop:
+  // with the 900ms of the other callers, a slow animation (2s measured in a throttled window)
+  // outlived the guard, and its late 'moveend' passed for a user gesture and set off a second
+  // round trip. A user grabbing the map mid-flight still releases the guard at once (see above).
+  const zoomJump = Math.abs(Math.max(_leafletMap.getMinZoom(), Math.min(_leafletMap.getMaxZoom(), target.zoom)) - _leafletMap.getZoom());
+  if (zoomJump > _leafletMap.options.zoomAnimationThreshold) withFollowSyncGuard(80, reframe);
+  else withFollowSyncGuardUntilSettle(MATCH_REFRAME_GUARD_MAX_MS, reframe);
 }
 
-// "Match" — a visual debugging aid, independent of Follow itself: draws a bright ring
-// around every calibrated place that followVisibleSet (the exact same function
-// followTabulaView uses) currently counts toward Follow's box, directly on the locate
-// map. Lets a mismatch between the two maps' apparent zoom be checked against what
-// Follow's algorithm actually considers "on screen" right now, rather than guessed at
-// from how the two zoom scales *look* like they should compare (they aren't the same
-// scale at all — Tabula zoom and Leaflet zoom have no fixed relationship to each other).
-// Shows nothing when Follow itself would be in its sparse-data (row-sample) fallback,
-// since there's no concrete point set in that case to highlight.
+// Where fitBounds(box, { padding, maxZoom }) would put the locate map, without moving it —
+// the same steps as Leaflet 1.9's Map._getBoundsCenterZoom, on public API only: padding counts
+// on both sides, the zoom is capped, and the centre is the middle of the projected box.
+function leafletFitTarget(box, padding, maxZoom) {
+  const bounds = _leafletL.latLngBounds(box);
+  const pad = _leafletL.point(padding);
+  const zoom = Math.min(maxZoom, _leafletMap.getBoundsZoom(bounds, false, pad.add(pad)));
+  const sw = _leafletMap.project(bounds.getSouthWest(), zoom);
+  const ne = _leafletMap.project(bounds.getNorthEast(), zoom);
+  return { center: _leafletMap.unproject(sw.add(ne).divideBy(2), zoom), zoom };
+}
+
+// True when setView(target) would have nothing to do: same zoom (after the map's own limits),
+// and a centre offset that Leaflet truncates to zero pixels on both axes — in which case it
+// fires 'moveend' synchronously without animating (Map.panBy), which a settle-guard attached
+// after the call would never see.
+function isLeafletViewAt({ center, zoom }) {
+  const limited = Math.max(_leafletMap.getMinZoom(), Math.min(_leafletMap.getMaxZoom(), zoom));
+  if (Math.abs(limited - _leafletMap.getZoom()) > 1e-9) return false;
+  const offset = _leafletMap.latLngToContainerPoint(center).subtract(_leafletMap.getSize().divideBy(2));
+  return Math.trunc(offset.x) === 0 && Math.trunc(offset.y) === 0;
+}
+
+// Match's rings: a bright ring on the locate map around every place visible on the Tabula
+// right now. Once enough places are on screen for Follow's outlier filter, that is exactly the
+// set followVisibleSet (the same function followTabulaView frames the map with) counts, so a
+// ring can never sit outside the frame Match reframes to because of a calibration outlier.
+// With too few places on screen to judge outliers, every visible place is ringed — the frame
+// there comes from interpolation rather than from these points, and ringing none (as this once
+// did) left a tightly zoomed Tabula looking as if nothing matched at all.
 function renderMatchHighlights() {
   if (_matchHighlightLayer) { _leafletMap?.removeLayer(_matchHighlightLayer); _matchHighlightLayer = null; }
   if (!_matchTabula || !_leafletMap || !_leafletL || !S.viewer?.viewport) return;
@@ -3710,11 +3852,43 @@ function renderMatchHighlights() {
   const bx0 = bounds.x, bx1 = bounds.x + bounds.width;
   const by0 = bounds.y, by1 = bounds.y + bounds.height;
   const pool = followAnchorPool();
-  const { included } = followVisibleSet(pool, bx0, bx1, by0, by1);
-  const markers = included.map(p => _leafletL.circleMarker([p.lat, p.lng], {
+  const { groundedByVisiblePoints, included, visible } = followVisibleSet(pool, bx0, bx1, by0, by1);
+  const ringed = groundedByVisiblePoints ? included : visible;
+  const markers = ringed.map(p => _leafletL.circleMarker([p.lat, p.lng], {
     radius: 9, color: "#39FF14", weight: 2, fill: false, opacity: 0.9, interactive: false,
   }));
   _matchHighlightLayer = _leafletL.layerGroup(markers).addTo(_leafletMap);
+}
+
+// The only way Follow and Match change, so the two buttons, S.followTabula and _matchTabula can
+// never disagree — Match on with Follow off would have nothing to drive it.
+function setFollowMode(on) {
+  S.followTabula = on;
+  document.getElementById("locate-follow-btn")?.classList.toggle("active", on);
+  if (!on && _matchTabula) setMatchMode(false);
+  if (on) whenFollowSyncIdle(() => { if (S.followTabula) followTabulaView(); });
+}
+function setMatchMode(on) {
+  _matchTabula = on;
+  document.getElementById("locate-match-btn")?.classList.toggle("active", on);
+  if (on && !S.followTabula) {
+    S.followTabula = true;
+    document.getElementById("locate-follow-btn")?.classList.add("active");
+  }
+  renderMatchHighlights();  // draws the rings, or clears them when switching off
+  // Frame the locate map on the Tabula straight away.
+  if (on) whenFollowSyncIdle(() => { if (_matchTabula) followTabulaView(); });
+}
+
+// Runs fn as soon as Follow's sync guard is down. Switching Follow or Match on while some other
+// view change still holds the guard (a selection pan, the startup locate) would otherwise make
+// followTabulaView return without framing anything — confirmed live right after page load.
+function whenFollowSyncIdle(fn, maxMs = 3000) {
+  const start = performance.now();
+  (function check() {
+    if (!_followSyncing) fn();
+    else if (performance.now() - start < maxMs) setTimeout(check, 100);
+  })();
 }
 
 // Reverse direction of followTabulaView: when Follow is on and the user pans/zooms the
@@ -3725,7 +3899,8 @@ function renderMatchHighlights() {
 // which would otherwise ping-pong the two views against each other indefinitely.
 // Samples the Leaflet viewport's four corners plus center through interpolateTabulaVp
 // (the same real-lat/lng → Tabula-position interpolation "Locate Me" already uses) and
-// fits the Tabula view to the union. Corners are safe in *this* direction — unlike
+// fits the Tabula view to the union (Match mode fits it differently — see matchTabulaRect).
+// Corners are safe in *this* direction — unlike
 // followTabulaView's own corner avoidance — because interpolateTabulaVp picks neighbors
 // by real-world distance, an unambiguous metric, rather than by Tabula-pixel distance
 // (where two genuinely nearby pixels can belong to unrelated compressed geographic bands).
@@ -3739,21 +3914,132 @@ function renderMatchHighlights() {
 // Confirmed live: dragging the Leaflet map by a small enough amount that the resulting Tabula
 // fitBounds lands on an already-shown viewport wedges Follow exactly this way.
 const FOLLOW_LEAFLET_GUARD_MAX_MS = 900;
-let _followLeafletGuardTimer = null;
-function followLeafletView() {
-  if (!S.followTabula || _followSyncing || !_leafletMap || !S.viewer?.viewport) return;
-  const b = _leafletMap.getBounds();
-  const c = b.getCenter();
-  const samples = [
-    [b.getSouth(), b.getWest()], [b.getSouth(), b.getEast()],
-    [b.getNorth(), b.getWest()], [b.getNorth(), b.getEast()],
-    [c.lat, c.lng],
-  ].map(([lat, lng]) => interpolateTabulaVp(lat, lng)).filter(Boolean);
-  if (!samples.length) return; // no calibrated data anywhere in this map mode
+const FOLLOW_LEAFLET_SETTLE_MAX_MS = 5000;  // hard limit on waiting for a slow Tabula animation
 
-  const vx0 = Math.min(...samples.map(p => p.vx)), vx1 = Math.max(...samples.map(p => p.vx));
-  const vy0 = Math.min(...samples.map(p => p.vy)), vy1 = Math.max(...samples.map(p => p.vy));
-  const pad = 0.01;
+// True while OSD is still animating the Tabula towards its target view.
+function tabulaStillMoving() {
+  const vp = S.viewer?.viewport;
+  if (!vp) return false;
+  const now = vp.getBounds(true), goal = vp.getBounds(false);
+  const eps = 1e-7;
+  return Math.abs(now.x - goal.x) > eps || Math.abs(now.y - goal.y) > eps ||
+    Math.abs(now.width - goal.width) > eps || Math.abs(now.height - goal.height) > eps;
+}
+
+// Match waits for the locate map to be still this long before moving the Tabula. Each Tabula
+// move is followed by a reframe of the locate map in Match mode, so without the wait a
+// multi-notch wheel zoom (one 'zoomend' per notch) would reframe between notches and fight the
+// user's own zoom, instead of moving the Tabula once when they stop.
+const MATCH_GESTURE_SETTLE_MS = 250;
+const MATCH_REFRAME_GUARD_MAX_MS = 3000;  // backstop for an animated Match reframe (see followTabulaView)
+let _matchGestureTimer = null;
+let _locateDragging = false;  // between Leaflet's 'dragstart' and 'dragend' on the locate map
+
+// The locate map's 'moveend zoomend' listener. Guarded (programmatic) moves are dropped here, at
+// event time: by the time a debounced call ran, the guard of an 80ms invalidateSize() would long
+// be released, and the move would pass for a gesture.
+function onLocateViewChanged() {
+  if (!S.followTabula || _followSyncing) return;
+  if (!_matchTabula) { followLeafletView(); return; }
+  clearTimeout(_matchGestureTimer);
+  // A new drag begun within the wait ends with its own 'moveend', which queues this again.
+  _matchGestureTimer = setTimeout(() => { if (!_locateDragging) followLeafletView(); }, MATCH_GESTURE_SETTLE_MS);
+}
+
+// Match's Tabula move for a locate-map gesture. Plain Follow fits the Tabula around where the
+// locate map's corners interpolate to — but the Tabula scatters real-world neighbours along the
+// scroll (around Rome at Leaflet zoom 8, those five samples spanned 13% of the whole scroll), so
+// the Tabula always showed a huge area. Harmless for Follow; fatal for Match, which reframes the
+// locate map onto what the Tabula shows: every gesture came back at zoom 3-4 and zooming in was
+// impossible (measured: Rome at zoom 5-8 all returned at 3-4). Instead the Tabula is centred on
+// a real place at the locate map's centre, and of a range of view widths the one is taken whose
+// frame (followFrameFor — the very reframe that follows) lands closest to the user's own zoom,
+// the wider on a tie. Measured with this at Rome, Athens and Alexandria: zoom 5 and 7 came back
+// unchanged; closest rather than "widest reaching the zoom", because frame zoom can jump across
+// widths (Rome, zoom 9: 13 at one width, 8 at the next) and the latter picked 13.
+const MATCH_WIDTH_STEPS = 28;                       // log-spaced candidate widths, in Tabula viewport units
+const MATCH_MIN_WIDTH = 0.002, MATCH_MAX_WIDTH = 1; // ~93 px of the Miller image .. the whole scroll
+function matchTabulaRect(pool, idwPool) {
+  const c = _leafletMap.getCenter();
+  const zoom = _leafletMap.getZoom();
+  // Of the 8 real places nearest the map's centre, the one closest to the other seven on the
+  // Tabula: a single stray calibration can't send the Tabula to another part of the scroll.
+  const near = idwPool
+    .map(p => ({ p, d: locDistSqApprox(c.lat, c.lng, p.lat, p.lng) }))
+    .sort((a, b) => a.d - b.d).slice(0, 8).map(o => o.p);
+  if (!near.length) return null;
+  let anchor = near[0], leastSpread = Infinity;
+  for (const a of near) {
+    const spread = near.reduce((sum, q) => sum + Math.hypot(a.vx - q.vx, a.vy - q.vy), 0);
+    if (spread < leastSpread) { leastSpread = spread; anchor = a; }
+  }
+  const container = S.viewer.viewport.getContainerSize();
+  const aspect = container.y / container.x;
+  let width = MATCH_MIN_WIDTH, bestDiff = Infinity;
+  for (let i = 0; i <= MATCH_WIDTH_STEPS; i++) {
+    const w = MATCH_MIN_WIDTH * Math.pow(MATCH_MAX_WIDTH / MATCH_MIN_WIDTH, i / MATCH_WIDTH_STEPS);
+    const h = w * aspect;
+    const { target } = followFrameFor(anchor.vx - w / 2, anchor.vx + w / 2, anchor.vy - h / 2, anchor.vy + h / 2, pool, idwPool);
+    const diff = Math.abs(target.zoom - zoom);
+    if (diff <= bestDiff) { bestDiff = diff; width = w; }
+  }
+  const height = width * aspect;
+  return new OpenSeadragon.Rect(anchor.vx - width / 2, anchor.vy - height / 2, width, height);
+}
+
+// Would reframing onto the Tabula's current view still show `latlng` on the locate map?
+function matchFrameShows(latlng) {
+  const pool = followAnchorPool();
+  if (!pool.length) return true;
+  const idwPool = pool.filter(p => !FOLLOW_IDW_EXCLUDED_TYPES.has(p.type));
+  const b = S.viewer.viewport.getBounds(true);
+  const { target } = followFrameFor(b.x, b.x + b.width, b.y, b.y + b.height, pool, idwPool);
+  const size = _leafletMap.getSize();
+  const centre = _leafletMap.project(target.center, target.zoom);
+  const point = _leafletMap.project(latlng, target.zoom);
+  return Math.abs(point.x - centre.x) <= size.x / 2 && Math.abs(point.y - centre.y) <= size.y / 2;
+}
+
+// Match, after the Tabula has moved to where the user took the locate map: reframe the locate
+// map onto what the Tabula actually shows — the Tabula leads. Unless the user is still busy
+// with the locate map: a drag in progress reports its own 'moveend' when it ends, and a map
+// that moved again while the Tabula was animating gets the Tabula sent after its latest view
+// first (its own settle then does the reframe).
+function matchAfterTabulaSettled(startView) {
+  if (!_matchTabula || !S.followTabula || !_leafletMap || _locateDragging) return;
+  const moved = _leafletMap.getZoom() !== startView.zoom ||
+    _leafletMap.latLngToContainerPoint(startView.center).distanceTo(_leafletMap.getSize().divideBy(2)) > 2;
+  if (moved) { followLeafletView(); return; }
+  // Close in, the Tabula can't resolve the spot the user zoomed to, and its frame may lie beside
+  // it (measured: zoom 9 at Athens and Alexandria). Reframing would then throw that spot out of
+  // sight — the map stays where the user put it instead, and the rings still show the Tabula.
+  if (matchFrameShows(startView.center)) followTabulaView();
+  renderMatchHighlights();  // the animation-finish pass already drew them — unless OSD didn't animate
+}
+
+function followLeafletView() {
+  clearTimeout(_matchGestureTimer);  // this is the sync a queued Match gesture was waiting for
+  if (!S.followTabula || _followSyncing || !_leafletMap || !S.viewer?.viewport) return;
+  let rect = null;
+  if (_matchTabula) {
+    const pool = followAnchorPool();
+    rect = matchTabulaRect(pool, pool.filter(p => !FOLLOW_IDW_EXCLUDED_TYPES.has(p.type)));
+  } else {
+    const b = _leafletMap.getBounds();
+    const c = b.getCenter();
+    const samples = [
+      [b.getSouth(), b.getWest()], [b.getSouth(), b.getEast()],
+      [b.getNorth(), b.getWest()], [b.getNorth(), b.getEast()],
+      [c.lat, c.lng],
+    ].map(([lat, lng]) => interpolateTabulaVp(lat, lng)).filter(Boolean);
+    if (samples.length) {
+      const vx0 = Math.min(...samples.map(p => p.vx)), vx1 = Math.max(...samples.map(p => p.vx));
+      const vy0 = Math.min(...samples.map(p => p.vy)), vy1 = Math.max(...samples.map(p => p.vy));
+      const pad = 0.01;
+      rect = new OpenSeadragon.Rect(vx0 - pad, vy0 - pad, (vx1 - vx0) + pad * 2, (vy1 - vy0) + pad * 2);
+    }
+  }
+  if (!rect) return; // no calibrated data anywhere in this map mode
 
   // Guards followTabulaView from reacting to the Tabula move this triggers — cleared on
   // the real "animation-finish" (OSD's own settle event), which is also what would have
@@ -3764,18 +4050,39 @@ function followLeafletView() {
   // holds one for well over a second), this handler must not lower the flag out from under
   // it — and that guard's own timer must not lower it out from under this one either.
   const token = ++_followSyncToken;
-  S.viewer.addOnceHandler("animation-finish", () => {
-    if (_followSyncToken === token) _followSyncing = false;
-  });
-  clearTimeout(_followLeafletGuardTimer);
-  _followLeafletGuardTimer = setTimeout(() => {
-    if (_followSyncToken === token) _followSyncing = false;
-  }, FOLLOW_LEAFLET_GUARD_MAX_MS);
+  // Match needs to know afterwards whether the user moved the locate map again meanwhile.
+  // getCenter(), not the bounds' centre `c`: LatLngBounds.getCenter() averages latitudes, which
+  // in Web Mercator sits many pixels off the true view centre at continental zoom — every
+  // settle then read as "moved" and sent the Tabula after an unmoved map, forever.
+  const startView = { center: _leafletMap.getCenter(), zoom: _leafletMap.getZoom() };
+  // The Tabula move ends one of two ways — its "animation-finish", or the backstop when OSD had
+  // nothing to animate — and whichever comes first settles it, once. The backstop is this
+  // call's own timer, so settling can't cancel a later call's. A once-handler left behind by
+  // the backstop fires at some later animation-finish and returns on `settled`.
+  // The backstop only settles a Tabula that has actually stopped: an animation can outlast its
+  // nominal 0.5s (a busy phone, a throttled window — measured 3s in one), and settling
+  // mid-flight released the guard early, so the late "animation-finish" then reframed the
+  // locate map in answer to the user's own gesture — and Match judged its reframe from a
+  // half-way Tabula view. Past FOLLOW_LEAFLET_SETTLE_MAX_MS it settles regardless.
+  const startedAt = performance.now();
+  let settled = false;
+  let backstop = null;
+  const settle = () => {
+    if (settled) return;
+    if (tabulaStillMoving() && performance.now() - startedAt < FOLLOW_LEAFLET_SETTLE_MAX_MS) {
+      backstop = setTimeout(settle, 150);
+      return;
+    }
+    settled = true;
+    clearTimeout(backstop);
+    if (_followSyncToken !== token) return;  // a newer guard owns the flag now
+    _followSyncing = false;
+    matchAfterTabulaSettled(startView);
+  };
+  S.viewer.addOnceHandler("animation-finish", settle);
+  backstop = setTimeout(settle, FOLLOW_LEAFLET_GUARD_MAX_MS);
 
-  S.viewer.viewport.fitBounds(
-    new OpenSeadragon.Rect(vx0 - pad, vy0 - pad, (vx1 - vx0) + pad * 2, (vy1 - vy0) + pad * 2),
-    false
-  );
+  S.viewer.viewport.fitBounds(rect, false);
 }
 
 async function openLocatePopup() {
@@ -3881,8 +4188,11 @@ async function openLocatePopup() {
       if (document.hidden) { _leafletHoveredTooltipLayer?.closeTooltip(); hideLocateHoverCard(); }
     });
     // Reciprocal half of Follow: dragging/zooming this map moves the Tabula view to
-    // match, symmetric with followTabulaView doing the reverse — see followLeafletView.
-    _leafletMap.on("moveend zoomend", followLeafletView);
+    // match, symmetric with followTabulaView doing the reverse — see followLeafletView
+    // (and onLocateViewChanged for how Match paces it).
+    _leafletMap.on("moveend zoomend", onLocateViewChanged);
+    _leafletMap.on("dragstart", () => { _locateDragging = true; });
+    _leafletMap.on("dragend", () => { _locateDragging = false; });
     _leafletMap.on("click", (e) => {
       // Tap-to-snap. A finger covers ~34 CSS px but a place dot is only ~10 px across, so a
       // tap "on" a dot very often lands on bare tile a few pixels off. Leaflet routes that
@@ -3918,21 +4228,15 @@ async function openLocatePopup() {
     // This is Leaflet's own utility for exactly this "control floating on the map" case.
     if (followBtnEl) _leafletL.DomEvent.disableClickPropagation(followBtnEl);
     let _followBtnDebounce = false;
-    followBtnEl?.addEventListener("click", (e) => {
+    followBtnEl?.addEventListener("click", () => {
       if (_followBtnDebounce) return;
       _followBtnDebounce = true;
       setTimeout(() => { _followBtnDebounce = false; }, 400);
-      S.followTabula = !S.followTabula;
-      e.currentTarget.classList.toggle("active", S.followTabula);
-      if (S.followTabula) followTabulaView();
+      setFollowMode(!S.followTabula);
     });
     const matchBtnEl = document.getElementById("locate-match-btn");
     if (matchBtnEl) _leafletL.DomEvent.disableClickPropagation(matchBtnEl);
-    matchBtnEl?.addEventListener("click", (e) => {
-      _matchTabula = !_matchTabula;
-      e.currentTarget.classList.toggle("active", _matchTabula);
-      renderMatchHighlights();
-    });
+    matchBtnEl?.addEventListener("click", () => setMatchMode(!_matchTabula));
     document.getElementById("locate-legend-btn")?.addEventListener("click", () => {
       document.getElementById("locate-legend")?.classList.toggle("legend-open");
     });
@@ -4230,29 +4534,35 @@ function toggleLeafletPlaces() {
         // language that was active at build time until the page is reloaded.
         const typeLabel = getTypeLabel(r.type) || "";
         const flag = r.country ? countryFlagHtml(r.country.split("|")[0]) : "";
-        const tipLines = [`<b>${escHtml(name)}</b>`];
-        if (modern) tipLines.push(`<span style="font-size:11px;color:rgba(200,195,180,0.9)">${escHtml(modern)}</span>`);
+        // Line sizes live in CSS (#locate-hover-card .hc-*), not inline, so the card's text
+        // size can be tuned in one place. Only the type dot's colour is per-place.
+        const tipLines = [`<b class="hc-name">${escHtml(name)}</b>`];
+        if (modern) tipLines.push(`<span class="hc-modern">${escHtml(modern)}</span>`);
         if (typeLabel || flag) {
-          const tdot = `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${typeColor};vertical-align:middle;margin-right:3px"></span>`;
-          tipLines.push(`<span style="font-size:11px">${tdot}${flag ? flag + " " : ""}${escHtml(typeLabel)}</span>`);
+          const tdot = `<span class="hc-dot" style="background:${typeColor}"></span>`;
+          tipLines.push(`<span class="hc-type">${tdot}${flag ? flag + " " : ""}${escHtml(typeLabel)}</span>`);
         }
-        if (isSeg1) tipLines.push(`<em style="font-size:10px;opacity:0.7">Segment I — lost</em>`);
+        if (isSeg1) tipLines.push(`<em class="hc-seg1">Segment I — lost</em>`);
         // Desktop only: Leaflet opens non-permanent tooltips on tap as a hover substitute
         // on touch devices, but a tap here already opens the full info panel (below) —
         // the tooltip is redundant there, and can be left stranded open if a pan/drag
         // starts on the marker without a normal mouseout to close it.
         //
-        // Not a real Leaflet tooltip (bindTooltip/direction:"top") any more — that follows
-        // the marker, which on a small popup routinely lands the card in the middle of the
-        // view, over the densest part of the dot cluster it's meant to describe. Docked to
-        // #locate-hover-card (fixed at the map's bottom-right corner, mirroring
-        // #locate-result-bar's bottom-left) instead, so it never covers anything.
+        // A plain positioned div rather than a real Leaflet tooltip: see placeLocateHoverCard
+        // for why it sits up-and-right of the pointer with a gap instead of directly above
+        // the dot the way bindTooltip(direction:"top") put it.
         if (!S.isMobile) {
           const hoverHtml = tipLines.join("<br>");
-          m.on("mouseover", () => {
+          m.on("mouseover", (e) => {
             _leafletHoveredTooltipLayer = m;
             const card = document.getElementById("locate-hover-card");
-            if (card) card.innerHTML = hoverHtml;
+            if (!card) return;
+            card.innerHTML = hoverHtml;
+            placeLocateHoverCard(card, e.containerPoint);
+          });
+          m.on("mousemove", (e) => {
+            const card = document.getElementById("locate-hover-card");
+            if (card && card.innerHTML) placeLocateHoverCard(card, e.containerPoint);
           });
           m.on("mouseout", () => {
             if (_leafletHoveredTooltipLayer === m) _leafletHoveredTooltipLayer = null;
@@ -6521,6 +6831,271 @@ async function reloadDb() {
   const timer = setTimeout(stop, 12000);
 })();
 
+// ── About narration: tell the Tabula's story aloud ──────────────────────────
+// Plays a pre-recorded narration in the UI's language (public/audio/about-story.{en,de}.mp3,
+// rendered by scripts/make_about_story_audio.py from scripts/narration/*.txt), so every
+// visitor hears the same voice. The browser's own speech synthesis is only the fallback for
+// when a file can't load: its quality depends entirely on the voices a device happens to
+// have installed, which ranges from very good to robotic.
+// Held in a var (hoisted as undefined, no temporal dead zone) so setLang can call
+// stopAboutNarration safely no matter when it runs relative to this block.
+var _aboutNarration = null;
+function stopAboutNarration() { _aboutNarration?.stop(); }
+
+(function () {
+  const btn   = document.getElementById("about-listen-btn");
+  const label = document.getElementById("about-listen-label");
+  const panel = document.getElementById("about-panel");
+  if (!btn || !label || !panel) return;
+  const synth = window.speechSynthesis;
+  const canSpeak = !!synth && typeof SpeechSynthesisUtterance !== "undefined";
+
+  // Bump ?v= whenever the recordings are re-rendered, so browsers don't replay a cached old one.
+  const STORY_AUDIO = { en: "audio/about-story.en.mp3?v=20260915", de: "audio/about-story.de.mp3?v=20260915" };
+
+  // ── Fallback: the browser's speech synthesis ──
+  // The story, in panel order, taken from the I18N dictionary rather than scraped from the
+  // panel: the panel also holds English-only paragraphs, a facts list, how-to-use sections
+  // and links, none of which belong in a narrated story — or would match a German one.
+  const STORY_KEYS = [
+    "about_intro",
+    "about_map_h",  "about_map_p1", "about_map_p2",
+    "about_lost_h", "about_lost_p",
+    "about_hist_h", "about_hist_p",
+  ];
+
+  const plain = (html) => {
+    const d = document.createElement("div");
+    d.innerHTML = html;  // our own I18N strings, not user input
+    return d.textContent.replace(/\s+/g, " ").trim();
+  };
+
+  // Speech engines tend to read a lone "I" as the pronoun and "II" as two letters, which
+  // turns "Segment I" / "Segments II through XII" into nonsense. Spell those out as digits.
+  const ROMAN = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12 };
+  const speakable = (text) => text
+    .replace(/\b(Segmente|Segments?)\s+([IVX]+)\b/g, (m, w, r) => (ROMAN[r] ? `${w} ${ROMAN[r]}` : m))
+    .replace(/\b(through|bis)\s+([IVX]+)\b/g, (m, w, r) => (ROMAN[r] ? `${w} ${ROMAN[r]}` : m));
+
+  // Chrome silently stops an utterance after roughly 15 seconds on some voices, so the
+  // story is queued a sentence at a time. A boundary needs the next sentence to start with
+  // a capital, and never follows an abbreviation or a number: German capitalises the word
+  // after both, so "um 1200 n. Chr. von" and "dem 16. Jahrhundert" would otherwise be cut
+  // mid-phrase and read as "n." [pause] "Chr.". Deliberately a manual scan, not a split
+  // on a lookbehind regex: lookbehind is a parse error in Safari before 16.4, and a parse
+  // error here would take the whole of main.js down on those iPhones, not just this button.
+  const NO_BREAK_AFTER = /(?:(?:^|\s)(?:n|v|Chr|ca|bzw|z|B|u|a|St|Dr|Nr|c)|\d)\.$/;
+  const sentences = (text) => {
+    const out = [];
+    const re = /[.!?]+\s+/g;
+    let buf = "", last = 0, m;
+    while ((m = re.exec(text))) {
+      const end = m.index + m[0].length;
+      buf += text.slice(last, end);
+      last = end;
+      if (/[A-ZÄÖÜ"„(]/.test(text.charAt(end)) && !NO_BREAK_AFTER.test(buf.trimEnd())) {
+        out.push(buf.trim());
+        buf = "";
+      }
+    }
+    buf += text.slice(last);
+    if (buf.trim()) out.push(buf.trim());
+    return out;
+  };
+
+  // Best available voice for the language: the "natural"/"neural"/"online" voices some
+  // systems ship sound far better for a story than the robotic defaults.
+  const voiceFor = (lang) => {
+    const voices = synth.getVoices().filter(v => (v.lang || "").toLowerCase().startsWith(lang));
+    if (!voices.length) return null;
+    const region = lang === "de" ? "de-de" : "en-gb";
+    const score = (v) =>
+      (/natural|neural|online|premium|enhanced/i.test(v.name) ? 4 : 0) +
+      (/google/i.test(v.name) ? 2 : 0) +
+      ((v.lang || "").toLowerCase() === region ? 1 : 0);
+    return voices.reduce((best, v) => (score(v) > score(best) ? v : best));
+  };
+  if (canSpeak) {
+    synth.getVoices();  // Chrome fills the voice list lazily; ask early so a fallback has it ready
+    synth.addEventListener?.("voiceschanged", () => synth.getVoices());
+  }
+
+  let gen = 0;          // bumped on every start/stop; stale audio/utterance callbacks see the mismatch and bail
+  let speaking = false;
+  let audio = null;
+
+  function setUi(on) {
+    speaking = on;
+    btn.classList.toggle("speaking", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    // Swapping the data-i18n key (not just the text) keeps applyI18n — which re-renders every
+    // [data-i18n] element on each place selection — showing "Stop" while the story plays.
+    label.dataset.i18n = on ? "about_listen_stop" : "about_listen";
+    label.textContent = getText(label.dataset.i18n);
+  }
+
+  function stop() {
+    gen++;  // first, so the pause below can't be mistaken for a live playback's error or end
+    if (audio) { audio.pause(); audio = null; }
+    if (canSpeak && (speaking || synth.speaking || synth.pending)) synth.cancel();
+    setUi(false);
+  }
+
+  function speakWithBrowserVoice(my, lang) {
+    if (my !== gen) return;
+    if (!canSpeak) { setUi(false); return; }
+    const voice = voiceFor(lang);
+    const queue = STORY_KEYS.flatMap(k => sentences(speakable(plain(getText(k)))));
+    let i = 0;
+    const next = () => {
+      if (my !== gen) return;
+      if (i >= queue.length) { setUi(false); return; }
+      const u = new SpeechSynthesisUtterance(queue[i++]);
+      u.lang = voice?.lang || (lang === "de" ? "de-DE" : "en-GB");
+      if (voice) u.voice = voice;
+      u.rate = 0.95;  // a touch slower than default: it's a story, not a notification
+      u.onend = next;
+      u.onerror = (ev) => {
+        if (my !== gen) return;  // our own cancel() — stop() already reset the button
+        if (ev.error === "interrupted" || ev.error === "canceled") return;
+        setUi(false);
+      };
+      synth.speak(u);
+    };
+    next();
+  }
+
+  function start() {
+    stop();
+    pauseAboutVideo();  // one voice at a time: the story talks over a playing film otherwise
+    const my = ++gen;
+    const lang = getLang();
+    setUi(true);
+    // Created here, inside the click, rather than preloaded: nothing is downloaded until someone
+    // asks for the story, and starting playback from the click satisfies iOS's autoplay rule.
+    const a = new Audio(STORY_AUDIO[lang] || STORY_AUDIO.en);
+    audio = a;
+    let fellBack = false;
+    const fallBack = () => {
+      // A play() rejected because stop() interrupted it is not a failure: the gen check drops it.
+      if (my !== gen || fellBack) return;
+      fellBack = true;
+      audio = null;
+      speakWithBrowserVoice(my, lang);
+    };
+    a.addEventListener("ended", () => { if (my === gen) { audio = null; setUi(false); } });
+    a.addEventListener("error", fallBack);
+    a.play().catch(fallBack);
+  }
+
+  btn.addEventListener("click", () => (speaking ? stop() : start()));
+  // Every way the panel closes (×, backdrop, Escape, the guided tour flying it back to its
+  // button) ends by adding .hidden, so watching for that covers them all in one place.
+  new MutationObserver(() => { if (panel.classList.contains("hidden")) stop(); })
+    .observe(panel, { attributes: true, attributeFilter: ["class"] });
+  window.addEventListener("pagehide", stop);
+
+  _aboutNarration = { stop };
+  btn.classList.remove("hidden");
+})();
+
+// ── About video: a short film in the UI's language ──────────────────────────
+// Click-to-load: the frame shows a local poster, and the YouTube player (on YouTube's
+// privacy-enhanced youtube-nocookie.com domain) is only created when someone presses play, so
+// opening the About panel sends nothing to YouTube. Closing the panel or switching language
+// removes the player again and shows the poster for the current language's film. The film
+// starting to play (from the poster or YouTube's own controls) stops the narration; starting
+// the narration pauses the film.
+// A var for the same reason as _aboutNarration: setLang and the narration's start() call these
+// helpers no matter where they run relative to this block.
+var _aboutVideo = null;
+function resetAboutVideo() { _aboutVideo?.reset(); }
+function pauseAboutVideo() { _aboutVideo?.pause(); }
+
+(function () {
+  const frame  = document.getElementById("about-video-frame");
+  const poster = document.getElementById("about-video-poster");
+  const title  = document.getElementById("about-video-title");
+  const meta   = document.getElementById("about-video-meta");
+  const ytLink = document.getElementById("about-video-yt-link");
+  const panel  = document.getElementById("about-panel");
+  if (!frame || !poster || !title || !meta || !ytLink || !panel) return;
+
+  const FILMS = {
+    de: { id: "cEgHW9rGvYg", title: "Tabula Peutingeriana: Das Geheimnis der antiken Weltkarte", channel: "KURIER TV", length: "4:38" },
+    en: { id: "PC_qEvXpCts", title: "Tabula Peutingeriana - An Ancient Roman Road Map", channel: "eIectrostatic", length: "5:42" },
+  };
+  const PLAYER_ORIGIN = "https://www.youtube-nocookie.com";
+  const PLAYING = 1;  // YouTube's playerState code
+  let film = null;
+  let player = null;
+  let heard = false;  // has the current player answered yet?
+  let lastState = null;
+
+  function showPoster() {
+    if (player) { player = null; frame.replaceChildren(poster); }  // removing the iframe ends playback
+    film = FILMS[getLang()] || FILMS.en;
+    title.textContent = film.title;
+    meta.textContent = `${film.channel} · ${film.length}`;
+    poster.setAttribute("aria-label", `${getText("about_video_play")}: ${film.title}`);
+    ytLink.href = `https://www.youtube.com/watch?v=${film.id}`;
+  }
+
+  function play() {
+    stopAboutNarration();
+    player = document.createElement("iframe");
+    // enablejsapi lets pause() reach the player by postMessage; rel=0 limits the end screen's
+    // suggestions to the same channel; playsinline keeps iPhones from jumping to fullscreen.
+    player.src = `${PLAYER_ORIGIN}/embed/${film.id}?autoplay=1&rel=0&playsinline=1&enablejsapi=1`;
+    player.title = film.title;
+    player.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+    player.allowFullscreen = true;
+    player.referrerPolicy = "strict-origin-when-cross-origin";  // YouTube refuses to play embeds that send no referrer
+    heard = false;
+    lastState = null;
+    player.addEventListener("load", askForState);
+    frame.replaceChildren(player);
+    player.focus();  // the poster button that had focus is gone
+  }
+
+  // The player only reports its state once asked, and may not be listening yet when its iframe
+  // fires "load", so ask a few times until it answers. Its reports let a film resumed from
+  // YouTube's own controls stop the narration too, not just a press on the poster.
+  function askForState() {
+    const my = player;
+    let tries = 0;
+    (function ask() {
+      if (player !== my || heard || tries++ >= 20) return;
+      my.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), PLAYER_ORIGIN);
+      setTimeout(ask, 250);
+    })();
+  }
+
+  window.addEventListener("message", (e) => {
+    if (!player || e.source !== player.contentWindow || typeof e.data !== "string") return;
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+    heard = true;
+    const state = msg?.info?.playerState;
+    if (state == null) return;
+    // Only the switch into playing counts, so a repeated report can't cut off a story that was
+    // started (and paused the film) a moment ago.
+    if (state === PLAYING && lastState !== PLAYING) stopAboutNarration();
+    lastState = state;
+  });
+
+  function pause() {
+    player?.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "pauseVideo", args: [] }), PLAYER_ORIGIN);
+  }
+
+  poster.addEventListener("click", play);
+  new MutationObserver(() => { if (panel.classList.contains("hidden")) showPoster(); })
+    .observe(panel, { attributes: true, attributeFilter: ["class"] });
+
+  _aboutVideo = { reset: showPoster, pause };
+  showPoster();
+})();
+
 // centered=true for panels using transform:translate(-50%,-50%) for centering (e.g. about modal)
 function demoFlyToButton(panel, btnId, duration, onDone, centered = false) {
   const btn = document.getElementById(btnId);
@@ -6605,8 +7180,7 @@ function runFullTour() {
     S.countryIsolate = false;
     document.getElementById("country-isolate-btn")?.classList.remove("active");
     try { localStorage.setItem("tp_country_isolate", "0"); } catch {}
-    S.followTabula = false;
-    document.getElementById("locate-follow-btn")?.classList.remove("active");
+    setFollowMode(false);  // ends Match too
     locPopup.classList.add("hidden");
     hideCategoryPopup();
     S.activeTypes = new Set(); S.latinLabelsOn = false; S.modernLabelsOn = false;
@@ -6654,8 +7228,7 @@ function runFullTour() {
             S.viewer.viewport.zoomBy(2.2);
             S.viewer.viewport.applyConstraints();
             T(() => {
-              S.followTabula = false;
-              followBtn?.classList.remove("active");
+              setFollowMode(false);
               if (demoInitialBounds) S.viewer?.viewport?.fitBounds(demoInitialBounds);
               T(() => { stop(); resetTourState(); }, 500);
             }, 1800);
