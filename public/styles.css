@@ -158,6 +158,28 @@ body, html {
   color: #ffd080;
 }
 #cat-popup-btn svg { width: 22px; height: 22px; }
+/* Country-flag button: the category button's size and gold look, pinned just above the whole
+   control group so it sits over the category button on every layout (the group is a column
+   on desktop but a row on phones). Filled gold = flags on all places; gold ring = only on
+   the markers shown; the caption spells the mode out, since touch has no tooltip. */
+#flags-mode-btn {
+  position: absolute; left: 0; bottom: calc(100% + 6px);
+  width: 44px; height: 44px; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  border-radius: 8px;
+  border-color: rgba(200, 160, 80, 0.55);
+  color: #c8a050;
+}
+#flags-mode-btn:hover { background: rgba(55, 42, 10, 0.95); border-color: #c8a050; color: #ffd080; }
+#flags-mode-btn[data-mode="all"] { background: rgba(200, 160, 80, 0.9); border-color: #ffd080; color: #1b1408; }
+/* Dark with a bright gold ring: a half-transparent gold fill washed out over the parchment. */
+#flags-mode-btn[data-mode="markers"] { background: rgba(35, 27, 8, 0.95); border-color: #ffd080; color: #ffd080; box-shadow: inset 0 0 0 1px #ffd080; }
+/* While the category menu is open the button lives in its top row (see dockFlagsButton in
+   main.js): in the row's flow, as tall as its neighbours. */
+#flags-mode-btn.in-menu { position: static; left: auto; bottom: auto; height: auto; align-self: stretch; }
+#flags-mode-btn svg { flex-shrink: 0; }
+.flags-mode-caption { font-size: 8.5px; font-weight: 700; line-height: 1; letter-spacing: 0.02em; }
+.flags-mode-caption:empty { display: none; }
 #category-popup {
   position: absolute;
   bottom: calc(100% + 4px);
@@ -689,6 +711,16 @@ body, html {
 #close-about:hover { color: #fff; }
 .about-title { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
 .about-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; font-style: italic; }
+/* UNESCO status under the subtitle: a quiet gold text link, so it doesn't compete with the
+   "Listen to the story" pill right below it. */
+.about-unesco {
+  display: flex; align-items: center; gap: 6px; width: fit-content;
+  margin: -6px 0 12px;
+  font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  color: #d4b36a; text-decoration: none;
+}
+.about-unesco:hover { color: #ffd080; text-decoration: underline; }
+.about-unesco svg { flex-shrink: 0; }
 
 /* "Listen to the story" — gold pill: gold is this UI's attention colour, and this is the one
    primary action in an otherwise read-only panel. Swaps its speaker icon for a stop square
@@ -1346,6 +1378,30 @@ body, html {
   color: #14120e;
 }
 
+/* Country mode: the selected country's flag, top-right below Follow and Match, with a tiny ×
+   on its top-right corner that deselects the country. */
+#locate-country-flag-wrap { position: absolute; top: 58px; right: 8px; z-index: 1000; }
+#locate-country-flag {
+  display: block; width: 44px; height: auto;
+  border: 1px solid rgba(0,0,0,0.35); border-radius: 3px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+  pointer-events: none;
+}
+#locate-country-flag-x {
+  position: absolute; top: -6px; right: -6px;
+  display: flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; padding: 0;
+  border: 1px solid rgba(255,255,255,0.85); border-radius: 50%;
+  background: rgba(20,18,14,0.9); color: #fff;
+  font-size: 13px; line-height: 1; cursor: pointer;
+}
+#locate-country-flag-x:hover { background: #b91c1c; }
+/* Tiny to look at, but a finger-sized target: the hit area reaches 8px beyond the circle. */
+#locate-country-flag-x::after { content: ""; position: absolute; inset: -8px; }
+@media (pointer: coarse), (max-width: 600px) {
+  #locate-country-flag { width: 34px; }
+}
+
 /* Match toggle — same style as Follow, stacked directly below it. */
 #locate-match-btn {
   position: absolute; top: 32px; right: 8px; z-index: 1000;
@@ -1367,22 +1423,22 @@ body, html {
      line added below the attribution makes that footer one line taller, so without this bump
      the opaque legend box would cover #locate-map-hint — which carries live status text such
      as "Location unknown for this place". The mobile override further down (64px) is unchanged. */
-  position: absolute; bottom: 44px; right: 8px; left: auto; top: auto; z-index: 2000;
+  /* Shown only while .legend-open: the toggle button below it works on every screen size.
+     Large screens start with it open (see the legend button's setup in main.js), phones
+     closed. On large screens it sits above that button, which took its old spot. */
+  position: absolute; bottom: 76px; right: 8px; left: auto; top: auto; z-index: 2000;
   background: rgba(18,16,12,0.88);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 6px;
   padding: 5px 8px;
-  display: flex; flex-direction: column; gap: 3px;
+  display: none; flex-direction: column; gap: 3px;
   pointer-events: none;
 }
-/* When legend is open its panel should block taps reaching the map behind it */
-#locate-legend.legend-open { pointer-events: auto; }
-/* Mobile: hide by default, show when toggled; legend button visible */
-#locate-legend-btn { display: none; }
+#locate-legend.legend-open { display: flex; }
 /* Legend toggle button — bottom-right, above resize handle and Leaflet marker pane */
 #locate-legend-btn {
-  display: none;
-  position: absolute; bottom: 26px; right: 8px; left: auto; z-index: 2001;
+  display: flex;
+  position: absolute; bottom: 44px; right: 8px; left: auto; z-index: 2001;
   opacity: 0.5;
   background: rgba(18,16,12,0.88);
   border: 1px solid rgba(255,255,255,0.18);
@@ -1458,7 +1514,8 @@ body, html {
 @media (pointer: coarse), (max-width: 600px) {
   /* Push both elements up to clear the 32px touch resize handle at bottom-right */
   #locate-legend { display: none; bottom: 64px; right: 8px; left: auto; }
-  #locate-legend.legend-open { display: flex !important; }
+  /* When legend is open its panel should block taps reaching the map behind it */
+  #locate-legend.legend-open { display: flex !important; pointer-events: auto; }
   #locate-legend-btn { display: flex !important; bottom: 38px; right: 8px; left: auto; }
   #locate-country-bar:not(.hidden) { display: flex !important; }
 }

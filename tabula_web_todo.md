@@ -1,7 +1,36 @@
 
+22.09.2026
+
+1) do not enable flag mode when enabling country mode. the flag icon can still be toggled by the user!
+
+1) selecting a country again in country mode deselects it, add a tiny "x" to top right of country to deselect as well
+2) roll back the change  except for highlighting the selected country places more "3) places of selected country in country mode shall be highlighted more, fade out the other countries markers more as well"
+
+
+1) country icons need to be more dense in zoomed out state, please test!
+2) if category menu opens, flip the flag icon inside the category menu as otherwise it would be hidden, when category menu closes its shown again in original position
+3) places of selected country in country mode shall be highlighted more, fade out the other countries markers more as well
+	
+0. start server for testing 8080
+1. Country flags:
+	a. Flags shall be fully inside the marking and 20% larger.
+	b. put the Country flag button outside the category menu, above the category button. it has one more state to toggle on click (first state when incative), where country flags are shown even if no category is selected independendent from markings shown
+2. On Lage Screens also have a button to hide show legend in user location map similar to mobile screen mode
+3. Country mode on: show selected country flag in top right of user location map below the buttons 
+
+21.09.26
+
+Optimizations for Index general: 
+1. Unesco world heritage map in about/readme
+2. Show small country flag on top right of each marking, add toogle on of in category menu, switches on and off if country mode is enabled/disabled as well.
+
 15.9.26
 
+1) please save the selected columns in database viewer as default. 
+
+
 follow and match now work fine, but just check this image, there a many places visible in africa on tabula but not shown in green highlight in user loaction map. seems thats something specific for rome area, quite strange, usually it works fine
+
 
 1) about: have the video after the introduction at the end of "at a glance" ssection, add the link to extensive discussion to ulm talk after the short video.
 2) match mode: master shall be the tabula, if user changes something on user location map just move the tabula and user location map and tabula visible places are highlightes in user loc map.

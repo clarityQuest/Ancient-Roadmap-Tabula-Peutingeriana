@@ -19,7 +19,7 @@
   <!-- Primary SEO -->
   <title>Tabula Peutingeriana — Find Yourself on the Ancient Roman Map</title>
   <meta name="description" content="Where were you in the Roman Empire? Tap the compass to locate yourself on the 1,700-year-old Roman road map. See your country as it looked in 300 AD, read AI-translated Latin inscriptions, and explore 4,300+ ancient places — free, no login, works on any phone or desktop." />
-  <meta name="keywords" content="Tabula Peutingeriana, Roman road map, find yourself on ancient map, where was I in Roman Empire, locate me on Roman map, ancient Rome, see your country in antiquity, experience ancient map, Roman cartography, medieval map, Roman roads, via romana, ancient geography, Roman Empire map, Peutinger map, Peutingersche Tafel, antique map viewer, OmnesViae, Roman places, ancient cities, GPS ancient map, ancient Roman GPS, Latin AI translation, country filter, interactive ancient map, ancient world explorer, Roman Empire interactive, explore Roman Empire, ancient map mobile, ancient map for beginners, ancient history accessible" />
+  <meta name="keywords" content="Tabula Peutingeriana, Roman road map, find yourself on ancient map, where was I in Roman Empire, locate me on Roman map, ancient Rome, see your country in antiquity, experience ancient map, Roman cartography, medieval map, Roman roads, via romana, ancient geography, Roman Empire map, Peutinger map, Peutingersche Tafel, antique map viewer, OmnesViae, Roman places, ancient cities, GPS ancient map, ancient Roman GPS, Latin AI translation, country filter, interactive ancient map, ancient world explorer, Roman Empire interactive, explore Roman Empire, ancient map mobile, ancient map for beginners, ancient history accessible, country flags on ancient map, modern country flags Roman places, see Roman places by country, country overlay ancient map, which country was this Roman place in" />
   <meta name="author" content="three-mills.com" />
   <meta name="rating" content="general" />
   <link rel="canonical" href="https://tabula-peutingeriana.com/" />
@@ -307,7 +307,7 @@
 
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="me" href="https://tabula-peutingeriana.com/llms.txt" />
-  <link rel="stylesheet" href="styles.css?v=20260915n" />
+  <link rel="stylesheet" href="styles.css?v=20260922e" />
 </head>
 <body>
   <div id="app">
@@ -373,6 +373,13 @@
 
     <!-- Bottom-left category filter -->
     <div id="bottom-left-controls">
+      <!-- Country flags on the Tabula: cycles off → all places → shown markers → off (see the
+           flags block in main.js, which also sets the caption and tooltip). Pinned above the
+           category button, outside its hover-to-open wrapper. -->
+      <button id="flags-mode-btn" class="ctrl-btn" type="button" data-mode="off">
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 14.5V1.5"/><path d="M3.5 2.5h9l-2 3 2 3h-9"/></svg>
+        <span id="flags-mode-caption" class="flags-mode-caption"></span>
+      </button>
       <div id="cat-popup-wrapper">
         <button id="cat-popup-btn" class="ctrl-btn" aria-label="Place categories" title="Place categories">
           <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -467,6 +474,12 @@
       <button id="close-about" aria-label="Close">&times;</button>
       <h2 class="about-title">Tabula Peutingeriana</h2>
       <p class="about-subtitle" data-i18n="about_subtitle">The Road Map of the Ancient World</p>
+      <!-- UNESCO status, linked to the register entry. Text and a generic scroll icon only:
+           UNESCO's emblem may not be used without its authorisation. -->
+      <a class="about-unesco" href="https://www.unesco.org/en/memory-world/tabula-peutingeriana" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h11a2 2 0 0 1 2 2v1h-4"/><path d="M16 6v12a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V5a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1h4"/><path d="M11 10h2M11 14h2"/></svg>
+        <span data-i18n="about_unesco_badge">UNESCO Memory of the World · since 2007</span>
+      </a>
 
       <!-- Plays the recorded story narration (see the "About narration" block in main.js).
            Starts hidden and is revealed once that script has wired it up. -->
@@ -590,6 +603,10 @@
           <a class="about-link" href="https://www.onb.ac.at/en/library/collections/manuscripts-and-rare-books/highlights-of-the-collection/tabula-peutingeriana" target="_blank" rel="noopener">
             <span class="about-link-icon">&#127963;</span>
             <span>&#214;sterreichische Nationalbibliothek</span>
+          </a>
+          <a class="about-link" href="https://www.unesco.org/en/memory-world/tabula-peutingeriana" target="_blank" rel="noopener">
+            <span class="about-link-icon">&#128220;</span>
+            <span>UNESCO Memory of the World – Tabula Peutingeriana</span>
           </a>
           <a class="about-link" href="https://www.tabula-peutingeriana.de/" target="_blank" rel="noopener">
             <span class="about-link-icon">&#128506;</span>
@@ -725,6 +742,12 @@
           <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="13" height="13" rx="2"/><circle cx="9" cy="9" r="2.5"/></svg>
           Match
         </button>
+        <!-- Country mode: the selected country's flag, below Follow / Match, with a tiny × that
+             deselects the country (see setCountryFilter / exitCountryFilter) -->
+        <div id="locate-country-flag-wrap" class="hidden">
+          <img id="locate-country-flag" alt="" />
+          <button id="locate-country-flag-x" type="button" data-i18n-title="country_deselect" title="Deselect this country" aria-label="Deselect this country">&times;</button>
+        </div>
         <div id="locate-map-loading" class="hidden"></div>
         <div id="locate-country-bar" class="hidden"></div>
         <div id="locate-result-bar"></div>
@@ -816,6 +839,6 @@
 
   <div id="latin-tip" style="display:none"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
-  <script src="main.js?v=20260915n"></script>
+  <script src="main.js?v=20260922e"></script>
 </body>
 </html>

@@ -165,6 +165,18 @@ const I18N = {
     jump_to_segment: "Jump to Segment",
     tabula_view_label: "Original Tabula Peutingeriana view",
     about_subtitle: "The Road Map of the Ancient World",
+    about_unesco_badge: "UNESCO Memory of the World · since 2007",
+    flags_caption_all: "All",
+    flags_caption_markers: "Markers",
+    flags_title_off: "Country flags: off — click to show them for all places",
+    flags_title_all: "Country flags for all places — click to show them only on the markers shown",
+    flags_title_markers: "Country flags on the markers shown — click to turn them off",
+    flags_status_off: "Country flags off",
+    flags_status_all: "Country flags: all places",
+    flags_status_markers: "Country flags: shown markers only",
+    legend_show: "Show legend",
+    legend_hide: "Hide legend",
+    country_deselect: "Deselect this country",
     about_intro: "The Tabula Peutingeriana is one of the most remarkable surviving documents of antiquity — a medieval copy of a Roman road map that charts the entire known world, from the Atlantic coast of Britain to the Indian subcontinent, in extraordinary detail.",
     about_glance_h: "At a Glance",
     about_orig_date: "Original date", about_orig_date_v: "c. 4th – 5th century AD",
@@ -232,6 +244,18 @@ const I18N = {
     jump_to_segment: "Zum Segment",
     tabula_view_label: "Originalansicht der Tabula Peutingeriana",
     about_subtitle: "Die Straßenkarte der antiken Welt",
+    about_unesco_badge: "UNESCO-Weltdokumentenerbe · seit 2007",
+    flags_caption_all: "Alle",
+    flags_caption_markers: "Marker",
+    flags_title_off: "Länderflaggen: aus — klicken, um sie bei allen Orten zu zeigen",
+    flags_title_all: "Länderflaggen bei allen Orten — klicken, um sie nur auf den angezeigten Markierungen zu zeigen",
+    flags_title_markers: "Länderflaggen auf den angezeigten Markierungen — klicken, um sie auszuschalten",
+    flags_status_off: "Länderflaggen aus",
+    flags_status_all: "Länderflaggen: alle Orte",
+    flags_status_markers: "Länderflaggen: nur angezeigte Markierungen",
+    legend_show: "Legende zeigen",
+    legend_hide: "Legende ausblenden",
+    country_deselect: "Dieses Land abwählen",
     about_intro: "Die Tabula Peutingeriana ist eines der bemerkenswertesten erhaltenen Dokumente der Antike — eine mittelalterliche Kopie einer römischen Straßenkarte, die die gesamte bekannte Welt von der Atlantikküste Britanniens bis zum indischen Subkontinent in außerordentlicher Detailtreue erfasst.",
     about_glance_h: "Auf einen Blick",
     about_orig_date: "Ursprüngliches Datum", about_orig_date_v: "ca. 4.–5. Jahrhundert n. Chr.",
@@ -239,7 +263,7 @@ const I18N = {
     about_dims: "Abmessungen",               about_dims_v: "6,75 m lang · 34 cm hoch (Rolle)",
     about_cities: "Städte & Orte",           about_cities_v: "ca. 3.500 Namen auf 12 Segmenten",
     about_preserved: "Aufbewahrt in",        about_preserved_v: "Österreichische Nationalbibliothek, Wien",
-    about_unesco: "UNESCO-Status",           about_unesco_v: "Memory of the World (2007)",
+    about_unesco: "UNESCO-Status",           about_unesco_v: "Weltdokumentenerbe (Memory of the World), 2007",
     about_named: "Benannt nach",             about_named_v: "Konrad Peutinger (1465–1547), deutscher Humanist",
     about_stats_h: "Orte nach Kategorie",
     about_stats_type: "Kategorie",
@@ -345,6 +369,17 @@ const S = {
   latinLabelsOn:   (() => { try { return localStorage.getItem("tp_latin_labels") === "1"; } catch {} return false; })(),
   modernLabelsOn:  (() => { try { return localStorage.getItem("tp_modern_labels") === "1"; } catch {} return false; })(),
   countryIsolate:  (() => { try { return localStorage.getItem("tp_country_isolate") === "1"; } catch {} return false; })(),
+  // Country flags on the Tabula (the flag button above the category button): "off", "all"
+  // (every place in view, whether or not its category is shown) or "markers" (only on the
+  // markers shown). Always the user's own choice — country mode leaves it alone.
+  flagsMode: (() => {
+    try {
+      const v = localStorage.getItem("tp_flags");
+      if (v === "all" || v === "markers") return v;
+      if (v === "1") return "markers";  // saved by the first version, a plain on/off toggle
+    } catch {}
+    return "off";
+  })(),
   // "Show my location" — visibility of the location crosshairs drawn on the Tabula canvas
   // only. Defaults ON so nothing changes for existing users, hence the inverted "!== '0'"
   // test instead of the "=== '1'" opt-in test the label toggles above use.
@@ -544,6 +579,7 @@ function applyI18n() {
     const v = dict[el.dataset.i18nTitle];
     if (v != null) el.title = v;
   });
+  applyFlagsModeUi();  // its caption and tooltip depend on the mode, so no plain data-i18n key
   document.querySelectorAll(".lang-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.lang === S.lang);
   });
@@ -1131,6 +1167,173 @@ function drawSelectionFrame(ctx, x, y, w, h) {
   ctx.restore();
 }
 
+// ── Country flags on the Tabula ──────────────────────────────────────────────
+// A small flag of each place's modern country in the top-right corner of its marker. Three
+// modes, cycled by the flag button above the category button: "all" draws a flag for every
+// place in view — inside the rectangle its marker would occupy, whether or not that marker is
+// shown, so the countries can be read off the bare scroll; "markers" draws them only on the
+// markers of the categories shown; "off". Country mode doesn't change the mode.
+// Same images as the tooltips' flags (countryFlagHtml): flagcdn.com sends
+// Access-Control-Allow-Origin: *, so with crossOrigin set they never taint the canvas. Each
+// country's image is requested once and cached; until it has arrived its markers are simply
+// drawn without a flag, and the load schedules one re-render. Places listing several
+// countries show the first — the same one country mode colours them by.
+const FLAG_W = 17, FLAG_W_MOBILE = 14;  // CSS px at most; the height follows the flag's own proportions
+const FLAG_W_MIN = 10;
+const FLAG_SIZE_SHARE = 0.6;  // of the marker's larger side
+const FLAG_INSET = 1.5;       // keeps the flag inside the marker's outline
+// Zoomed out, markers are specks that can't hold a FLAG_W_MIN flag. Those places get a small
+// flag of this size centred on them instead — never overlapping another flag, and handed out
+// cities first — so the countries still read along the whole scroll. Requiring every flag to
+// fit its marker had left 4 flags for 3,002 places with the whole scroll in view, 47 for 991
+// at a quarter of it.
+const FLAG_W_SMALL = 9, FLAG_W_SMALL_MOBILE = 8;
+const FLAG_GRID_PX = 16;  // cell size of the spatial hash behind the no-overlap check
+const FLAGS_MODE_NEXT = { off: "all", all: "markers", markers: "off" };
+const _flagImages = new Map();  // iso2 → HTMLImageElement
+const _flagIsoByCountry = new Map();  // raw DB country field → iso2 ("" if none)
+let _flagRenderQueued = false;
+
+function flagImage(iso2) {
+  let img = _flagImages.get(iso2);
+  if (img) return img;
+  img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    if (_flagRenderQueued) return;
+    _flagRenderQueued = true;
+    requestAnimationFrame(() => { _flagRenderQueued = false; renderMarkers(); });
+  };
+  img.src = `https://flagcdn.com/w40/${iso2.toLowerCase()}.png`;
+  _flagImages.set(iso2, img);
+  return img;
+}
+
+function placeFlagIso2(rawCountry) {
+  const key = rawCountry || "";
+  let iso = _flagIsoByCountry.get(key);
+  if (iso === undefined) {
+    const first = key.split("|")[0].trim();
+    iso = COUNTRY_TO_ISO2[first] || (first.length === 2 ? first.toUpperCase() : "");
+    if (iso.length !== 2) iso = "";
+    _flagIsoByCountry.set(key, iso);
+  }
+  return iso || null;
+}
+
+// "all" mode: the marker rectangle of every calibrated place in view, drawn or not.
+function millerFlagRectsInView(bounds) {
+  const out = [];
+  for (const item of S.millerCalib) {
+    if (!item.country) continue;
+    if (item.rect_x2 / MILLER_W < bounds.x || item.rect_x1 / MILLER_W > bounds.x + bounds.width) continue;
+    if (item.rect_y2 / MILLER_W < bounds.y || item.rect_y1 / MILLER_W > bounds.y + bounds.height) continue;
+    const p1 = imageToCanvas(item.rect_x1, item.rect_y1);
+    const p2 = imageToCanvas(item.rect_x2, item.rect_y2);
+    out.push({ country: item.country, type: item.type, x: Math.min(p1.cx, p2.cx), y: Math.min(p1.cy, p2.cy),
+               w: Math.abs(p2.cx - p1.cx), h: Math.abs(p2.cy - p1.cy) });
+  }
+  return out;
+}
+function placeFlagRectsInView(bx0, bx1, by0, by1) {
+  const out = [];
+  for (const p of S.places) {
+    if (!p.country || p.vx < bx0 || p.vx > bx1 || p.vy < by0 || p.vy > by1) continue;
+    const { cx, cy } = viewportToCanvas(p.vx, p.vy);
+    const d = defaultRectSize(p.type);
+    out.push({ country: p.country, type: p.type, x: cx - d.w / 2, y: cy - d.h / 2, w: d.w, h: d.h });
+  }
+  return out;
+}
+
+// Draws the flags collected during a render pass ({country, type, x, y, w, h} marker rects,
+// canvas px), after all markers so no neighbouring marker's fill tints them, and before the
+// labels. A marker big enough gets its flag inside its top-right corner; smaller ones get a
+// FLAG_W_SMALL flag — inside the corner if even that fits, else centred on the place — placed
+// only where it overlaps no other flag.
+function drawMarkerFlags(ctx, flagRects) {
+  const maxW = S.isMobile ? FLAG_W_MOBILE : FLAG_W;
+  const smallW = S.isMobile ? FLAG_W_SMALL_MOBILE : FLAG_W_SMALL;
+  const inCorner = [], small = [];
+  for (const r of flagRects) {
+    const iso2 = placeFlagIso2(r.country);
+    if (!iso2) continue;
+    const img = flagImage(iso2);
+    if (!img.complete || !img.naturalWidth) continue;  // still loading, or failed
+    const aspect = img.naturalWidth / img.naturalHeight;
+    const innerW = r.w - 2 * FLAG_INSET, innerH = (r.h - 2 * FLAG_INSET) * aspect;  // as flag widths
+    const fw = Math.min(maxW, Math.max(FLAG_W_MIN, Math.max(r.w, r.h) * FLAG_SIZE_SHARE), innerW, innerH);
+    if (fw >= FLAG_W_MIN) {
+      inCorner.push({ r, img, fw, fh: fw / aspect, fx: r.x + r.w - FLAG_INSET - fw, fy: r.y + FLAG_INSET });
+    } else {
+      const fh = smallW / aspect;
+      const fits = innerW >= smallW && innerH >= smallW;
+      small.push({ r, img, fw: smallW, fh,
+                   fx: fits ? r.x + r.w - FLAG_INSET - smallW : r.x + r.w / 2 - smallW / 2,
+                   fy: fits ? r.y + FLAG_INSET : r.y + r.h / 2 - fh / 2 });
+    }
+  }
+  small.sort((a, b) => (TYPE_LABEL_PRIORITY[a.r.type] ?? 2) - (TYPE_LABEL_PRIORITY[b.r.type] ?? 2));
+
+  // Spatial hash of the flags drawn so far, for the small flags' no-overlap check.
+  const grid = new Map();
+  const cellKeys = (f) => {
+    const keys = [];
+    for (let gx = Math.floor(f.fx / FLAG_GRID_PX); gx <= Math.floor((f.fx + f.fw) / FLAG_GRID_PX); gx++) {
+      for (let gy = Math.floor(f.fy / FLAG_GRID_PX); gy <= Math.floor((f.fy + f.fh) / FLAG_GRID_PX); gy++) keys.push(gx + "," + gy);
+    }
+    return keys;
+  };
+  const collides = (f) => cellKeys(f).some(k => (grid.get(k) || []).some(o =>
+    f.fx < o.fx + o.fw + 1 && f.fx + f.fw + 1 > o.fx && f.fy < o.fy + o.fh + 1 && f.fy + f.fh + 1 > o.fy));
+  const occupy = (f) => { for (const k of cellKeys(f)) { let c = grid.get(k); if (!c) grid.set(k, c = []); c.push(f); } };
+
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(0,0,0,0.6)";
+  const draw = (f) => {
+    ctx.drawImage(f.img, f.fx, f.fy, f.fw, f.fh);
+    ctx.strokeRect(f.fx - 0.5, f.fy - 0.5, f.fw + 1, f.fh + 1);  // an outline, or white flags vanish on the parchment
+    occupy(f);
+  };
+  inCorner.forEach(draw);
+  for (const f of small) if (!collides(f)) draw(f);
+  ctx.restore();
+}
+
+// The flag button's look, caption and tooltip for the current mode. Also run from applyI18n,
+// so a language switch retranslates them.
+function applyFlagsModeUi() {
+  const btn = document.getElementById("flags-mode-btn");
+  if (!btn) return;
+  const mode = S.flagsMode;
+  btn.dataset.mode = mode;
+  const caption = document.getElementById("flags-mode-caption");
+  if (caption) caption.textContent = mode === "off" ? "" : getText(`flags_caption_${mode}`);
+  const tip = getText(`flags_title_${mode}`);
+  btn.title = tip;
+  btn.setAttribute("aria-label", tip);
+}
+
+let _flagsStatusTimer = null;
+function setFlagsMode(mode, { save = false, announce = false } = {}) {
+  S.flagsMode = mode;
+  if (save) { try { localStorage.setItem("tp_flags", mode); } catch {} }
+  applyFlagsModeUi();
+  if (announce) {
+    // The transient status pill — what changed isn't obvious from a small icon, least of all
+    // on a touch screen, where there's no tooltip to read.
+    const el = document.getElementById("status");
+    if (el) {
+      const text = getText(`flags_status_${mode}`);
+      el.textContent = text;
+      clearTimeout(_flagsStatusTimer);
+      _flagsStatusTimer = setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, 1800);
+    }
+  }
+  renderMarkers();
+}
+
 function renderMillerOverlay(ctx) {
   if (!S.viewer || !S.viewer.viewport) return false;
   const vp = S.viewer.viewport;
@@ -1143,6 +1346,8 @@ function renderMillerOverlay(ctx) {
   // Pass 1: draw markers in z-order, collect label candidates with geometry
   let highlightDrawn = false;
   const mLabelCandidates = [];
+  const flagRects = S.flagsMode === "all" ? millerFlagRectsInView(bounds) : [];
+  const countryMatchRects = [];  // selected country's places, highlighted after the loop
   const renderCalib = [...S.millerCalib].sort(
     (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
   );
@@ -1213,24 +1418,14 @@ function renderMillerOverlay(ctx) {
       const txt1 = S.modernLabelsOn ? (truncWords(stripQ(item.modern), 4) || "") : "";
       if (txt1 || txt2) mLabelCandidates.push({ item, x, y, w, h, txt1, txt2, isCountryMatch });
     }
-
-    // Country filter active: fill + highlight matching places
-    if (S.countryFilter && isCountryMatch) {
-      const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
-      const ca = LP.countryMarkerAlpha;
-      ctx.save();
-      ctx.globalAlpha = ca * 0.56;
-      ctx.fillStyle = fColor;
-      ctx.fillRect(x, y, w, h);
-      ctx.globalAlpha = Math.min(1, ca * 1.7);
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2.5;
-      ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
-      ctx.strokeStyle = fColor;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
-      ctx.restore();
+    // Only where a marker (or its country-mode fill) is actually drawn.
+    if (S.flagsMode === "markers" && item.country && (S.markersOn || S.countrySelectMode || isCountryMatch)) {
+      flagRects.push({ country: item.country, type: item.type, x, y, w, h });
     }
+
+    // Country filter active: the selected country's places are highlighted after the loop, so
+    // no other marker drawn later in the z-order can cover them.
+    if (S.countryFilter && isCountryMatch) countryMatchRects.push({ x, y, w, h });
     // Non-isolated country mode WITH active filter: tint non-matching places in their country color
     if (S.countrySelectMode && S.countryFilter && !S.countryIsolate && item.country) {
       const iso2 = dbCodesToIso2(item.country)[0];
@@ -1266,6 +1461,26 @@ function renderMillerOverlay(ctx) {
       }
     }
   }
+  // The selected country's places, on top of everything else: a strong fill in the country's
+  // colour inside a white and a coloured frame.
+  if (countryMatchRects.length) {
+    const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
+    const ca = LP.countryMarkerAlpha;
+    ctx.save();
+    for (const { x, y, w, h } of countryMatchRects) {
+      ctx.globalAlpha = Math.min(0.85, ca * 1.3);
+      ctx.fillStyle = fColor;
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = Math.min(1, ca * 2);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
+      ctx.strokeStyle = fColor;
+      ctx.lineWidth = 3.5;
+      ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
+    }
+    ctx.restore();
+  }
   if (S.countryFilter && cBoxX1 < Infinity) {
     const fColor = _countryColorMap[S.countryFilter] || "#2196f3";
     const pad = 14;
@@ -1285,6 +1500,7 @@ function renderMillerOverlay(ctx) {
     ctx.restore();
   }
   ctx.globalAlpha = 1;
+  if (flagRects.length) drawMarkerFlags(ctx, flagRects);
 
   // Pass 2: draw labels in priority order (cities/temples/spas first)
   if ((S.latinLabelsOn || S.modernLabelsOn) && mLabelCandidates.length) {
@@ -1386,6 +1602,7 @@ function renderMarkers() {
     (a, b) => (TYPE_DRAW_ORDER[a.type] ?? 4) - (TYPE_DRAW_ORDER[b.type] ?? 4)
   );
   const labelCandidates = [];
+  const flagRects = S.flagsMode === "all" ? placeFlagRectsInView(bx0, bx1, by0, by1) : [];
   let cBoxX1 = Infinity, cBoxY1 = Infinity, cBoxX2 = -Infinity, cBoxY2 = -Infinity;
 
   for (const p of renderPlaces) {
@@ -1451,6 +1668,9 @@ function renderMarkers() {
       const modern = S.modernLabelsOn ? (truncWords(stripQ(p.modern), 4) || null) : null;
       if (latin || modern) labelCandidates.push({ p, x, y, w: rw, h: rh, cx, cy, color, isRegion, latin, modern, isCountryMatch });
     }
+    if (S.flagsMode === "markers" && p.country && ((S.markersOn && !S.countrySelectMode) || isCountryMatch)) {
+      flagRects.push({ country: p.country, type: p.type, x, y, w: rw, h: rh });
+    }
     rendered++;
   }
 
@@ -1466,6 +1686,7 @@ function renderMarkers() {
     ctx.setLineDash([]);
     ctx.restore();
   }
+  if (flagRects.length) drawMarkerFlags(ctx, flagRects);
 
   // Pass 2: labels — regions inline (no budget), point features in priority order
   if ((S.latinLabelsOn || S.modernLabelsOn) && labelCandidates.length) {
@@ -3082,7 +3303,7 @@ function renderCountryLayer() {
         _leafletL.DomEvent.stopPropagation(e);  // prevent map click from firing
         // setCountryFilter deliberately moves only the Tabula, never this map (see its own
         // comment); the guard extends that intent to Follow.
-        withLocateOriginFollowGuard(() => setCountryFilter(iso2));  // zoomLeafletToCountry is called inside setCountryFilter
+        withLocateOriginFollowGuard(() => toggleCountryFilter(iso2));  // zoomLeafletToCountry is called inside setCountryFilter
       });
       layer.on("mouseover", e => {
         _leafletHoveredTooltipLayer = layer;
@@ -3213,6 +3434,13 @@ function zoomLeafletToCountry(iso2) {
   });
 }
 
+// A user's pick of a country (on the location map, a tapped place dot, "My country"): the
+// country already selected is deselected instead of being selected once more.
+function toggleCountryFilter(iso2) {
+  if (iso2 && iso2 === S.countryFilter) exitCountryFilter();
+  else setCountryFilter(iso2);
+}
+
 function setCountryFilter(iso2) {
   S.countryFilter = iso2;
   S.countryPlaces = iso2
@@ -3230,6 +3458,22 @@ function setCountryFilter(iso2) {
   const name = _countryNameMap[iso2] || iso2;
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = iso2;
+  // The selected country's flag at the top right of the location map, below Follow / Match,
+  // with its tiny × to deselect the country. Hidden again if flagcdn has no flag for the code
+  // (Natural Earth marks a few disputed territories "-99") rather than showing a broken image.
+  const flagWrap = document.getElementById("locate-country-flag-wrap");
+  const locFlag = document.getElementById("locate-country-flag");
+  if (flagWrap && locFlag) {
+    if (iso2 && /^[A-Z]{2}$/.test(iso2)) {
+      locFlag.onerror = () => flagWrap.classList.add("hidden");
+      locFlag.src = `https://flagcdn.com/w80/${iso2.toLowerCase()}.png`;
+      locFlag.alt = name;
+      locFlag.title = name;
+      flagWrap.classList.remove("hidden");
+    } else {
+      flagWrap.classList.add("hidden");
+    }
+  }
   // Mobile: show country name inside the Leaflet map at the bottom
   const locCountryBar = document.getElementById("locate-country-bar");
   if (locCountryBar) {
@@ -3262,6 +3506,7 @@ function exitCountryFilter() {
   renderMarkers();
   document.getElementById("country-mode-bar")?.classList.add("hidden");
   document.getElementById("locate-country-bar")?.classList.add("hidden");
+  document.getElementById("locate-country-flag-wrap")?.classList.add("hidden");
   document.getElementById("country-isolate-btn")?.classList.add("hidden");
   const sel = document.getElementById("country-filter-select");
   if (sel) sel.value = "";
@@ -3344,7 +3589,7 @@ function locateMyCountry() {
   const pt = [S.userLocLng, S.userLocLat];
   for (const f of _countriesGeoJSON.features) {
     if (pointInGeoJSONFeature(pt, f)) {
-      setCountryFilter(f.properties.ISO_A2);
+      toggleCountryFilter(f.properties.ISO_A2);
       return;
     }
   }
@@ -4234,11 +4479,32 @@ async function openLocatePopup() {
       setTimeout(() => { _followBtnDebounce = false; }, 400);
       setFollowMode(!S.followTabula);
     });
+    // The country flag's × — like Follow/Match it floats on the map, so a click on it must not
+    // also reach the map (which would set the location there).
+    const flagWrapEl = document.getElementById("locate-country-flag-wrap");
+    if (flagWrapEl) _leafletL.DomEvent.disableClickPropagation(flagWrapEl);
+    document.getElementById("locate-country-flag-x")?.addEventListener("click", () => exitCountryFilter());
     const matchBtnEl = document.getElementById("locate-match-btn");
     if (matchBtnEl) _leafletL.DomEvent.disableClickPropagation(matchBtnEl);
     matchBtnEl?.addEventListener("click", () => setMatchMode(!_matchTabula));
-    document.getElementById("locate-legend-btn")?.addEventListener("click", () => {
-      document.getElementById("locate-legend")?.classList.toggle("legend-open");
+    // Legend: open from the start on large screens, closed on phones (whose small map can't
+    // spare the room); the button toggles it on both. The tooltip names what a click does,
+    // via data-i18n-title so a language switch retranslates it.
+    const legendEl = document.getElementById("locate-legend");
+    const legendBtn = document.getElementById("locate-legend-btn");
+    const syncLegendBtn = () => {
+      if (!legendEl || !legendBtn) return;
+      const open = legendEl.classList.contains("legend-open");
+      legendBtn.dataset.i18nTitle = open ? "legend_hide" : "legend_show";
+      legendBtn.title = getText(legendBtn.dataset.i18nTitle);
+      legendBtn.setAttribute("aria-label", legendBtn.title);
+      legendBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    if (!S.isMobile) legendEl?.classList.add("legend-open");
+    syncLegendBtn();
+    legendBtn?.addEventListener("click", () => {
+      legendEl?.classList.toggle("legend-open");
+      syncLegendBtn();
     });
     _leafletMap.on("zoomend", updateLeafletZoomStyles);
     // If GPS was already acquired before map init, show the GPS dot
@@ -4467,7 +4733,7 @@ function leafletPlaceTapAction(r) {
       // setCountryFilter pans only the Tabula on purpose (see its own comment) — the guard
       // extends that intent to Follow, which would otherwise reframe this map the moment
       // that Tabula pan settles.
-      if (iso2) withLocateOriginFollowGuard(() => setCountryFilter(iso2));
+      if (iso2) withLocateOriginFollowGuard(() => toggleCountryFilter(iso2));
       return;
     }
   }
@@ -4918,6 +5184,24 @@ function restartCatPopupIdleTimer() {
   }, S.isMobile ? CAT_POPUP_IDLE_MS_TOUCH : CAT_POPUP_IDLE_MS);
 }
 
+// The open category menu covers the flag button that sits above the category button, so while
+// the menu is open the button moves into its top row (next to All / Names), and back to its
+// own place once the menu is fully closed. The same element moves, listeners and all; inside
+// the menu it is also inside the menu's hover and outside-click zone (#cat-popup-wrapper), so
+// using it keeps the menu open like any other control in it.
+function dockFlagsButton(inMenu) {
+  const btn = document.getElementById("flags-mode-btn");
+  const row = document.querySelector("#category-popup .cat-popup-top-row");
+  const home = document.getElementById("bottom-left-controls");
+  if (!btn || !row || !home) return;
+  const target = inMenu ? row : home;
+  if (btn.parentElement !== target) {
+    if (inMenu) row.appendChild(btn);
+    else home.insertBefore(btn, home.firstChild);
+  }
+  btn.classList.toggle("in-menu", inMenu);
+}
+
 // animate=true is used only by the idle auto-hide; every close the user actually asked for
 // stays instant, so the fade remains a reliable "the app did this" signal.
 function hideCategoryPopup(animate = false) {
@@ -4928,12 +5212,14 @@ function hideCategoryPopup(animate = false) {
   if (!animate || popup.classList.contains("hidden")) {
     popup.classList.remove("cat-fading");
     popup.classList.add("hidden");
+    dockFlagsButton(false);
     return;
   }
   popup.classList.add("cat-fading");
   _catPopupFadeTimer = setTimeout(() => {
     popup.classList.add("hidden");
     popup.classList.remove("cat-fading");
+    dockFlagsButton(false);
   }, CAT_POPUP_FADE_MS);
 }
 
@@ -4943,6 +5229,7 @@ function showCategoryPopup() {
   clearTimeout(_catPopupFadeTimer);
   popup.classList.remove("cat-fading");   // cancels an auto-hide fade that is still running
   popup.classList.remove("hidden");
+  dockFlagsButton(true);
   restartCatPopupIdleTimer();
 }
 
@@ -5048,6 +5335,13 @@ function setupTypeFilters() {
       document.getElementById("locate-toggle-all-labels")?.classList.toggle("active", newVal);
       renderMarkers();
     });
+  }
+  // Country flags (see the flags block near renderMillerOverlay): off → all places → shown
+  // markers → off, saved across visits.
+  const flagsBtn = document.getElementById("flags-mode-btn");
+  if (flagsBtn) {
+    applyFlagsModeUi();
+    flagsBtn.addEventListener("click", () => setFlagsMode(FLAGS_MODE_NEXT[S.flagsMode], { save: true, announce: true }));
   }
   // Country isolate toggle
   const isolateBtn = document.getElementById("country-isolate-btn");
