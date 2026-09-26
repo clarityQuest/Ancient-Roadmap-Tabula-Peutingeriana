@@ -4,11 +4,11 @@
 
 **UNESCO Memory of the World** — on UNESCO's register of world documentary heritage since 2007 ([register entry](https://www.unesco.org/en/memory-world/tabula-peutingeriana)).
 
-Open [tabula-peutingeriana.com](https://tabula-peutingeriana.com/), tap the compass, and in seconds you know where you stood in the Roman Empire. No Latin knowledge, no history degree, no account. Just tap. Curious about the map itself? Listen to its story or watch a short film about it, in English or German.
+Open [https://clarityquest.github.io/Ancient-Roadmap-Tabula-Peutingeriana/](https://clarityquest.github.io/Ancient-Roadmap-Tabula-Peutingeriana/), tap the compass, and in seconds you know where you stood in the Roman Empire. No Latin knowledge, no history degree, no account. Just tap. Curious about the map itself? Listen to its story or watch a short film about it, in English or German.
 
 The [Tabula Peutingeriana](https://en.wikipedia.org/wiki/Tabula_Peutingeriana) is a medieval copy of a late-Roman road map (*cursus publicus*) showing the entire known world — from Britain to India — as it appeared around 300–400 AD. It is one of the most extraordinary documents to survive from antiquity: 6.75 metres of parchment, crammed with road stations, rivers, mountains, and inscriptions, held at the Austrian National Library in Vienna and recognised by UNESCO as [Memory of the World](https://www.unesco.org/en/memory-world/tabula-peutingeriana) (world documentary heritage) in 2007. This viewer brings it to life for anyone.
 
-**Live:** [tabula-peutingeriana.com](https://tabula-peutingeriana.com/)
+GH project is now discontinued, project will be continued on: **Live:** [tabula-peutingeriana.com](https://tabula-peutingeriana.com/)
 
 ---
 
